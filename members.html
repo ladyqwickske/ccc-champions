@@ -727,11 +727,23 @@
         <h3 style="margin:0 0 12px 0;">Track Hero Level</h3>
         <div class="form-grid might-form-grid">
           <div><label for="heroMemberSelect">Member</label><select id="heroMemberSelect"></select></div>
-          <div><label for="heroLevelValue">Hero Level</label><input type="number" id="heroLevelValue" placeholder="Enter hero level" min="0" step="1" onkeypress="if(event.key==='Enter'){MembersTab.submitHeroLevelEntry();}"></div>
-          <div><label for="heroLevelDate">Date</label><input type="date" id="heroLevelDate"><div class="note">Defaults to today</div></div>
+          <div><label for="heroLevelValue">Hero Level</label><input type="number" id="heroLevelValue" placeholder="Enter hero level" min="0" step="1" onkeypress="if(event.key==='Enter'){var bp=document.getElementById('heroBatchPanel');if(bp&&bp.style.display!=='none'){MembersTab.addToHeroBatch();}else{MembersTab.submitHeroLevelEntry();}}"></div>
+          <div><label for="heroLevelDate">Date</label><input type="date" id="heroLevelDate"><div class="note">Defaults to today (applies to all batch entries)</div></div>
         </div>
-        <button class="btn" onclick="MembersTab.submitHeroLevelEntry()">💾 Save Hero Level</button>
-        <div id="heroLevelStatus" class="status"></div>
+        <div style="margin-bottom:12px;"><button class="btn" onclick="var bp=document.getElementById('heroBatchPanel');if(bp&&bp.style.display!=='none'){MembersTab.addToHeroBatch();}else{MembersTab.submitHeroLevelEntry();}">💾 Save Hero Level</button><button class="btn" style="background:#7c3aed;color:#fff;margin-left:8px;" onclick="MembersTab.toggleHeroBatch()">📋 Batch Entry</button><div id="heroLevelStatus" class="status"></div></div>
+        <!-- Hero Level Batch panel -->
+        <div id="heroBatchPanel" style="display:none;border:1px solid #444;border-radius:8px;padding:14px;background:#1a1b1c;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <h4 style="margin:0;color:#ffb300;">⚡ Batch Hero Level — <span id="heroBatchCount" style="color:#81c784;">0</span> queued</h4>
+            <div><button class="btn" style="background:#2e7d32;" onclick="MembersTab.saveHeroBatchEntries()">💾 Save All</button><button class="btn btn-secondary" style="margin-left:6px;" onclick="MembersTab.toggleHeroBatch()">✖ Close</button></div>
+          </div>
+          <p style="color:#b0b0b0;font-size:12px;margin-bottom:10px;">Use the Member dropdown & Hero Level field above, press Enter to queue each entry. Click Save All when done.</p>
+          <div id="heroBatchStatus" class="status" style="margin-bottom:8px;"></div>
+          <div style="max-height:50vh;overflow-y:auto;"><table style="width:100%;">
+            <thead><tr><th style="text-align:left;padding:6px 8px;">Member</th><th style="text-align:center;padding:6px 8px;width:100px;">Level</th><th style="text-align:center;padding:6px 8px;width:60px;"></th></tr></thead>
+            <tbody id="heroBatchBody"></tbody>
+          </table></div>
+        </div>
       </div>
       <div id="addMemberTab" class="tab-content active">
         <h3 style="margin:0 0 12px 0;">Add New Member</h3>
@@ -1631,6 +1643,101 @@
           .catch(error => { status.textContent = `Error: ${error.message}`; status.classList.add('err'); });
       }
 
+      // ── Hero Level Batch Entry ──
+      let heroBatchQueue = {};
+
+      const escapeAttr = (str) => String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+      function toggleHeroBatch() {
+        const panel = document.getElementById('heroBatchPanel');
+        if (!panel) return;
+        const isVisible = panel.style.display !== 'none';
+        if (isVisible) { panel.style.display = 'none'; return; }
+        panel.style.display = 'block';
+        heroBatchQueue = {};
+        document.getElementById('heroBatchStatus').textContent = '';
+        renderHeroBatchTable();
+        document.getElementById('heroMemberSelect').focus();
+      }
+
+      function renderHeroBatchTable() {
+        const tbody = document.getElementById('heroBatchBody');
+        if (!tbody) return;
+        const countEl = document.getElementById('heroBatchCount');
+        const queuedKeys = Object.keys(heroBatchQueue);
+        if (countEl) countEl.textContent = queuedKeys.length;
+        if (queuedKeys.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:20px;color:#888;">No entries queued yet. Use the Member dropdown above and press Enter.</td></tr>';
+          return;
+        }
+        let html = '';
+        queuedKeys.forEach(key => {
+          const entry = heroBatchQueue[key];
+          html += '<tr>'
+            + '<td style="padding:4px 8px;">' + escapeHtml(entry.name) + '</td>'
+            + '<td style="text-align:center;padding:4px 8px;color:#81c784;font-weight:700;">' + entry.level + '</td>'
+            + '<td style="text-align:center;padding:4px 8px;"><button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="MembersTab.removeHeroBatchEntry(\'' + escapeAttr(key) + '\')">✖</button></td>'
+            + '</tr>';
+        });
+        tbody.innerHTML = html;
+      }
+
+      function addToHeroBatch() {
+        const status = document.getElementById('heroLevelStatus');
+        status.textContent = ''; status.className = 'status';
+        const memberSel = document.getElementById('heroMemberSelect');
+        const levelInput = document.getElementById('heroLevelValue');
+        const memberName = memberSel.value;
+        const level = parseInt(levelInput.value, 10);
+        if (!memberName) { status.textContent = 'Select a member.'; status.classList.add('err'); return; }
+        if (isNaN(level) || level < 0) { status.textContent = 'Enter a valid hero level.'; status.classList.add('err'); return; }
+        heroBatchQueue[memberName.toLowerCase()] = { name: memberName, level: level };
+        status.textContent = '\u2713 Queued: ' + memberName + ' \u2192 Level ' + level;
+        status.classList.add('ok');
+        levelInput.value = '';
+        memberSel.value = '';
+        memberSel.focus();
+        renderHeroBatchTable();
+      }
+
+      function removeHeroBatchEntry(key) {
+        delete heroBatchQueue[key];
+        renderHeroBatchTable();
+      }
+
+      function saveHeroBatchEntries() {
+        const status = document.getElementById('heroBatchStatus');
+        status.textContent = ''; status.className = 'status';
+        const keys = Object.keys(heroBatchQueue);
+        if (keys.length === 0) { status.textContent = 'No entries queued.'; status.classList.add('err'); return; }
+        const date = document.getElementById('heroLevelDate').value;
+        const customTimestamp = date ? date + 'T12:00:00Z' : null;
+        const records = keys.map(k => ({ playerName: heroBatchQueue[k].name, level: heroBatchQueue[k].level }));
+        status.textContent = 'Saving ' + records.length + ' entries...';
+        fetch(window.GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'batchRecordHeroLevel', records, customTimestamp })
+        }).then(res => res.json()).then(result => {
+          if (result && result.success !== false) {
+            status.textContent = 'Saved ' + (result.successCount || records.length) + ' hero level entries!';
+            status.classList.add('ok');
+            // Optimistic update for all queued entries
+            keys.forEach(k => {
+              const entry = heroBatchQueue[k];
+              heroData[entry.name.toLowerCase()] = { level: entry.level, timestamp: date || new Date().toISOString() };
+            });
+            renderTable();
+            updateStats();
+            heroBatchQueue = {};
+            renderHeroBatchTable();
+          } else {
+            status.textContent = result?.message || 'Failed to save.';
+            status.classList.add('err');
+          }
+        }).catch(error => { status.textContent = 'Error: ' + error.message; status.classList.add('err'); });
+      }
+
       function submitAddMember() {
         const name = document.getElementById('newMemberNameInput').value.trim();
         const joinDate = document.getElementById('joinDate').value;
@@ -1811,7 +1918,7 @@
         document.getElementById('memberEmpty').style.display = 'block';
       }
 
-      return { init, loadAllData, switchTab, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, togglePointTargetsPanel, savePtDefault, addPtOverride, updatePtOverride };
+      return { init, loadAllData, switchTab, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, togglePointTargetsPanel, savePtDefault, addPtOverride, updatePtOverride };
     })();
   </script>
 </body>
