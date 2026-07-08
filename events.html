@@ -1912,7 +1912,9 @@
           const catBadge = row.category !== '—'
             ? `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:#37474f;color:#cfd8dc;">${escapeHtml(row.category)}</span>`
             : '<span style="color:#666">—</span>';
-          tbody.innerHTML += `<tr><td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${row.target}</td><td style="text-align:center;">${row.achieved}</td><td style="text-align:center;">${row.status}</td></tr>`;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${row.target}</td><td style="text-align:center;">${row.achieved}</td><td style="text-align:center;">${row.status}</td>`;
+          tbody.appendChild(tr);
         });
         // Add sort indicators
         thead.querySelectorAll('th.sortable').forEach(th => {
@@ -1999,7 +2001,9 @@
           const catBadge = row.category !== '—'
             ? `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:#37474f;color:#cfd8dc;">${escapeHtml(row.category)}</span>`
             : '<span style="color:#666">—</span>';
-          tbody.innerHTML += `<tr><td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${row.target}</td><td style="text-align:center;">${row.achieved}</td><td style="text-align:center;">${row.status}</td></tr>`;
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${row.target}</td><td style="text-align:center;">${row.achieved}</td><td style="text-align:center;">${row.status}</td>`;
+          tbody.appendChild(tr);
         });
         // Add sort indicators
         thead.querySelectorAll('th.sortable').forEach(th => {
@@ -2554,11 +2558,13 @@
           const catBadge = row.category !== '—'
             ? `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:#37474f;color:#cfd8dc;">${escapeHtml(row.category)}</span>`
             : '<span style="color:#666">—</span>';
+          const tr = document.createElement('tr');
           if (isTroop) {
-            tbody.innerHTML += `<tr><td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${row.target}</td><td style="text-align:center;">${row.achieved}</td><td style="text-align:center;">${row.status}</td></tr>`;
+            tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${row.target}</td><td style="text-align:center;">${row.achieved}</td><td style="text-align:center;">${row.status}</td>`;
           } else {
-            tbody.innerHTML += `<tr><td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${row.achieved}</td><td style="text-align:center;">${row.target}</td><td style="text-align:center;">${row.status}</td></tr>`;
+            tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${row.achieved}</td><td style="text-align:center;">${row.target}</td><td style="text-align:center;">${row.status}</td>`;
           }
+          tbody.appendChild(tr);
         });
 
         thead.querySelectorAll('th.sortable').forEach(th => {
