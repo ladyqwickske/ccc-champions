@@ -485,7 +485,7 @@
           + '<div class="ranking-score-pill" style="background:' + scoreBg(m.score) + ';color:' + scoreColor(m.score) + ';">' + m.score + '</div></div>';
       }
 
-      const HIGHLIGHT = 5, NEW_DAYS = 5, today = new Date();
+      const HIGHLIGHT = 5, NEW_DAYS = 14, today = new Date();
       const seasoned = sorted.filter(function(m) { if (!m.joinDate) return true; return (today - new Date(m.joinDate + 'T00:00:00Z')) / 86400000 >= NEW_DAYS; });
       const top = seasoned.slice(0, HIGHLIGHT);
       const bottom = seasoned.length > HIGHLIGHT ? seasoned.slice(-HIGHLIGHT).reverse() : [];
@@ -496,7 +496,7 @@
       html += '</div>';
       if (bottom.length > 0) {
         html += '<div style="flex:1;min-width:280px;"><div class="ranking-section-title">⚠️ Needs Attention</div>';
-        bottom.forEach(function(m) { html += rankingCardHtml(m, sorted.indexOf(m) + 1); });
+        bottom.forEach(function(m) { html += rankingCardHtml(m, seasoned.indexOf(m) + 1); });
         html += '</div>';
       }
       html += '</div>';
