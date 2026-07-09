@@ -492,7 +492,7 @@
 
       let html = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">';
       html += '<div style="flex:1;min-width:280px;"><div class="ranking-section-title">🏆 Top Performers' + metaNote + '</div>';
-      top.forEach(function(m, i) { html += rankingCardHtml(m, i + 1); });
+      top.forEach(function(m) { html += rankingCardHtml(m, sorted.indexOf(m) + 1); });
       html += '</div>';
       if (bottom.length > 0) {
         html += '<div style="flex:1;min-width:280px;"><div class="ranking-section-title">⚠️ Needs Attention</div>';
