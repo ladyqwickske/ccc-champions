@@ -496,7 +496,7 @@
       html += '</div>';
       if (bottom.length > 0) {
         html += '<div style="flex:1;min-width:280px;"><div class="ranking-section-title">⚠️ Needs Attention</div>';
-        bottom.forEach(function(m) { html += rankingCardHtml(m, seasoned.indexOf(m) + 1); });
+        bottom.forEach(function(m) { html += rankingCardHtml(m, sorted.indexOf(m) + 1); });
         html += '</div>';
       }
       html += '</div>';
