@@ -93,10 +93,6 @@
     .badge-blue { background: rgba(66, 165, 245, 0.2); color: #42a5f5; }
     .badge-gray { background: rgba(158, 158, 158, 0.2); color: #9e9e9e; }
 
-    /* Might Chart */
-    .might-chart { margin: 12px 0; padding: 16px; background: #232526; border-radius: 8px; border: 1px solid #444; min-height: 120px; }
-    .might-chart canvas { width: 100% !important; max-height: 200px; }
-
     /* Troop badges */
     .troop-badges { display: flex; gap: 6px; flex-wrap: wrap; }
     .troop-badge { padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
@@ -293,117 +289,58 @@
   </nav>
 
   <div class="page-content">
-    <h1><img src="profiling.png" alt="" style="height: 48px; vertical-align: middle; margin-right: 8px;"> Member Profile</h1>
+    <h1><img src="profiling.png" alt="" style="height: 48px; vertical-align: middle; margin-right: 8px;"> Member Profiling</h1>
+    <p style="font-size:13px;color:#b0b0b0;margin-bottom:16px;">Performance scoring based on Target Hit Rate, Event Participation, Consistency &amp; Warnings</p>
 
     <!-- Sub-tabs -->
     <div class="sub-tabs">
-      <button class="sub-tab active" data-tab="top10" onclick="switchSubTab('top10')">🏆 Top 10</button>
-      <button class="sub-tab" data-tab="bottom10" onclick="switchSubTab('bottom10')">⚠️ Bottom 10</button>
+      <button class="sub-tab active" data-tab="rankings" onclick="switchSubTab('rankings')">🏆 Rankings</button>
       <button class="sub-tab" data-tab="individual" onclick="switchSubTab('individual')">👤 Individual</button>
     </div>
 
-    <!-- Top 10 Tab -->
-    <div id="tabTop10">
-      <div id="top10Loading" class="loading" style="display:none;">
-        <div class="spinner"></div>
-        <p>Calculating rankings...</p>
+    <!-- Rankings Tab -->
+    <div id="tabRankings">
+      <div id="recalcBar" style="display:none;text-align:right;margin-bottom:8px;">
+        <span id="recalcNote" style="font-size:11px;color:#888;margin-right:12px;">Rankings are refreshed daily.</span>
+        <button id="recalcBtn" onclick="recalculateRankings()" style="padding:6px 14px;background:#ffb300;color:#1a1b1c;border:none;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;transition:background 0.2s;">🔄 Recalculate</button>
       </div>
-      <div id="top10Content"></div>
+      <div id="rankingsLoading" class="loading"><div class="spinner"></div><p>Loading profiling data...</p></div>
+      <div id="rankingsContent"></div>
     </div>
 
-    <!-- Bottom 10 Tab -->
-    <div id="tabBottom10" style="display:none;">
-      <div id="bottom10Loading" class="loading" style="display:none;">
-        <div class="spinner"></div>
-        <p>Calculating rankings...</p>
-      </div>
-      <div id="bottom10Content"></div>
-    </div>
-
-    <!-- Individual Profile Tab -->
+    <!-- Individual Tab -->
     <div id="tabIndividual" style="display:none;">
       <div class="selector-container">
-        <select id="memberSelect" onchange="loadProfile()">
-          <option value="">— Select a member —</option>
-        </select>
+        <select id="memberSelect" onchange="showIndividual()"><option value="">— Select a member —</option></select>
       </div>
+      <div id="individualEmpty" class="empty-state"><p>Select a member above to view their profile.</p></div>
+      <div id="individualContent" style="display:none;">
 
-      <div id="profileLoading" class="loading" style="display:none;">
-        <div class="spinner"></div>
-        <p>Loading profile...</p>
-      </div>
-
-      <div id="profileEmpty" class="empty-state">
-        <p>Select a member above to view their profile and performance.</p>
-      </div>
-
-      <div id="profileContent" style="display:none;">
-      <!-- Performance Score -->
-      <h2>Performance Score</h2>
-      <div class="score-section">
-        <div class="score-ring-container">
-          <svg viewBox="0 0 120 120">
-            <circle class="score-ring-bg" cx="60" cy="60" r="50"/>
-            <circle class="score-ring-fill" id="scoreRing" cx="60" cy="60" r="50" stroke-dasharray="314.16" stroke-dashoffset="314.16"/>
-          </svg>
-          <div class="score-ring-label">
-            <div class="score-value" id="scoreValue">—</div>
-            <div class="score-rating" id="scoreRating"></div>
+        <h2>Performance Score</h2>
+        <div class="score-section">
+          <div class="score-ring-container">
+            <svg viewBox="0 0 120 120"><circle class="score-ring-bg" cx="60" cy="60" r="50"/><circle class="score-ring-fill" id="scoreRing" cx="60" cy="60" r="50" stroke-dasharray="314.16" stroke-dashoffset="314.16"/></svg>
+            <div class="score-ring-label"><div class="score-value" id="scoreValue">—</div><div class="score-rating" id="scoreRating"></div></div>
           </div>
+          <div class="score-breakdown" id="scoreBreakdown"></div>
         </div>
-        <div class="score-breakdown" id="scoreBreakdown"></div>
+
+        <h2>Chest Statistics <span id="chestStatsNote" class="section-note"></span></h2>
+        <div class="info-grid" id="chestStatsInfo"></div>
+
+        <h2>Target Completion</h2>
+        <div class="info-grid" id="targetInfo"></div>
+
+        <h2>Recent Periods</h2>
+        <div class="period-table-container">
+          <table><thead><tr><th>Period</th><th>Points</th><th>Target</th><th>Status</th></tr></thead><tbody id="periodTableBody"></tbody></table>
+        </div>
+
+        <h2>Full Breakdown</h2>
+        <div class="period-table-container">
+          <table><thead><tr><th>Metric</th><th>Score</th><th>Weight</th><th>Detail</th></tr></thead><tbody id="breakdownBody"></tbody></table>
+        </div>
       </div>
-
-      <!-- Membership Info -->
-      <h2>Membership</h2>
-      <div class="info-grid" id="membershipInfo"></div>
-
-      <!-- Chest Stats -->
-      <h2>Chest Statistics <span id="chestStatsNote" class="section-note"></span></h2>
-      <div class="info-grid" id="chestStatsInfo"></div>
-
-      <!-- Target Completion -->
-      <h2>Target Completion <span id="targetNote" class="section-note"></span></h2>
-      <div class="info-grid" id="targetInfo"></div>
-
-      <!-- Period History (last 5) -->
-      <h2>Recent Periods</h2>
-      <div class="period-table-container">
-        <table>
-          <thead><tr><th>Period</th><th>Points</th><th>Target</th><th>Status</th></tr></thead>
-          <tbody id="periodTableBody"></tbody>
-        </table>
-      </div>
-
-      <!-- Event History -->
-      <h2>Event Participation <span id="eventNote" class="section-note"></span></h2>
-      <div class="period-table-container">
-        <table>
-          <thead><tr><th>Event</th><th>Type</th><th>Dates</th><th>Result</th></tr></thead>
-          <tbody id="eventTableBody"></tbody>
-        </table>
-      </div>
-
-      <!-- Warnings -->
-      <h2>Warnings</h2>
-      <div class="info-grid" id="warningsInfo"></div>
-      <div class="period-table-container" id="warningsTableContainer" style="display:none;">
-        <table>
-          <thead><tr><th>Date</th><th>Type</th><th>Comment</th><th>Issued By</th></tr></thead>
-          <tbody id="warningsTableBody"></tbody>
-        </table>
-      </div>
-
-      <!-- Troops & Hero -->
-      <h2>Troops & Hero</h2>
-      <div class="info-grid" id="troopHeroInfo"></div>
-
-      <!-- Might History -->
-      <h2>Might History</h2>
-      <div class="might-chart" id="mightChartContainer">
-        <canvas id="mightChart"></canvas>
-      </div>
-    </div>
     </div><!-- end tabIndividual -->
   </div>
 
@@ -421,491 +358,276 @@
     });
   </script>
 
-  <!-- Chart.js for might history -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
-
   <script>
-    let memberNames = [];
-    let mightChartInstance = null;
-    let rankingsCache = null; // cache rankings data so we don't re-fetch on tab switch
+    let rankingsData = null;
+    let currentMemberDetail = null;
 
-    // Load member names on page load
+    async function gasCall(action, extra) {
+      const body = Object.assign({ action: action }, extra || {});
+      const res = await fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      return res.json();
+    }
+
+    // Load member names & rankings on page load
     document.addEventListener('DOMContentLoaded', async () => {
+      try { await loadProfilingData(); } catch (e) { console.error(e); }
+    });
+
+    // ─── Load Rankings from cache (fast) ───
+    async function loadProfilingData() {
+      const loading = document.getElementById('rankingsLoading');
+      const content = document.getElementById('rankingsContent');
+      loading.style.display = 'block'; content.innerHTML = '';
       try {
-        const res = await fetch(window.GAS_WEB_APP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'getAllKnownMemberNames' })
-        });
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          memberNames = data;
-        } else if (data && Array.isArray(data.result)) {
-          memberNames = data.result;
+        const res = await gasCall('getProfilingRankings');
+        if (res && res.success) {
+          rankingsData = res; populateSelect(); renderRankings();
+          if (isLoggedIn) document.getElementById('recalcBar').style.display = 'block';
         }
-        populateSelect();
+        else if (res && res.empty) {
+          let emptyHtml = '<div class="empty-state"><p>' + (res.message || 'Rankings not yet calculated.') + '</p>';
+          if (isLoggedIn) {
+            emptyHtml += '<br><button onclick="recalculateRankings()" style="margin-top:12px;padding:10px 20px;background:#ffb300;color:#1a1b1c;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;">🔄 Calculate Now</button>';
+          }
+          emptyHtml += '</div>';
+          content.innerHTML = emptyHtml;
+        }
+        else { content.innerHTML = '<div class="empty-state"><p>Failed to load rankings: ' + (res && res.message ? res.message : 'Unknown error') + '</p></div>'; }
+      } catch (e) { content.innerHTML = '<div class="empty-state"><p>Error: ' + e.message + '</p></div>'; }
+      finally { loading.style.display = 'none'; }
+    }
 
-        // Auto-load rankings since Top 10 is the default tab
-        loadRankings();
-
-        // Check URL param for pre-selected member
-        const params = new URLSearchParams(window.location.search);
-        const preselect = params.get('member');
-        if (preselect) {
-          const select = document.getElementById('memberSelect');
-          select.value = preselect;
-          if (select.value === preselect) loadProfile();
+    // ─── Recalculate all rankings (admin action) ───
+    async function recalculateRankings() {
+      const btn = document.getElementById('recalcBtn');
+      const origText = btn ? btn.textContent : '';
+      if (btn) { btn.disabled = true; btn.textContent = '⏳ Recalculating...'; btn.style.opacity = '0.7'; }
+      try {
+        const res = await gasCall('recalculateProfileRankings');
+        if (res && res.success) {
+          if (btn) { btn.textContent = '✅ Done! (' + res.processed + ' members)'; btn.style.background = '#4caf50'; }
+          setTimeout(async () => {
+            if (btn) { btn.textContent = origText; btn.style.background = '#ffb300'; btn.style.opacity = '1'; btn.disabled = false; }
+            document.getElementById('memberSelect').innerHTML = '<option value="">— Select a member —</option>';
+            await loadProfilingData();
+          }, 1500);
+        } else {
+          alert('Recalculation failed: ' + (res && res.message ? res.message : 'Unknown error'));
+          if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.disabled = false; }
         }
       } catch (e) {
-        console.error('Failed to load member names:', e);
+        alert('Error: ' + e.message);
+        if (btn) { btn.textContent = origText; btn.style.opacity = '1'; btn.disabled = false; }
       }
-    });
+    }
 
     function populateSelect() {
       const select = document.getElementById('memberSelect');
-      memberNames.forEach(name => {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        select.appendChild(opt);
+      select.innerHTML = '<option value="">— Select a member —</option>';
+      if (!rankingsData || !rankingsData.rankings) return;
+      [...rankingsData.rankings].sort((a, b) => a.member.localeCompare(b.member)).forEach(m => {
+        const opt = document.createElement('option'); opt.value = m.member; opt.textContent = m.member; select.appendChild(opt);
       });
     }
 
     // ─── Sub-tab switching ───
     function switchSubTab(tab) {
       document.querySelectorAll('.sub-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+      document.getElementById('tabRankings').style.display = tab === 'rankings' ? '' : 'none';
       document.getElementById('tabIndividual').style.display = tab === 'individual' ? '' : 'none';
-      document.getElementById('tabTop10').style.display = tab === 'top10' ? '' : 'none';
-      document.getElementById('tabBottom10').style.display = tab === 'bottom10' ? '' : 'none';
-
-      if ((tab === 'top10' || tab === 'bottom10') && !rankingsCache) {
-        loadRankings();
-      }
     }
 
-    async function loadRankings() {
-      document.getElementById('top10Loading').style.display = 'block';
-      document.getElementById('bottom10Loading').style.display = 'block';
-      document.getElementById('top10Content').innerHTML = '';
-      document.getElementById('bottom10Content').innerHTML = '';
-
-      try {
-        const res = await fetch(window.GAS_WEB_APP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'getMemberPerformanceRankings' })
-        });
-        const data = await res.json();
-        if (data && data.success) {
-          rankingsCache = data;
-          renderRankings();
-        } else {
-          const msg = '<div class="empty-state"><p>Failed to load rankings: ' + (data.message || 'Unknown error') + '</p></div>';
-          document.getElementById('top10Content').innerHTML = msg;
-          document.getElementById('bottom10Content').innerHTML = msg;
-        }
-      } catch (e) {
-        const msg = '<div class="empty-state"><p>Error: ' + e.message + '</p></div>';
-        document.getElementById('top10Content').innerHTML = msg;
-        document.getElementById('bottom10Content').innerHTML = msg;
-      } finally {
-        document.getElementById('top10Loading').style.display = 'none';
-        document.getElementById('bottom10Loading').style.display = 'none';
-      }
+    function scoreColor(score) {
+      if (score >= 90) return '#8bc34a';
+      if (score >= 75) return '#4caf50';
+      if (score >= 60) return '#42a5f5';
+      if (score >= 40) return '#ff9800';
+      if (score >= 20) return '#ff5722';
+      return '#ef5350';
     }
+    function scoreBg(score) { return scoreColor(score) + '18'; }
 
+    // ─── Rankings (from cache) ───
     function renderRankings() {
-      if (!rankingsCache) return;
-      if (rankingsCache.empty) {
-        const emptyMsg = '<div class="empty-state"><p>Rankings have not been calculated yet.<br><span style="font-size:12px;color:#888;">They are recalculated daily. Check back soon or view an individual profile to start populating data.</span></p></div>';
-        document.getElementById('top10Content').innerHTML = emptyMsg;
-        document.getElementById('bottom10Content').innerHTML = emptyMsg;
-        return;
+      if (!rankingsData || !rankingsData.rankings || rankingsData.rankings.length === 0) {
+        document.getElementById('rankingsContent').innerHTML = '<div class="empty-state"><p>No profiling data available yet.</p></div>'; return;
       }
-      const updatedNote = rankingsCache.lastUpdated ? '<span style="font-size:11px;color:#666;font-weight:400;margin-left:8px;">Updated: ' + rankingsCache.lastUpdated + '</span>' : '';
-      document.getElementById('top10Content').innerHTML =
-        '<div class="ranking-section-title">🏆 Top 10 Performers <span style="font-size:12px;color:#888;font-weight:400;">(' + rankingsCache.totalMembers + ' active members)</span>' + updatedNote + '</div>' +
-        rankingsCache.top10.map((m, i) => renderRankingCard(m, i + 1, 'top')).join('');
-      document.getElementById('bottom10Content').innerHTML =
-        '<div class="ranking-section-title">⚠️ Bottom 10 Performers <span style="font-size:12px;color:#888;font-weight:400;">(' + rankingsCache.totalMembers + ' active members)</span>' + updatedNote + '</div>' +
-        rankingsCache.bottom10.map((m, i) => renderRankingCard(m, rankingsCache.totalMembers - i, 'bottom')).join('');
+      const sorted = [...rankingsData.rankings];
+      const W = rankingsData.weights || {};
+      const metaNote = rankingsData.lastUpdated ? '<span style="font-size:11px;color:#666;font-weight:400;margin-left:8px;">Updated: ' + rankingsData.lastUpdated + '</span>' : '';
+
+      function rankingCardHtml(m, rank) {
+        const rankClass = rank === 1 ? 'top1' : rank === 2 ? 'top2' : rank === 3 ? 'top3' : '';
+        const medal = rank <= 3 ? ['🥇','🥈','🥉'][rank - 1] + ' ' : '';
+        const cats = rankingsData.categories || {};
+        const barHtml = [
+          { score: m.targetHitRate, color: '#8bc34a', title: 'Target' },
+          { score: m.ancients, color: cats.ancients ? cats.ancients.color : '#42a5f5', title: 'Ancients' },
+          { score: m.ragnarok, color: cats.ragnarok ? cats.ragnarok.color : '#ef5350', title: 'Ragnarok' },
+          { score: m.olympusDO, color: cats.olympusDO ? cats.olympusDO.color : '#ab47bc', title: 'Olympus/DO' },
+          { score: m.otherEvents, color: cats.other ? cats.other.color : '#78909c', title: 'Other' },
+          { score: m.consistency, color: '#ff9800', title: 'Consistency' },
+          { score: m.warningScore, color: m.warningScore < 100 ? '#ef5350' : '#4caf50', title: 'Warnings' }
+        ].map(function(bar) {
+          var w = bar.score != null ? Math.max(2, bar.score * 0.5) : 0;
+          return w > 0 ? '<div class="ranking-bar" style="background:' + bar.color + '44;width:' + w + 'px;" title="' + bar.title + ': ' + (bar.score != null ? bar.score : '—') + '"></div>' : '';
+        }).join('');
+        const metaParts = [m.rating];
+        if (m.periodsTotal > 0) metaParts.push(m.periodsMet + '/' + m.periodsTotal + ' targets met');
+        if (m.joinDate) metaParts.push('Joined ' + m.joinDate);
+        if (m.warnings > 0) metaParts.push('⚠️ ' + m.warnings + ' warning' + (m.warnings > 1 ? 's' : ''));
+        return '<div class="ranking-card">'
+          + '<div class="ranking-rank ' + rankClass + '">#' + rank + '</div>'
+          + '<div class="ranking-info">'
+          + '<div class="ranking-name" onclick="jumpToProfile(\'' + escapeAttr(m.member) + '\')">' + medal + escapeHtml(m.member) + '</div>'
+          + '<div class="ranking-meta">' + metaParts.join(' · ') + '</div>'
+          + '<div class="ranking-bars">' + barHtml + '</div></div>'
+          + '<div class="ranking-score-pill" style="background:' + scoreBg(m.score) + ';color:' + scoreColor(m.score) + ';">' + m.score + '</div></div>';
+      }
+
+      const HIGHLIGHT = 5, NEW_DAYS = 5, today = new Date();
+      const seasoned = sorted.filter(function(m) { if (!m.joinDate) return true; return (today - new Date(m.joinDate + 'T00:00:00Z')) / 86400000 >= NEW_DAYS; });
+      const top = seasoned.slice(0, HIGHLIGHT);
+      const bottom = seasoned.length > HIGHLIGHT ? seasoned.slice(-HIGHLIGHT).reverse() : [];
+
+      let html = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">';
+      html += '<div style="flex:1;min-width:280px;"><div class="ranking-section-title">🏆 Top Performers' + metaNote + '</div>';
+      top.forEach(function(m, i) { html += rankingCardHtml(m, i + 1); });
+      html += '</div>';
+      if (bottom.length > 0) {
+        html += '<div style="flex:1;min-width:280px;"><div class="ranking-section-title">⚠️ Needs Attention</div>';
+        bottom.forEach(function(m) { html += rankingCardHtml(m, sorted.indexOf(m) + 1); });
+        html += '</div>';
+      }
+      html += '</div>';
+      html += '<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:14px;font-weight:600;color:#ffb300;padding:8px 0;">📋 Full Rankings (' + sorted.length + ' members)</summary><div style="margin-top:8px;">';
+      sorted.forEach(function(m, i) { html += rankingCardHtml(m, i + 1); });
+      html += '</div></details>';
+      document.getElementById('rankingsContent').innerHTML = html;
     }
 
-    function renderRankingCard(m, rank, type) {
-      const scoreColor = m.score >= 90 ? '#8bc34a' : m.score >= 75 ? '#4caf50' : m.score >= 60 ? '#42a5f5' : m.score >= 40 ? '#ff9800' : '#ef5350';
-      const scoreBg = m.score >= 90 ? 'rgba(139,195,74,0.15)' : m.score >= 75 ? 'rgba(76,175,80,0.15)' : m.score >= 60 ? 'rgba(66,165,245,0.15)' : m.score >= 40 ? 'rgba(255,152,0,0.15)' : 'rgba(239,83,80,0.15)';
-      const rankClass = rank === 1 ? 'top1' : rank === 2 ? 'top2' : rank === 3 ? 'top3' : '';
-      const medal = type === 'top' && rank <= 3 ? ['🥇','🥈','🥉'][rank-1] + ' ' : '';
+    function jumpToProfile(name) { document.getElementById('memberSelect').value = name; switchSubTab('individual'); showIndividual(); }
 
-      return `<div class="ranking-card">
-        <div class="ranking-rank ${rankClass}">#${rank}</div>
-        <div class="ranking-info">
-          <div class="ranking-name" onclick="jumpToProfile('${m.member.replace(/'/g, "\\'")}')">${medal}${m.member}</div>
-          <div class="ranking-meta">
-            ${m.rating} · ${m.periodsMet}/${m.periodsTotal} targets met · ${m.warnings > 0 ? '⚠️ ' + m.warnings + ' warning' + (m.warnings > 1 ? 's' : '') : '✓ Clean'}${m.joinDate ? ' · Joined ' + m.joinDate : ''}
-          </div>
-          <div class="ranking-bars">
-            <div class="ranking-bar" style="background:rgba(139,195,74,0.4);width:${m.targetHitRate * 0.6}px;" title="Target: ${m.targetHitRate}%"></div>
-            <div class="ranking-bar" style="background:rgba(66,165,245,0.4);width:${m.eventRate * 0.6}px;" title="Events: ${m.eventRate}%"></div>
-            <div class="ranking-bar" style="background:rgba(255,152,0,0.4);width:${m.consistencyScore * 0.6}px;" title="Consistency: ${m.consistencyScore}%"></div>
-          </div>
-        </div>
-        <div class="ranking-score-pill" style="background:${scoreBg};color:${scoreColor};">${m.score}</div>
-      </div>`;
-    }
-
-    function jumpToProfile(name) {
-      const select = document.getElementById('memberSelect');
-      select.value = name;
-      switchSubTab('individual');
-      if (select.value === name) loadProfile();
-    }
-
-    async function loadProfile() {
+    // ─── Individual Profile (fetches detail for one member) ───
+    async function showIndividual() {
       const name = document.getElementById('memberSelect').value;
-      if (!name) {
-        document.getElementById('profileContent').style.display = 'none';
-        document.getElementById('profileEmpty').style.display = 'block';
-        return;
-      }
+      if (!name) { document.getElementById('individualContent').style.display = 'none'; document.getElementById('individualEmpty').style.display = 'block'; return; }
 
-      document.getElementById('profileEmpty').style.display = 'none';
-      document.getElementById('profileContent').style.display = 'none';
-      document.getElementById('profileLoading').style.display = 'block';
+      document.getElementById('individualEmpty').innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading profile for ' + escapeHtml(name) + '...</p></div>';
+      document.getElementById('individualEmpty').style.display = 'block';
+      document.getElementById('individualContent').style.display = 'none';
 
       try {
-        const res = await fetch(window.GAS_WEB_APP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'getMemberProfileStats', playerName: name })
-        });
-        const data = await res.json();
-        if (data && data.success) {
-          renderProfile(data);
+        const res = await gasCall('getProfilingMemberDetail', { playerName: name });
+        if (res && res.success) {
+          currentMemberDetail = res;
+          document.getElementById('individualEmpty').style.display = 'none';
+          renderIndividual(res);
+          document.getElementById('individualContent').style.display = 'block';
         } else {
-          showToast('Failed to load profile: ' + (data.message || 'Unknown error'), 'error');
-          document.getElementById('profileEmpty').style.display = 'block';
+          document.getElementById('individualEmpty').innerHTML = '<div class="empty-state"><p>Failed to load profile: ' + (res && res.message ? res.message : 'Unknown error') + '</p></div>';
         }
       } catch (e) {
-        showToast('Error loading profile: ' + e.message, 'error');
-        document.getElementById('profileEmpty').style.display = 'block';
-      } finally {
-        document.getElementById('profileLoading').style.display = 'none';
+        document.getElementById('individualEmpty').innerHTML = '<div class="empty-state"><p>Error: ' + e.message + '</p></div>';
       }
     }
 
-    function renderProfile(data) {
-      // === DEBUG: Period target completion ===
-      console.group('🔍 PROFILING DEBUG: ' + data.playerName);
-      console.log('Target Completion Summary:', data.targetCompletion.met, 'met /', data.targetCompletion.missed, 'missed /', data.targetCompletion.total, 'total');
-      if (data.targetCompletion.debug) {
-        console.table(data.targetCompletion.debug);
-        const missed = data.targetCompletion.debug.filter(p => p.met === false && !p.isActive);
-        if (missed.length > 0) {
-          console.warn('⚠️ MISSED PERIODS:');
-          missed.forEach(p => console.warn(`  ${p.periodName} (${p.startDate} → ${p.endDate}): ${p.points} / ${p.target} pts (${p.pct}%)`));
-        }
-        const noTarget = data.targetCompletion.debug.filter(p => p.target === null);
-        if (noTarget.length > 0) {
-          console.warn('⚠️ PERIODS WITH NO TARGET (not counted):');
-          noTarget.forEach(p => console.warn(`  ${p.periodName} (${p.startDate} → ${p.endDate}): ${p.points} pts`));
-        }
-        const active = data.targetCompletion.debug.filter(p => p.isActive);
-        if (active.length > 0) {
-          console.log('⏳ ACTIVE PERIODS (not counted):');
-          active.forEach(p => console.log(`  ${p.periodName} (${p.startDate} → ${p.endDate}): ${p.points} / ${p.target} pts (${p.pct}%)`));
-        }
-      }
-      console.log('Period Stats (last 5 for display):', data.periodStats);
-      console.groupEnd();
-      // === END DEBUG ===
+    function renderIndividual(m) {
+      const W = m.weights || {};
+      const b = m.breakdown || {};
 
-      renderPerformanceScore(data.performanceScore);
-      renderMembership(data.membership);
-      renderChestStats(data.chestStats, data.membership);
-      renderTargetCompletion(data.targetCompletion);
-      renderPeriodTable(data.periodStats);
-      renderEventTable(data.eventHistory);
-      renderWarnings(data.warningsData);
-      renderTroopHero(data.troopLevels, data.heroLevel);
-      renderMightChart(data.mightHistory);
-      document.getElementById('profileContent').style.display = 'block';
-    }
-
-    function renderPerformanceScore(ps) {
-      if (!ps) return;
+      // Score ring
       const ring = document.getElementById('scoreRing');
       const circumference = 314.16;
-      const offset = circumference - (ps.score / 100) * circumference;
-      ring.style.strokeDashoffset = offset;
+      ring.style.strokeDashoffset = circumference - (m.overallScore / 100) * circumference;
+      ring.style.stroke = scoreColor(m.overallScore);
+      document.getElementById('scoreValue').textContent = m.overallScore;
+      document.getElementById('scoreValue').style.color = scoreColor(m.overallScore);
+      document.getElementById('scoreRating').textContent = m.rating;
 
-      // Color based on score
-      let color = '#ef5350';
-      if (ps.score >= 90) color = '#8bc34a';
-      else if (ps.score >= 75) color = '#4caf50';
-      else if (ps.score >= 60) color = '#42a5f5';
-      else if (ps.score >= 40) color = '#ff9800';
-      else if (ps.score >= 20) color = '#ff5722';
-      ring.style.stroke = color;
-
-      document.getElementById('scoreValue').textContent = ps.score;
-      document.getElementById('scoreValue').style.color = color;
-      document.getElementById('scoreRating').textContent = ps.rating;
-
-      // Breakdown bars
-      const bd = ps.breakdown || {};
+      // Breakdown bars (7 metrics — event categories split)
+      const cats = m.categories || {};
       const items = [
-        { label: 'Target Hit Rate (40%)', score: bd.targetHitRate ? bd.targetHitRate.score : 0, color: '#8bc34a' },
-        { label: 'Event Participation (30%)', score: bd.eventParticipation ? bd.eventParticipation.score : 0, color: '#42a5f5' },
-        { label: 'Consistency (15%)', score: bd.consistency ? bd.consistency.score : 0, color: '#ff9800' },
-        { label: 'No Warnings (15%)', score: bd.warnings ? bd.warnings.score : 0, color: bd.warnings && bd.warnings.score < 100 ? '#ef5350' : '#4caf50' }
+        { label: 'Target Hit Rate (' + W.target + '%)', score: b.targetHitRate ? b.targetHitRate.score : 0, color: '#8bc34a' },
+        { label: (cats.ancients ? cats.ancients.label : 'Ancients') + ' (' + W.ancients + '%)', score: b.ancients ? b.ancients.score : 0, color: cats.ancients ? cats.ancients.color : '#42a5f5' },
+        { label: (cats.ragnarok ? cats.ragnarok.label : 'Ragnarok') + ' (' + W.ragnarok + '%)', score: b.ragnarok ? b.ragnarok.score : 0, color: cats.ragnarok ? cats.ragnarok.color : '#ef5350' },
+        { label: (cats.olympusDO ? cats.olympusDO.label : 'Olympus & DO') + ' (' + W.olympusDO + '%)', score: b.olympusDO ? b.olympusDO.score : 0, color: cats.olympusDO ? cats.olympusDO.color : '#ab47bc' },
+        { label: (cats.other ? cats.other.label : 'Other Events') + ' (' + W.other + '%)', score: b.other ? b.other.score : 0, color: cats.other ? cats.other.color : '#78909c' },
+        { label: 'Consistency (' + W.consistency + '%)', score: b.consistency ? b.consistency.score : 0, color: '#ff9800' },
+        { label: 'No Warnings (' + W.warnings + '%)', score: b.warnings ? b.warnings.score : 0, color: b.warnings && b.warnings.score < 100 ? '#ef5350' : '#4caf50' }
       ];
+      document.getElementById('scoreBreakdown').innerHTML = items.map(function(item) {
+        var val = item.score != null ? item.score : 0;
+        var display = item.score != null ? item.score : '—';
+        return '<div class="breakdown-row"><span class="label">' + item.label + '</span><div class="bar-bg"><div class="bar-fill" style="width:' + val + '%;background:' + item.color + '"></div></div><span class="bar-value">' + display + '</span></div>';
+      }).join('');
 
-      const container = document.getElementById('scoreBreakdown');
-      container.innerHTML = items.map(item => `
-        <div class="breakdown-row">
-          <span class="label">${item.label}</span>
-          <div class="bar-bg"><div class="bar-fill" style="width:${item.score}%;background:${item.color}"></div></div>
-          <span class="bar-value">${item.score}</span>
-        </div>
-      `).join('');
-    }
-
-    function renderMembership(m) {
-      if (!m) return;
-      const el = document.getElementById('membershipInfo');
-      const cards = [];
-      const statusBadge = m.status === 'active'
-        ? '<span class="badge badge-green">Active</span>'
-        : m.status === 'former'
-        ? '<span class="badge badge-red">Former</span>'
-        : '<span class="badge badge-gray">Unknown</span>';
-
-      cards.push(card('Status', statusBadge));
-      if (m.joinDate) cards.push(card('Joined', m.joinDate));
-      if (m.leaveDate) cards.push(card('Left', m.leaveDate));
-      if (m.startMight) cards.push(card('Start Might', formatNumber(m.startMight)));
-      if (m.lastMight) cards.push(card('Last Might', formatNumber(m.lastMight)));
-      if (m.growthPercent) cards.push(card('Growth', m.growthPercent));
-      if (m.remarks) cards.push(card('Remarks', m.remarks));
-      el.innerHTML = cards.join('');
-    }
-
-    function renderChestStats(cs, membership) {
-      if (!cs) return;
-      const el = document.getElementById('chestStatsInfo');
-      const noteEl = document.getElementById('chestStatsNote');
-      if (noteEl && cs.periodsScanned) noteEl.textContent = '(last ' + cs.periodsScanned + ' periods)';
-      const joinDate = membership && membership.joinDate ? membership.joinDate.substring(0, 10) : null;
-      const cards = [
+      // Chest Statistics
+      const cs = m.chestStats || {};
+      document.getElementById('chestStatsInfo').innerHTML = [
         card('Total Chests', formatNumber(cs.totalChests)),
         card('Total Points', formatNumber(cs.totalPoints)),
         card('Point Chests', formatNumber(cs.pointChests)),
-        card('Event Chests', formatNumber(cs.eventChests))
-      ];
-      if (joinDate) cards.push(card('Join Date', joinDate));
-      if (cs.lastSeen) cards.push(card('Last Seen', cs.lastSeen.substring(0, 10)));
-      el.innerHTML = cards.join('');
-    }
+        card('Event Chests', formatNumber(cs.eventChests)),
+        m.joinDate ? card('Joined', m.joinDate) : '',
+        cs.lastSeen ? card('Last Seen', cs.lastSeen) : ''
+      ].filter(Boolean).join('');
 
-    function renderTargetCompletion(tc) {
-      if (!tc) return;
-      const el = document.getElementById('targetInfo');
-      const noteEl = document.getElementById('targetNote');
-      if (noteEl && tc.total > 0) noteEl.textContent = '(last ' + tc.total + ' completed periods)';
-      const pct = tc.total > 0 ? Math.round((tc.met / tc.total) * 100) : 0;
-      const color = pct >= 80 ? 'badge-green' : pct >= 50 ? 'badge-orange' : 'badge-red';
-      el.innerHTML = [
-        card('Hit Rate', `<span class="badge ${color}">${pct}%</span>`, `${tc.met} of ${tc.total} periods`),
+      // Target Completion
+      const tc = m.targetCompletion || {};
+      const hitPct = tc.total > 0 ? Math.round((tc.met / tc.total) * 100) : 0;
+      const hitColor = hitPct >= 80 ? 'badge-green' : hitPct >= 50 ? 'badge-orange' : 'badge-red';
+      document.getElementById('targetInfo').innerHTML = [
+        card('Hit Rate', '<span class="badge ' + hitColor + '">' + hitPct + '%</span>', tc.met + ' of ' + tc.total + ' periods'),
         card('Targets Met', tc.met),
         card('Targets Missed', tc.missed)
       ].join('');
-    }
 
-    function renderPeriodTable(periods) {
+      // Recent Periods table
+      const ps = m.periodStats || [];
       const tbody = document.getElementById('periodTableBody');
-      if (!periods || periods.length === 0) {
+      if (ps.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888;">No period data available</td></tr>';
-        return;
-      }
-      tbody.innerHTML = periods.map(p => {
-        const target = p.targetPoints ? formatNumber(p.targetPoints) : '—';
-        const pct = p.percentComplete != null ? p.percentComplete : null;
-        let statusBadge;
-        if (p.isActive) {
-          // Active period — show progress, don't judge as met/missed
-          const pctColor = pct >= 100 ? 'badge-green' : pct >= 70 ? 'badge-blue' : pct >= 40 ? 'badge-orange' : 'badge-gray';
-          statusBadge = `<span class="badge ${pctColor}">⏳ ${pct != null ? pct + '%' : '—'}</span>`;
-        } else if (p.metTarget === true) {
-          statusBadge = '<span class="badge badge-green">✓ Met</span>';
-        } else if (p.metTarget === false) {
-          // Missed — show how much % was reached
-          const missedPct = pct != null ? ` (${pct}%)` : '';
-          statusBadge = `<span class="badge badge-red">✗ Missed${missedPct}</span>`;
-        } else {
-          statusBadge = '<span class="badge badge-gray">N/A</span>';
-        }
-        return `<tr>
-          <td>${p.periodName || p.startDate}${p.isActive ? ' <span style="font-size:10px;color:#ffb300;">(active)</span>' : ''}</td>
-          <td>${formatNumber(p.totalPoints)}</td>
-          <td>${target}</td>
-          <td>${statusBadge}</td>
-        </tr>`;
-      }).join('');
-    }
-
-    function renderEventTable(events) {
-      const tbody = document.getElementById('eventTableBody');
-      const noteEl = document.getElementById('eventNote');
-      if (noteEl && events && events.length > 0) noteEl.textContent = '(last ' + events.length + ' events)';
-      if (!events || events.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:#888;">No event data available</td></tr>';
-        return;
-      }
-      tbody.innerHTML = events.map(e => {
-        let badge;
-        switch (e.participated) {
-          case 'Yes': badge = '<span class="badge badge-green">Completed</span>'; break;
-          case 'Partial': badge = '<span class="badge badge-orange">Partial</span>'; break;
-          case 'No': badge = '<span class="badge badge-red">Missed</span>'; break;
-          case 'N/A': badge = '<span class="badge badge-gray">N/A</span>'; break;
-          default: badge = '<span class="badge badge-gray">' + (e.participated || '—') + '</span>';
-        }
-        const dates = e.startDate ? `${e.startDate} → ${e.endDate || '?'}` : '—';
-        return `<tr>
-          <td>${e.eventName}</td>
-          <td>${e.eventType || '—'}</td>
-          <td style="font-size:11px;white-space:nowrap;">${dates}</td>
-          <td>${badge}</td>
-        </tr>`;
-      }).join('');
-    }
-
-    function renderWarnings(wd) {
-      const el = document.getElementById('warningsInfo');
-      const tableContainer = document.getElementById('warningsTableContainer');
-      const tbody = document.getElementById('warningsTableBody');
-
-      if (!wd || wd.total === 0) {
-        el.innerHTML = '<div class="info-card"><div class="card-label">Warnings</div><div class="card-value"><span class="badge badge-green">Clean Record</span></div><div class="card-sub">No warnings issued</div></div>';
-        tableContainer.style.display = 'none';
-        return;
-      }
-
-      const color = wd.total >= 4 ? 'badge-red' : wd.total >= 2 ? 'badge-orange' : 'badge-orange';
-      const cards = [
-        card('Total Warnings', `<span class="badge ${color}">${wd.total}</span>`),
-        card('Latest', wd.latestDate || '—')
-      ];
-      // Show warning type breakdown
-      const typeSummary = Object.entries(wd.types).map(([t, c]) => `${t} (${c})`).join(', ');
-      if (typeSummary) cards.push(card('Types', `<span style="font-size:12px;color:#e0e0e0;">${typeSummary}</span>`));
-      el.innerHTML = cards.join('');
-
-      // Show warning details table
-      tableContainer.style.display = 'block';
-      tbody.innerHTML = wd.warnings.map(w => `<tr>
-        <td style="white-space:nowrap;">${w.date || '—'}</td>
-        <td>${w.type || '—'}</td>
-        <td>${w.comment || '—'}</td>
-        <td>${w.issuedBy || '—'}</td>
-      </tr>`).join('');
-    }
-
-    function renderTroopHero(troops, hero) {
-      const el = document.getElementById('troopHeroInfo');
-      const cards = [];
-
-      if (hero && hero.level) {
-        cards.push(card('Hero Level', hero.level));
-      }
-
-      if (troops) {
-        const troopMap = [
-          { key: 'G_currentLevel', label: 'G', color: '#8bc34a' },
-          { key: 'M_currentLevel', label: 'M', color: '#42a5f5' },
-          { key: 'S_currentLevel', label: 'S', color: '#ab47bc' },
-          { key: 'E_currentLevel', label: 'E', color: '#ff9800' },
-          { key: 'C_currentLevel', label: 'C', color: '#ef5350' }
-        ];
-        const badges = troopMap.map(t => {
-          const lvl = troops[t.key] != null ? troops[t.key] : '—';
-          return `<span class="troop-badge" style="background:${t.color}22;color:${t.color}">${t.label} ${lvl}</span>`;
-        }).join('');
-        cards.push(`<div class="info-card" style="grid-column: 1 / -1;"><div class="card-label">Troop Levels</div><div class="troop-badges" style="margin-top:6px;">${badges}</div></div>`);
-      }
-
-      if (cards.length === 0) {
-        cards.push('<div class="info-card"><div class="card-label">Troops & Hero</div><div class="card-value" style="color:#888;">No data</div></div>');
-      }
-      el.innerHTML = cards.join('');
-    }
-
-    function renderMightChart(history) {
-      const container = document.getElementById('mightChartContainer');
-      if (!history || history.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:#888;padding:20px;">No might history available</p>';
-        return;
-      }
-      container.innerHTML = '<canvas id="mightChart"></canvas>';
-      const ctx = document.getElementById('mightChart').getContext('2d');
-
-      // Sort oldest first for chart
-      const sorted = [...history].sort((a, b) => a.date.localeCompare(b.date));
-      const labels = sorted.map(h => h.date);
-      const values = sorted.map(h => h.might);
-
-      if (mightChartInstance) mightChartInstance.destroy();
-      mightChartInstance = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Might',
-            data: values,
-            borderColor: '#ffb300',
-            backgroundColor: 'rgba(255, 179, 0, 0.1)',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.3,
-            pointRadius: 3,
-            pointBackgroundColor: '#ffb300'
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              callbacks: {
-                label: (ctx) => 'Might: ' + formatNumber(ctx.parsed.y)
-              }
-            }
-          },
-          scales: {
-            x: {
-              ticks: { color: '#888', maxTicksLimit: 8, font: { size: 10 } },
-              grid: { color: '#333' }
-            },
-            y: {
-              ticks: { color: '#888', callback: v => formatNumber(v), font: { size: 10 } },
-              grid: { color: '#333' }
-            }
+      } else {
+        tbody.innerHTML = ps.map(function(p) {
+          var target = p.targetPoints ? formatNumber(p.targetPoints) : '—';
+          var statusBadge;
+          if (p.isActive) {
+            var pctColor = p.percentComplete >= 100 ? 'badge-green' : p.percentComplete >= 70 ? 'badge-blue' : p.percentComplete >= 40 ? 'badge-orange' : 'badge-gray';
+            statusBadge = '<span class="badge ' + pctColor + '">⏳ ' + (p.percentComplete != null ? p.percentComplete + '%' : '—') + '</span>';
+          } else if (p.metTarget === true) {
+            statusBadge = '<span class="badge badge-green">✓ Met</span>';
+          } else if (p.metTarget === false) {
+            statusBadge = '<span class="badge badge-red">✗ Missed (' + p.percentComplete + '%)</span>';
+          } else {
+            statusBadge = '<span class="badge badge-gray">N/A</span>';
           }
-        }
-      });
+          return '<tr><td>' + (p.periodName || p.startDate) + (p.isActive ? ' <span style="font-size:10px;color:#ffb300;">(active)</span>' : '') + '</td><td>' + formatNumber(p.totalPoints) + '</td><td>' + target + '</td><td>' + statusBadge + '</td></tr>';
+        }).join('');
+      }
+
+      // Full Breakdown table
+      document.getElementById('breakdownBody').innerHTML = [
+        metricRow('Target Hit Rate', b.targetHitRate, W.target, b.targetHitRate ? b.targetHitRate.met + '/' + b.targetHitRate.total + ' periods met' : '—'),
+        metricRow(cats.ancients ? cats.ancients.label : 'Ancients', b.ancients, W.ancients, b.ancients ? b.ancients.participated + '/' + b.ancients.applicable + ' events' : '—'),
+        metricRow(cats.ragnarok ? cats.ragnarok.label : 'Ragnarok', b.ragnarok, W.ragnarok, b.ragnarok ? b.ragnarok.participated + '/' + b.ragnarok.applicable + ' events' : '—'),
+        metricRow(cats.olympusDO ? cats.olympusDO.label : 'Olympus & DO', b.olympusDO, W.olympusDO, b.olympusDO ? b.olympusDO.participated + '/' + b.olympusDO.applicable + ' events' : '—'),
+        metricRow(cats.other ? cats.other.label : 'Other Events', b.other, W.other, b.other ? b.other.participated + '/' + b.other.applicable + ' events' : '—'),
+        metricRow('Consistency', b.consistency, W.consistency, b.consistency ? b.consistency.activePeriods + '/' + b.consistency.checkedPeriods + ' recent periods active' : '—'),
+        metricRow('No Warnings', b.warnings, W.warnings, b.warnings ? (b.warnings.count === 0 ? 'Clean record' : b.warnings.count + ' warning' + (b.warnings.count > 1 ? 's' : '') + ' (−25% each)') : '—')
+      ].join('');
     }
 
-    // Helpers
-    function card(label, value, sub) {
-      return `<div class="info-card"><div class="card-label">${label}</div><div class="card-value">${value}</div>${sub ? `<div class="card-sub">${sub}</div>` : ''}</div>`;
+    function metricRow(label, metric, weight, detail) {
+      var score = metric && metric.score != null ? metric.score : '—';
+      var badgeClass = typeof score === 'number' ? (score >= 75 ? 'badge-green' : score >= 40 ? 'badge-orange' : 'badge-red') : 'badge-gray';
+      return '<tr><td>' + label + '</td><td><span class="badge ' + badgeClass + '">' + score + '</span></td><td style="text-align:center;">' + weight + '%</td><td style="font-size:12px;color:#888;">' + detail + '</td></tr>';
     }
 
-    function formatNumber(n) {
-      if (n == null) return '—';
-      return Number(n).toLocaleString();
-    }
+    function card(label, value, sub) { return '<div class="info-card"><div class="card-label">' + label + '</div><div class="card-value">' + value + '</div>' + (sub ? '<div class="card-sub">' + sub + '</div>' : '') + '</div>'; }
+    function formatNumber(n) { if (n == null) return '—'; return Number(n).toLocaleString(); }
+    function escapeHtml(t) { var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+    function escapeAttr(s) { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
   </script>
 
   <!-- Google Translate Widget -->
