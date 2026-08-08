@@ -906,10 +906,8 @@
 
 
       function init() {
-        switchTab('manageTab'); // switchTab already calls loadEvents()
-        loadMembers();
-        loadChestTypes();
-        loadEventTypes();
+        // Load all initial data in a single bundle call (eliminates 4 sequential round-trips)
+        loadEventsBundle();
         updateEventTypeMethod();
         // Add event type change handler for Create Event form
         const eventTypeSelect = document.getElementById('eventType');
@@ -968,12 +966,69 @@
         document.querySelectorAll('#events .tab').forEach(t => t.classList.remove('active'));
         document.getElementById(tabId)?.classList.add('active');
         if (evt && evt.target) evt.target.classList.add('active');
-        if (tabId === 'manageTab') loadEvents();
+        if (tabId === 'manageTab') { if (!eventsData || eventsData.length === 0) loadEvents(); else renderEventsTable(); }
         if (tabId === 'chestEventsTab') populateChestEventSelect();
         if (tabId === 'manualEventsTab') populateManualEventSelect();
         if (tabId === 'troopEventsTab') populateTroopEventSelect();
         if (tabId === 'resourceEventsTab') populateResourceEventSelect();
         if (tabId === 'eventTypesTab') loadEventTypes();
+      }
+
+      function loadEventsBundle() {
+        document.getElementById('eventsLoading').style.display = 'block';
+        document.getElementById('eventsTable').style.display = 'none';
+        document.getElementById('eventsEmpty').style.display = 'none';
+        fetch(window.GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'getEventsBundle' })
+        })
+          .then(res => res.json())
+          .then(bundle => {
+            console.log('[DEBUG] getEventsBundle response keys:', Object.keys(bundle || {}));
+            if (bundle._timing) console.log('[DEBUG] Server build time:', bundle._timing.ms + 'ms');
+
+            // 1. Process events
+            if (bundle.events) {
+              onEventsLoaded(bundle.events);
+            }
+
+            // 2. Process members
+            if (bundle.members) {
+              const norm = normalizeResponse(bundle.members);
+              const list = norm.members || norm.data || (Array.isArray(norm) ? norm : []);
+              membersData = Array.isArray(list) ? list : [];
+              buildMemberJoinDatesMap();
+              populateMemberSelects();
+            }
+
+            // 3. Process chest types
+            if (bundle.chestTypes) {
+              const norm = normalizeResponse(bundle.chestTypes);
+              if (norm.success) {
+                availableChestTypes = norm.chestTypes || norm.data || [];
+                renderChestTypesList();
+              }
+            }
+
+            // 4. Process event types
+            if (bundle.eventTypes) {
+              const norm = normalizeResponse(bundle.eventTypes);
+              if (norm.success) {
+                const data = norm.eventTypes || norm.data || [];
+                eventTypesData = Array.isArray(data) ? data : [];
+                populateEventTypeDropdown();
+                renderEventTypesTable();
+              }
+            }
+
+            // Show the manage tab after bundle loads
+            switchTab('manageTab');
+          })
+          .catch(error => {
+            console.error('Error loading events bundle:', error);
+            document.getElementById('eventsLoading').innerHTML = '<p style="color:#ff5252;">Error: ' + error.message + '</p>';
+          });
       }
 
       function loadEvents() {
@@ -2781,7 +2836,7 @@
         }).catch(error => { status.textContent = 'Error: ' + error.message; status.classList.add('err'); });
       }
 
-      return { init, switchTab, loadEvents, generateEvents, toggleAllGenTypes, onChestEventSelected, onManualEventSelected, onTroopEventSelected, onResourceEventSelected, submitManualEntry, submitTroopEntry, calculateManualNonParticipants, calculateTroopNonParticipants, calculateChestParticipation, calculateResourceEvent, submitCreateEvent, updateEventTypeMethod, submitAddEventType, renderEventTypesTable, cancelEditEventType, addTroopTargetRow, removeTroopTargetRow, addEventTroopTargetRow, removeEventTroopTargetRow, editEventType, editEvent, deleteEvent, deleteEventType, viewEventParticipation, sortTable, sortManualTable, setEventFilter, setEventTypeFilter, toggleBatchTroopEntry, saveBatchTroopEntries, addToBatchEntry, removeBatchEntry, toggleManualBatchEntry, addToManualBatch, removeManualBatchEntry, saveManualBatchEntries };
+      return { init, switchTab, loadEvents, loadEventsBundle, generateEvents, toggleAllGenTypes, onChestEventSelected, onManualEventSelected, onTroopEventSelected, onResourceEventSelected, submitManualEntry, submitTroopEntry, calculateManualNonParticipants, calculateTroopNonParticipants, calculateChestParticipation, calculateResourceEvent, submitCreateEvent, updateEventTypeMethod, submitAddEventType, renderEventTypesTable, cancelEditEventType, addTroopTargetRow, removeTroopTargetRow, addEventTroopTargetRow, removeEventTroopTargetRow, editEventType, editEvent, deleteEvent, deleteEventType, viewEventParticipation, sortTable, sortManualTable, setEventFilter, setEventTypeFilter, toggleBatchTroopEntry, saveBatchTroopEntries, addToBatchEntry, removeBatchEntry, toggleManualBatchEntry, addToManualBatch, removeManualBatchEntry, saveManualBatchEntries };
     })();
   </script>
 </body>
