@@ -1025,7 +1025,11 @@ function filterPlayerTable() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(bundlePayload)
       })
-        .then(res => res.json())
+        .then(res => {
+          const edgeCache = res.headers.get('X-Cache') || 'N/A';
+          console.log('[PERF] Edge cache:', edgeCache);
+          return res.json().then(data => { data._edgeCache = edgeCache; return data; });
+        })
         .then(bundle => {
           console.log('[DEBUG] getDashboardBundle response keys:', Object.keys(bundle || {}),
             'statsSummary:', !!bundle?.statsSummary,
@@ -1048,7 +1052,7 @@ function filterPlayerTable() {
             window.currentSplits = bundle.splits || {};
             displayPlayerStats(bundle.playerStats);
 
-            console.log('[INFO] Dashboard loaded via bundle (server: %dms)', bundle._timing ? bundle._timing.ms : '?');
+            console.log('[INFO] Dashboard loaded via bundle (server: %dms, edge: %s)', bundle._timing ? bundle._timing.ms : '?', bundle._edgeCache || '?');
             if (window.perfDebug) window.perfDebug.measure('Dashboard Load', 'render');
             return;
           }

@@ -1299,10 +1299,22 @@
       async function loadAllData() {
         showLoading();
         try {
+          const t0 = performance.now();
+          const [membersRes, troopRes, heroRes] = await Promise.all([
+            fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'getAllMembers' }) }),
+            fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'getAllTroopLevelsSummary' }) }),
+            fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'getHeroLevels' }) })
+          ]);
+          const elapsed = Math.round(performance.now() - t0);
+          console.log('[PERF] Members page fetches: %dms | Edge cache: members=%s, troops=%s, heroes=%s',
+            elapsed,
+            membersRes.headers.get('X-Cache') || 'N/A',
+            troopRes.headers.get('X-Cache') || 'N/A',
+            heroRes.headers.get('X-Cache') || 'N/A');
           const [membersResult, troopSummary, heroLevels] = await Promise.all([
-            fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'getAllMembers' }) }).then(r => r.json()),
-            fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'getAllTroopLevelsSummary' }) }).then(r => r.json()).catch(() => null),
-            fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'getHeroLevels' }) }).then(r => r.json()).catch(() => null)
+            membersRes.json(),
+            troopRes.json().catch(() => null),
+            heroRes.json().catch(() => null)
           ]);
 
           // Process members
