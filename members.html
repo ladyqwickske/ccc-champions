@@ -753,10 +753,6 @@
             <input type="text" id="newMemberNameInput" placeholder="Enter member name">
           </div>
           <div>
-            <label for="startMight">Starting Might</label>
-            <input type="number" id="startMight" placeholder="Enter starting might" onkeypress="if(event.key==='Enter'){MembersTab.submitAddMember();}">
-          </div>
-          <div>
             <label for="joinDate">Join Date</label>
             <input type="date" id="joinDate">
             <div class="note">Date member joined</div>
@@ -1753,29 +1749,24 @@
       function submitAddMember() {
         const name = document.getElementById('newMemberNameInput').value.trim();
         const joinDate = document.getElementById('joinDate').value;
-        const startMightRaw = document.getElementById('startMight').value;
         const status = document.getElementById('addMemberStatus');
         status.textContent = '';
         status.className = 'status';
         if (!name) { status.textContent = 'Please enter a name.'; status.classList.add('err'); return; }
         if (!joinDate) { status.textContent = 'Please select a join date.'; status.classList.add('err'); return; }
-        const startMight = parseInt(startMightRaw, 10);
-        if (isNaN(startMight) || startMight <= 0) { status.textContent = 'Enter a valid starting might (>0).'; status.classList.add('err'); return; }
         status.textContent = 'Adding member...';
         fetch(window.GAS_WEB_APP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'addMember', name, joinDate, startMight })
+          body: JSON.stringify({ action: 'addMember', name, joinDate })
         })
           .then(res => res.json())
           .then(result => {
             if (result && result.success) {
-              status.textContent = `Added "${name}" with ${formatMight(startMight)} might.`;
+              status.textContent = `Added "${name}".`;
               status.classList.add('ok');
               document.getElementById('newMemberNameInput').value = '';
-              document.getElementById('startMight').value = '';
-              // Update client-side state immediately (no stale-cache reload needed)
-              const newMember = { name: name, joinDate: joinDate, startMight: startMight, latestMight: startMight, latestMightDate: null, recentGrowthPercent: 0 };
+              const newMember = { name: name, joinDate: joinDate };
               membersData.push(newMember);
               filteredData = [...membersData];
               populateMemberSelect();
