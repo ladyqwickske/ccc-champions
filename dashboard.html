@@ -1435,7 +1435,9 @@ function filterPlayerTable() {
       headerHtml += `<div class="header-cell sortable" data-sort="player">Player ${sortIcon('player')}</div>`;
       headerHtml += `<div class="header-cell sortable" data-sort="pts">Pts ${sortIcon('pts')}</div>`;
       headerHtml += `<div class="header-cell sortable" data-sort="total">Total ${sortIcon('total')}</div>`;
-      sortedTypes.forEach(type=>{ headerHtml += `<div class="header-cell type-total-header" onclick="toggleType('${type.name}')" data-type="${type.name}"><span class="toggle-icon">▶</span>${type.name}</div>`; type.levels.forEach(level=>{ const levelLabel = /^\d+$/.test(String(level)) ? `Lvl ${level}` : level; headerHtml += `<div class="header-cell level-header" data-type="${type.name}" data-level="${level}">${levelLabel}</div>`;}); });
+      const expandableTypes = new Set(['Epic Crypt', 'Rare Crypt', 'Common Crypt', 'Epic Squad']);
+      let chestCellIndex = 4;
+      sortedTypes.forEach(type=>{ const isExpandable = expandableTypes.has(type.name); const toggleIcon = isExpandable ? `<span class="toggle-icon" onclick="event.stopPropagation(); toggleType('${type.name}')">▶</span>` : ''; headerHtml += `<div class="header-cell type-total-header sortable" data-sort="chest-${chestCellIndex}" data-type="${type.name}">${toggleIcon}${type.name} ${sortIcon(`chest-${chestCellIndex}`)}</div>`; chestCellIndex += 1 + type.levels.length; type.levels.forEach(level=>{ const levelLabel = /^\d+$/.test(String(level)) ? `Lvl ${level}` : level; headerHtml += `<div class="header-cell level-header" data-type="${type.name}" data-level="${level}">${levelLabel}</div>`;}); });
       headerHtml += '</div>';
       let rowsHtml = '';
       playerArray.forEach((player,idx)=>{
@@ -1476,7 +1478,7 @@ function filterPlayerTable() {
           Object.values(player.chestsByTypeGrouped).forEach(t=>{ totalChests += t.total || 0; });
         }
         rowsHtml += `<div class="cell">${totalChests||'-'}</div>`;
-        sortedTypes.forEach(type=>{
+        sortedTypes.forEach((type, typeIndex)=>{
           const typeInfo = player.chestsByTypeGrouped?.[type.name]; const totalCount = typeInfo?.total || 0;
           const totalClass = (type.name === 'Common Crypt' && ((commonCryptInfo?.levels?.['5']||0)>0 || (commonCryptInfo?.levels?.['10']||0)>0)) ? 'player-red' : '';
           rowsHtml += `<div class="cell" data-type="${type.name}"><span class="${totalCount===0?'count-zero':''} ${totalClass}">${totalCount||'-'}</span></div>`;
@@ -1531,11 +1533,12 @@ function sortPlayerTable(key, dir) {
   else if (key === 'player') idx = 1;
   else if (key === 'pts') idx = 2;
   else if (key === 'total') idx = 3;
+  else if (/^chest-\d+$/.test(key)) idx = parseInt(key.substring(6), 10);
   else return;
   rows.sort((a, b) => {
     let va = a.querySelectorAll('.cell')[idx]?.textContent.trim();
     let vb = b.querySelectorAll('.cell')[idx]?.textContent.trim();
-    if (key === 'rank' || key === 'pts' || key === 'total') {
+    if (key === 'rank' || key === 'pts' || key === 'total' || /^chest-\d+$/.test(key)) {
       va = parseInt(va.replace(/[^\d]/g, '')) || 0;
       vb = parseInt(vb.replace(/[^\d]/g, '')) || 0;
     } else {
