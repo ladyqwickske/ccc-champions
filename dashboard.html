@@ -1419,7 +1419,7 @@ function filterPlayerTable() {
       });
       const sortedTypes = Object.entries(typeData).sort((a,b)=>{
         // Fixed display order: Epic Crypt, Rare Crypt, Common Crypt first, then others alphabetically
-        const CHEST_ORDER = ['Epic Crypt', 'Rare Crypt', 'Common Crypt'];
+        const CHEST_ORDER = ['Epic Crypt', 'Rare Crypt', 'Common Crypt', 'Epic Squad'];
         const idxA = CHEST_ORDER.indexOf(a[0]);
         const idxB = CHEST_ORDER.indexOf(b[0]);
         const orderA = idxA >= 0 ? idxA : CHEST_ORDER.length;
