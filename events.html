@@ -1546,17 +1546,34 @@
         const status = document.getElementById('chestCalcStatus');
         status.textContent = 'Calculating...';
         status.className = 'status';
+        const requestBody = {
+          action: 'calculateChestParticipation',
+          eventName: selectedEvent.eventName,
+          startDate: selectedEvent.startDate,
+          endDate: selectedEvent.endDate,
+          eventType: selectedEvent.eventType
+        };
+        console.log('[CoT Debug] Request:', requestBody);
         fetch(window.GAS_WEB_APP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'calculateChestParticipation',
-            eventName: selectedEvent.eventName,
-            startDate: selectedEvent.startDate,
-            endDate: selectedEvent.endDate,
-            eventType: selectedEvent.eventType
-          })
+          body: JSON.stringify(requestBody)
         }).then(res => res.json()).then(result => {
+          console.log('[CoT Debug] Full response:', result);
+          if (result && result.debug) {
+            console.log('[CoT Debug] chestTypeFilter:', result.debug.chestTypeFilter);
+            console.log('[CoT Debug] dateRange:', result.debug.dateRange);
+            console.log('[CoT Debug] memberCounts:', result.debug.memberCounts);
+            console.log('[CoT Debug] processing:', result.debug.processing);
+            if (result.debug.uniqueChestTypesSeen) {
+              console.log('[CoT Debug] every distinct raw ChestType value found in the date range (exact text, with counts):');
+              console.table(result.debug.uniqueChestTypesSeen);
+            }
+            if (result.debug.sampleRows && result.debug.sampleRows.length) {
+              console.log('[CoT Debug] sampleRows (raw vs resolved chest type):');
+              console.table(result.debug.sampleRows);
+            }
+          }
           if (result && result.success) {
             status.textContent = result.message;
             status.classList.add('ok');
