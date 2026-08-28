@@ -1565,6 +1565,14 @@
             console.log('[CoT Debug] dateRange:', result.debug.dateRange);
             console.log('[CoT Debug] memberCounts:', result.debug.memberCounts);
             console.log('[CoT Debug] processing:', result.debug.processing);
+            if (result.debug.typeMatchedDateSpan) {
+              const span = result.debug.typeMatchedDateSpan;
+              console.log('%c[CoT Debug] Event window: ' + span.eventStartDate + ' to ' + span.eventEndDate +
+                ' (padded match window: ' + span.paddedStartDate + ' to ' + span.paddedEndDate + ')' +
+                ' | Actual COT chest dates found: ' + (span.min || 'none') + ' to ' + (span.max || 'none') +
+                ' | ' + span.totalTypeMatched + ' chest(s) matched the type, ' + span.inEventDateRange + ' fall inside the padded window',
+                span.totalTypeMatched > 0 && span.inEventDateRange === 0 ? 'color:red;font-weight:bold' : 'color:green');
+            }
             if (result.debug.uniqueChestTypesSeen) {
               console.log('[CoT Debug] every distinct raw ChestType value found in the date range (exact text, with counts):');
               console.table(result.debug.uniqueChestTypesSeen);
