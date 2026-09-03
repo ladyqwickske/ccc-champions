@@ -162,7 +162,7 @@
     .player-orange { color: #ffb300; font-weight: 500; }
     .player-green { color: #8bc34a; font-weight: 600; }
     .new-member-row .cell:nth-child(2) { color: #64b5f6; font-style: italic; }
-    .troop-category { display: inline-block; padding: 2px 6px; border-radius: 8px; font-size: 11px; font-style: normal; font-weight: 700; letter-spacing: 0.5px; text-align: center; }
+    .troop-category { display: inline-block; padding: 1px 4px; border-radius: 6px; font-size: 10px; font-style: normal; font-weight: 700; letter-spacing: 0.5px; text-align: center; }
     .troop-category.cat-T9 { background: #6a1fd1; color: #e8d5ff; border: 1px solid #9c5de8; }
     .troop-category.cat-G9 { background: #1565c0; color: #bbdefb; border: 1px solid #42a5f5; }
     .troop-category.cat-T8 { background: #2e7d32; color: #c8e6c9; border: 1px solid #66bb6a; }
@@ -1452,7 +1452,17 @@ function filterPlayerTable() {
       headerHtml += `<div class="header-cell sortable" data-sort="total">Total ${sortIcon('total')}</div>`;
       const expandableTypes = new Set(['Epic Crypt', 'Rare Crypt', 'Common Crypt', 'Epic Squad']);
       let chestCellIndex = 4;
-      sortedTypes.forEach(type=>{ const isExpandable = expandableTypes.has(type.name); const toggleIcon = isExpandable ? `<span class="toggle-icon" onclick="event.stopPropagation(); toggleType('${type.name}')">▶</span>` : ''; headerHtml += `<div class="header-cell type-total-header sortable" data-sort="chest-${chestCellIndex}" data-type="${type.name}">${toggleIcon}${type.name} ${sortIcon(`chest-${chestCellIndex}`)}</div>`; chestCellIndex += 1 + type.levels.length; type.levels.forEach(level=>{ const levelLabel = /^\d+$/.test(String(level)) ? `Lvl ${level}` : level; headerHtml += `<div class="header-cell level-header" data-type="${type.name}" data-level="${level}">${levelLabel}</div>`;}); });
+      sortedTypes.forEach(type => {
+        const isExpandable = expandableTypes.has(type.name);
+        const toggleIcon = isExpandable ? `<span class="toggle-icon" onclick="event.stopPropagation(); toggleType('${type.name}')">▶</span>` : '';
+        headerHtml += `<div class="header-cell type-total-header sortable" data-sort="chest-${chestCellIndex}" data-type="${type.name}">${toggleIcon}${type.name} ${sortIcon(`chest-${chestCellIndex}`)}</div>`;
+        chestCellIndex++;
+        type.levels.forEach(level => {
+          const levelLabel = /^\d+$/.test(String(level)) ? `Lvl ${level}` : level;
+          headerHtml += `<div class="header-cell level-header sortable" data-sort="chest-${chestCellIndex}" data-type="${type.name}" data-level="${level}">${levelLabel} ${sortIcon(`chest-${chestCellIndex}`)}</div>`;
+          chestCellIndex++;
+        });
+      });
       headerHtml += '</div>';
       let rowsHtml = '';
       playerArray.forEach((player,idx)=>{
