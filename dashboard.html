@@ -162,6 +162,8 @@
     .player-orange { color: #ffb300; font-weight: 500; }
     .player-green { color: #8bc34a; font-weight: 600; }
     .new-member-row .cell:nth-child(2) { color: #64b5f6; font-style: italic; }
+    .troop-category { color: #64b5f6; font-size: 11px; font-style: normal; font-weight: 700; }
+    .penalty-target { color: #ffb300; font-size: 10px; font-style: normal; opacity: 0.75; }
     .date-filter {
       background: #232526;
       border-radius: 8px;
@@ -1047,7 +1049,15 @@ function filterPlayerTable() {
               try { localStorage.setItem(PT_KEY, JSON.stringify(pointTargetsCache)); } catch(e) {}
             }
 
-            // 3. Render data
+            // 3. Build a case-insensitive lookup so troop categories can be shown beside names.
+            window.troopCategoriesByPlayer = {};
+            const troopRows = Array.isArray(bundle.troopCategories?.data) ? bundle.troopCategories.data : [];
+            troopRows.forEach(row => {
+              const name = String(row?.playerName || '').trim().toLowerCase();
+              if (name && row.category) window.troopCategoriesByPlayer[name] = row.category;
+            });
+
+            // 4. Render data
             displaySummary(bundle.statsSummary);
             window.currentSplits = bundle.splits || {};
             displayPlayerStats(bundle.playerStats);
@@ -1465,13 +1475,17 @@ function filterPlayerTable() {
         }
 
         const defaultTarget = getEffectiveRequiredPoints();
+        const troopCategory = window.troopCategoriesByPlayer?.[String(player.player || '').trim().toLowerCase()];
+        const troopLabel = troopCategory
+          ? ` <span class="troop-category">[${escapeHtmlDash(troopCategory)}]</span>`
+          : '';
         const targetLabel = playerTarget !== defaultTarget
-          ? ` <span style="font-size:10px;opacity:0.75;color:#ffb300;">(◎ ${playerTarget.toLocaleString()})</span>`
+          ? ` <span class="penalty-target">(◎ ${playerTarget.toLocaleString()})</span>`
           : '';
 
         const rowClass = isNewMember ? 'player-row new-member-row' : 'player-row';
         rowsHtml += `<div class="${rowClass}">`;
-        rowsHtml += `<div class="cell rank-col">${idx+1}</div><div class="cell ${pointsClass}">${player.player}${joinDateLabel}${targetLabel}</div><div class="cell">${totalPointsVal || '-'}</div>`;
+        rowsHtml += `<div class="cell rank-col">${idx+1}</div><div class="cell ${pointsClass}">${escapeHtmlDash(player.player)}${troopLabel}${targetLabel}${joinDateLabel}</div><div class="cell">${totalPointsVal || '-'}</div>`;
         // Calculate total chests: use totalChests if available, otherwise sum from chestsByTypeGrouped (don't double-count eventChests!)
         let totalChests = player.totalChests || 0;
         if (totalChests === 0 && player.chestsByTypeGrouped) {
