@@ -9,6 +9,7 @@
   <script src="perf-debug.js"></script>
   <script src="config.js"></script>
   <script src="portal-shim.js"></script>
+  <script src="portal-auth.js"></script>
   <script>
   // Helper: Parse date string as UTC with proper timezone handling
   function parseDateUTC(str) {
@@ -703,6 +704,32 @@
         <button class="tab" onclick="MembersTab.switchTab('chestPointsTab', event)">📦 Chest Points</button>
         <button class="tab" onclick="MembersTab.switchTab('troopTab', event)">⚔️ Track Troops</button>
         <button class="tab" onclick="MembersTab.switchTab('heroTab', event)">🦸 Hero Level</button>
+        <button class="tab" onclick="MembersTab.switchTab('exemptTab', event)">🛡️ Penalty Exemptions</button>
+        <button class="tab" onclick="MembersTab.switchTab('accountsTab', event)">🔐 Google Accounts</button>
+      </div>
+      <div id="accountsTab" class="tab-content">
+        <h3 style="margin:0 0 12px 0;">Linked Google Accounts</h3>
+        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Link a member to a Google account so they can sign in and see their own bank balance and point penalties. The same address can be linked to several members — handy for alt accounts — and the profile page then offers a dropdown to switch between them. Members only get the public pages plus their profile; management pages stay officer-only, controlled by the list in the script.</p>
+        <div class="controls" style="margin-bottom:10px;">
+          <div class="search-box"><input type="text" id="accountsSearchInput" placeholder="🔍 Filter members..."></div>
+          <button class="btn" onclick="MembersTab.saveMemberAccounts()">💾 Save Accounts</button>
+          <button class="btn btn-secondary" onclick="MembersTab.loadMemberAccounts(true)">🔄 Reload</button>
+        </div>
+        <div id="accountsStatus" class="status"></div>
+        <div id="accountsSummary" style="font-size:12px; color:#b0b0b0; margin-bottom:8px; text-align:left;"></div>
+        <div id="accountsList" style="max-height:50vh; overflow-y:auto; border:1px solid #444; border-radius:8px; padding:10px; background:#232526; text-align:left;"></div>
+      </div>
+      <div id="exemptTab" class="tab-content">
+        <h3 style="margin:0 0 12px 0;">Penalty Exemptions</h3>
+        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Members ticked here never receive an event penalty and are left out of the period-end underperformer report (crypting norm). Use this for utility accounts and leadership alts.</p>
+        <div class="controls" style="margin-bottom:10px;">
+          <div class="search-box"><input type="text" id="exemptSearchInput" placeholder="🔍 Filter members..."></div>
+          <button class="btn" onclick="MembersTab.saveExemptMembers()">💾 Save Exemptions</button>
+          <button class="btn btn-secondary" onclick="MembersTab.loadExemptMembers(true)">🔄 Reload</button>
+        </div>
+        <div id="exemptStatus" class="status"></div>
+        <div id="exemptSummary" style="font-size:12px; color:#b0b0b0; margin-bottom:8px; text-align:left;"></div>
+        <div id="exemptList" style="max-height:50vh; overflow-y:auto; border:1px solid #444; border-radius:8px; padding:10px; background:#232526; text-align:left;"></div>
       </div>
       <div id="troopTab" class="tab-content">
         <h3 style="margin:0 0 12px 0;">Track Troop Levels</h3>
@@ -865,6 +892,8 @@
         loadAllData();
         setTodayDefault();
         document.getElementById('memberSearchInput').addEventListener('input', (e) => filterMembers(e.target.value));
+        document.getElementById('exemptSearchInput')?.addEventListener('input', () => renderExemptList());
+        document.getElementById('accountsSearchInput')?.addEventListener('input', () => renderMemberAccounts());
         document.querySelectorAll('#members th.sortable').forEach(th => {
           th.addEventListener('click', () => sortTable(th.dataset.column));
         });
@@ -977,6 +1006,7 @@
           <thead><tr>
             <th style="text-align:left;padding:4px 8px;color:#ffb300;border-bottom:1px solid #333;">Player</th>
             <th style="text-align:left;padding:4px 8px;color:#ffb300;border-bottom:1px solid #333;">Period</th>
+            <th style="text-align:right;padding:4px 8px;color:#ffb300;border-bottom:1px solid #333;">Penalty pts</th>
             <th style="text-align:right;padding:4px 8px;color:#ffb300;border-bottom:1px solid #333;">Target pts</th>
             <th style="padding:4px 8px;border-bottom:1px solid #333;"></th>
           </tr></thead>
@@ -984,6 +1014,7 @@
             `<tr>
               <td style="padding:4px 8px;color:#e0e0e0;border-bottom:1px solid #2a2a2a;">${escapeHtmlMem(o.player)}</td>
               <td style="padding:4px 8px;color:#b0b0b0;border-bottom:1px solid #2a2a2a;">${escapeHtmlMem(o.period)}</td>
+              <td style="padding:4px 8px;text-align:right;border-bottom:1px solid #2a2a2a;color:${Number(o.penaltyPoints) > 0 ? '#ef5350' : '#666'};">${Number(o.penaltyPoints) > 0 ? '+' + Number(o.penaltyPoints).toLocaleString() : '—'}</td>
               <td style="padding:4px 8px;text-align:right;border-bottom:1px solid #2a2a2a;">
                 <input type="number" value="${o.points}" min="0" step="100" data-idx="${i}"
                   onchange="MembersTab.updatePtOverride(this)"
@@ -1858,6 +1889,179 @@
           });
       }
 
+      // ── Penalty Exemptions ────────────────────────────────────────────
+      let exemptSelection = null;   // Set of lowercased member names
+      let exemptReasons = {};
+
+      function loadExemptMembers(force) {
+        const status = document.getElementById('exemptStatus');
+        if (exemptSelection && !force) { renderExemptList(); return; }
+        if (status) { status.textContent = 'Loading exemptions...'; status.className = 'status'; }
+        fetch(window.GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'getExemptMembers' })
+        })
+          .then(res => res.json())
+          .then(result => {
+            exemptSelection = new Set();
+            exemptReasons = {};
+            (result && result.members ? result.members : []).forEach(entry => {
+              const key = String(entry.name || '').trim().toLowerCase();
+              if (!key) return;
+              exemptSelection.add(key);
+              exemptReasons[key] = entry.reason || '';
+            });
+            if (status) { status.textContent = ''; status.className = 'status'; }
+            renderExemptList();
+          })
+          .catch(error => {
+            if (status) { status.textContent = 'Error: ' + error.message; status.className = 'status err'; }
+          });
+      }
+
+      function renderExemptList() {
+        const container = document.getElementById('exemptList');
+        const summary = document.getElementById('exemptSummary');
+        if (!container || !exemptSelection) return;
+
+        const term = (document.getElementById('exemptSearchInput')?.value || '').toLowerCase().trim();
+        const knownKeys = new Set(membersData.map(m => (m.name || '').toLowerCase()));
+        // Exempt names that are no longer clan members must stay listed so they can be removed
+        const extras = [...exemptSelection].filter(key => !knownKeys.has(key)).map(key => exemptReasons[key + '__name'] || key);
+        const rows = membersData.map(m => m.name)
+          .concat(extras)
+          .filter(Boolean)
+          .filter(name => !term || name.toLowerCase().includes(term))
+          .sort((a, b) => a.localeCompare(b));
+
+        if (summary) summary.textContent = `${exemptSelection.size} member(s) exempt from penalties.`;
+
+        if (rows.length === 0) {
+          container.innerHTML = '<p style="color:#888; font-size:13px;">No members match this filter.</p>';
+          return;
+        }
+
+        container.innerHTML = rows.map(name => {
+          const key = name.toLowerCase();
+          const checked = exemptSelection.has(key) ? ' checked' : '';
+          const unknown = !knownKeys.has(key) ? ' <span style="color:#888;font-size:11px;">(not an active member)</span>' : '';
+          return `<label style="display:flex; align-items:center; gap:8px; padding:5px 4px; cursor:pointer; text-transform:none; letter-spacing:0; color:#e0e0e0; font-weight:400; font-size:13px;">
+            <input type="checkbox" style="width:auto;" data-exempt="${escapeHtml(name)}"${checked} onchange="MembersTab.toggleExemptMember(this)">
+            <span>${escapeHtml(name)}${unknown}</span>
+          </label>`;
+        }).join('');
+      }
+
+      function toggleExemptMember(input) {
+        const name = input.getAttribute('data-exempt') || '';
+        const key = name.toLowerCase();
+        if (input.checked) exemptSelection.add(key); else exemptSelection.delete(key);
+        exemptReasons[key + '__name'] = name;
+        const summary = document.getElementById('exemptSummary');
+        if (summary) summary.textContent = `${exemptSelection.size} member(s) exempt from penalties.`;
+      }
+
+      function saveExemptMembers() {
+        const status = document.getElementById('exemptStatus');
+        if (!exemptSelection) return;
+        const byKey = {};
+        membersData.forEach(m => { if (m.name) byKey[m.name.toLowerCase()] = m.name; });
+        const members = [...exemptSelection].map(key => ({
+          name: byKey[key] || exemptReasons[key + '__name'] || key,
+          reason: exemptReasons[key] || ''
+        }));
+        if (status) { status.textContent = 'Saving...'; status.className = 'status'; }
+        fetch(window.GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'setExemptMembers', members })
+        })
+          .then(res => res.json())
+          .then(result => {
+            if (status) {
+              status.textContent = result?.message || 'Exemptions saved.';
+              status.className = 'status ' + (result?.success ? 'ok' : 'err');
+            }
+          })
+          .catch(error => {
+            if (status) { status.textContent = 'Error: ' + error.message; status.className = 'status err'; }
+          });
+      }
+
+      // ── Linked Google Accounts ─────────────────────────────────
+      let memberAccounts = null;   // [{ name, email }]
+
+      function loadMemberAccounts(force) {
+        const status = document.getElementById('accountsStatus');
+        if (memberAccounts && !force) { renderMemberAccounts(); return; }
+        if (status) { status.textContent = 'Loading linked accounts...'; status.className = 'status'; }
+        fetch(window.GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'getMemberGoogleAccounts' })
+        })
+          .then(res => res.json())
+          .then(result => {
+            memberAccounts = (result && result.members) ? result.members : [];
+            if (status) { status.textContent = ''; status.className = 'status'; }
+            renderMemberAccounts();
+          })
+          .catch(error => {
+            if (status) { status.textContent = 'Error: ' + error.message; status.className = 'status err'; }
+          });
+      }
+
+      function renderMemberAccounts() {
+        const container = document.getElementById('accountsList');
+        const summary = document.getElementById('accountsSummary');
+        if (!container || !memberAccounts) return;
+
+        const term = (document.getElementById('accountsSearchInput')?.value || '').toLowerCase().trim();
+        const rows = memberAccounts.filter(m => !term || m.name.toLowerCase().includes(term));
+        const linked = memberAccounts.filter(m => m.email).length;
+        if (summary) summary.textContent = `${linked} of ${memberAccounts.length} member(s) have a Google account linked.`;
+
+        if (rows.length === 0) {
+          container.innerHTML = '<p style="color:#888; font-size:13px;">No members match this filter.</p>';
+          return;
+        }
+
+        container.innerHTML = rows.map(m => `<div style="display:grid; grid-template-columns:minmax(120px,1fr) 2fr; gap:10px; align-items:center; padding:5px 4px;">
+          <span style="color:#e0e0e0; font-size:13px; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(m.name)}</span>
+          <input type="email" value="${escapeHtml(m.email || '')}" placeholder="name@gmail.com" data-account="${escapeHtml(m.name)}"
+            onchange="MembersTab.updateMemberAccount(this)" style="padding:6px 8px; font-size:13px;">
+        </div>`).join('');
+      }
+
+      function updateMemberAccount(input) {
+        const name = input.getAttribute('data-account') || '';
+        const entry = memberAccounts.find(m => m.name === name);
+        if (entry) entry.email = (input.value || '').trim().toLowerCase();
+      }
+
+      function saveMemberAccounts() {
+        const status = document.getElementById('accountsStatus');
+        if (!memberAccounts) return;
+        if (status) { status.textContent = 'Saving...'; status.className = 'status'; }
+        fetch(window.GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'setMemberGoogleAccounts', members: memberAccounts })
+        })
+          .then(res => res.json())
+          .then(result => {
+            if (status) {
+              status.textContent = result?.message || 'Accounts saved.';
+              status.className = 'status ' + (result?.success ? 'ok' : 'err');
+            }
+            loadMemberAccounts(true);
+          })
+          .catch(error => {
+            if (status) { status.textContent = 'Error: ' + error.message; status.className = 'status err'; }
+          });
+      }
+
       function switchTab(tabId, evt) {
         document.querySelectorAll('#members .tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('#members .tab').forEach(t => t.classList.remove('active'));
@@ -1866,11 +2070,17 @@
 
         const memberTableSection = document.getElementById('memberTableSection');
         if (memberTableSection) {
-          memberTableSection.style.display = (tabId === 'chestPointsTab') ? 'none' : '';
+          memberTableSection.style.display = (tabId === 'chestPointsTab' || tabId === 'exemptTab' || tabId === 'accountsTab') ? 'none' : '';
         }
 
         if (tabId === 'chestPointsTab') {
           loadChestPointsTabData();
+        }
+        if (tabId === 'exemptTab') {
+          loadExemptMembers();
+        }
+        if (tabId === 'accountsTab') {
+          loadMemberAccounts();
         }
       }
 
@@ -1921,7 +2131,7 @@
         document.getElementById('memberEmpty').style.display = 'block';
       }
 
-      return { init, loadAllData, switchTab, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, togglePointTargetsPanel, savePtDefault, addPtOverride, updatePtOverride };
+      return { init, loadAllData, switchTab, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, togglePointTargetsPanel, savePtDefault, addPtOverride, updatePtOverride, loadExemptMembers, toggleExemptMember, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts };
     })();
   </script>
 </body>

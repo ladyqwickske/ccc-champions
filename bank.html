@@ -9,6 +9,7 @@
   <script src="perf-debug.js"></script>
   <script src="config.js"></script>
   <script src="portal-shim.js"></script>
+  <script src="portal-auth.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -563,6 +564,26 @@
         return parsed.toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
       }
 
+      const OTHER_MEMBER_VALUE = '__other__';
+
+      function toggleCustomMemberRow() {
+        const memberSelect = document.getElementById('memberName');
+        const customRow = document.getElementById('customMemberRow');
+        const customInput = document.getElementById('customMemberName');
+        if (!memberSelect || !customRow) return;
+        const isOther = memberSelect.value === OTHER_MEMBER_VALUE;
+        customRow.style.display = isOther ? 'block' : 'none';
+        if (isOther) { if (customInput) customInput.focus(); }
+        else if (customInput) customInput.value = '';
+      }
+
+      function resolveMemberName() {
+        const memberSelect = document.getElementById('memberName');
+        if (!memberSelect) return '';
+        if (memberSelect.value !== OTHER_MEMBER_VALUE) return memberSelect.value;
+        return (document.getElementById('customMemberName')?.value || '').trim();
+      }
+
       async function loadMemberOptions() {
         const memberSelect = document.getElementById('memberName');
         if (!memberSelect) return;
@@ -570,26 +591,30 @@
         memberSelect.innerHTML = '<option value="">Loading members...</option>';
         memberSelect.disabled = true;
 
+        const optionsHtml = (names) => names
+          .map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
+          .join('');
+
         try {
-          const members = await runGASFunction('getMembersList');
-          const memberNames = (Array.isArray(members) ? members : [])
-            .map(m => (m && m.name) ? String(m.name).trim() : '')
-            .filter(Boolean)
-            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+          const result = await runGASFunction('getBankMemberOptions');
+          const active = Array.isArray(result?.active) ? result.active : [];
+          const former = Array.isArray(result?.former) ? result.former : [];
+          const external = Array.isArray(result?.external) ? result.external : [];
 
-          if (!memberNames.length) {
-            memberSelect.innerHTML = '<option value="">No members found</option>';
-            memberSelect.disabled = true;
-            return;
-          }
+          let html = '<option value="">Select member...</option>';
+          if (active.length) html += `<optgroup label="Clan members">${optionsHtml(active)}</optgroup>`;
+          if (former.length) html += `<optgroup label="Former members">${optionsHtml(former)}</optgroup>`;
+          if (external.length) html += `<optgroup label="External / other clans">${optionsHtml(external)}</optgroup>`;
+          html += `<option value="${OTHER_MEMBER_VALUE}">➕ Other name (type it in)...</option>`;
 
-          memberSelect.innerHTML = '<option value="">Select member...</option>' + memberNames
-            .map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
-            .join('');
+          memberSelect.innerHTML = html;
           memberSelect.disabled = false;
+          toggleCustomMemberRow();
         } catch (error) {
-          memberSelect.innerHTML = '<option value="">Failed to load members</option>';
-          memberSelect.disabled = true;
+          // Still allow a free-text entry when the directory cannot be loaded
+          memberSelect.innerHTML = '<option value="">Failed to load members</option>'
+            + `<option value="${OTHER_MEMBER_VALUE}">➕ Other name (type it in)...</option>`;
+          memberSelect.disabled = false;
           console.error('Failed to load members:', error);
         }
       }
@@ -626,18 +651,24 @@
         }
 
         emptyEl.textContent = '';
-        transactionsBody.innerHTML = items.map(tx => `
+        transactionsBody.innerHTML = items.map(tx => {
+          const type = String(tx.transactionType || '').toLowerCase();
+          const typeColor = type === 'penalty' ? '#ef5350' : (type === 'withdrawal' ? '#ffb300' : '#81c784');
+          return `
           <tr>
             <td>${escapeHtml(tx.memberName || '-')}</td>
             <td>${escapeHtml(formatTimestamp(tx.timestamp))}</td>
-            <td>${escapeHtml(tx.transactionType || '-')}</td>
+            <td style="color:${typeColor};font-weight:600;">${escapeHtml(tx.transactionType || '-')}</td>
             <td>${Number(tx.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td>${Number(tx.fee || 0).toFixed(2)}%</td>
             <td>${Number(tx.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td>${escapeHtml(tx.depositedBy || '-')}</td>
             <td>${escapeHtml(tx.recipient || '-')}</td>
+            <td>${escapeHtml(tx.reference || '-')}</td>
+            <td>${escapeHtml(tx.remarks || '-')}</td>
           </tr>
-        `).join('');
+        `;
+        }).join('');
       }
 
       function filterTransactions() {
@@ -693,12 +724,14 @@
         const balancesBody = document.getElementById('balancesBody');
         const emptyEl = document.getElementById('balancesEmpty');
         const totalBalanceEl = document.getElementById('bankTotalBalanceValue');
+        const totalOwedEl = document.getElementById('bankTotalOwedValue');
         if (!balancesBody || !emptyEl) return;
 
+        const fmt = (n) => Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const overallTotal = items.reduce((sum, item) => sum + (Number(item.totalBalance) || 0), 0);
-        if (totalBalanceEl) {
-          totalBalanceEl.textContent = overallTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
+        const overallOwed = items.reduce((sum, item) => sum + (Number(item.amountOwed) || 0), 0);
+        if (totalBalanceEl) totalBalanceEl.textContent = fmt(overallTotal);
+        if (totalOwedEl) totalOwedEl.textContent = fmt(overallOwed);
 
         if (!items.length) {
           balancesBody.innerHTML = '';
@@ -707,30 +740,47 @@
         }
 
         emptyEl.textContent = '';
-        balancesBody.innerHTML = items.map(item => `
+        balancesBody.innerHTML = items.map(item => {
+          const balance = Number(item.totalBalance) || 0;
+          const owes = balance < 0;
+          const balanceCell = owes
+            ? `<span style="color:#ef5350;font-weight:600;" title="Owes the bank">-${fmt(Math.abs(balance))}</span>`
+            : `<span style="color:#8bc34a;">${fmt(balance)}</span>`;
+          const penalties = Number(item.penaltiesTotal) || 0;
+          const status = item.status || 'active';
+          const statusStyles = {
+            active: 'background:#1b5e20;color:#c8e6c9;',
+            former: 'background:#5d4037;color:#ffccbc;',
+            external: 'background:#37474f;color:#cfd8dc;'
+          };
+          const statusLabels = { active: 'Active', former: 'Former', external: 'External' };
+          const statusBadge = `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;${statusStyles[status] || statusStyles.external}">${statusLabels[status] || status}</span>`;
+          return `
           <tr>
             <td>${escapeHtml(item.memberName || '-')}</td>
-            <td>${Number(item.totalBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td>${Number(item.depositsTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td>${Number(item.withdrawalsTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td>${statusBadge}</td>
+            <td>${balanceCell}</td>
+            <td>${fmt(item.depositsTotal)}</td>
+            <td>${fmt(item.withdrawalsTotal)}</td>
+            <td>${penalties > 0 ? `<span style="color:#ef5350;">${fmt(penalties)}</span>` : fmt(0)}</td>
             <td>${Number(item.transactionCount || 0)}</td>
             <td class="last-transaction-col">${escapeHtml(formatTimestamp(item.lastTimestamp))}</td>
           </tr>
-        `).join('');
+        `;
+        }).join('');
       }
 
       function filterBalances() {
         const filterText = (document.getElementById('balancesFilterMember')?.value || '').toLowerCase().trim();
-        
-        if (!filterText) {
-          renderBalances(allBalancesData);
-          return;
-        }
+        const filterStatus = document.getElementById('balancesFilterStatus')?.value || '';
 
-        const filtered = allBalancesData.filter(item => {
-          const memberName = (item.memberName || '').toLowerCase();
-          return memberName.includes(filterText);
-        });
+        let filtered = allBalancesData;
+        if (filterText) {
+          filtered = filtered.filter(item => (item.memberName || '').toLowerCase().includes(filterText));
+        }
+        if (filterStatus) {
+          filtered = filtered.filter(item => (item.status || 'active') === filterStatus);
+        }
 
         renderBalances(filtered);
       }
@@ -787,12 +837,13 @@
             return;
           }
 
-          const memberName = document.getElementById('memberName').value;
+          const memberName = resolveMemberName();
           const transactionType = document.getElementById('transactionType').value;
           const amount = parseFloat(document.getElementById('amount').value);
           const fee = parseFloat(document.getElementById('fee').value);
           const depositedBy = document.getElementById('depositedBy').value.trim();
           const recipient = document.getElementById('recipient').value.trim();
+          const remarks = (document.getElementById('remarks')?.value || '').trim();
           const dateInput = document.getElementById('transactionDate').value;
           var timestamp;
           if (dateInput) {
@@ -801,6 +852,10 @@
             timestamp = new Date().toISOString();
           }
 
+          if (!memberName) {
+            if (result) result.innerHTML = '<div class="error">Please select a member or type a name.</div>';
+            return;
+          }
           if (!(amount > 0)) {
             if (result) result.innerHTML = '<div class="error">Amount must be greater than 0.</div>';
             return;
@@ -813,6 +868,8 @@
             .withSuccessHandler(function(msg) {
               if (result) result.innerHTML = '<div class="success">' + msg + '</div>';
               form.reset();
+              toggleCustomMemberRow();
+              loadMemberOptions();
               loadTransactions();
               loadMemberBalances();
             })
@@ -827,7 +884,8 @@
               fee,
               balance: calculatedBalance,
               depositedBy: depositedBy || '',
-              recipient: recipient || ''
+              recipient: recipient || '',
+              remarks: remarks || ''
             });
         });
       }
@@ -842,6 +900,15 @@
       const balancesFilterMember = document.getElementById('balancesFilterMember');
       if (balancesFilterMember) {
         balancesFilterMember.addEventListener('input', filterBalances);
+      }
+      const balancesFilterStatus = document.getElementById('balancesFilterStatus');
+      if (balancesFilterStatus) {
+        balancesFilterStatus.addEventListener('change', filterBalances);
+      }
+
+      const memberSelectEl = document.getElementById('memberName');
+      if (memberSelectEl) {
+        memberSelectEl.addEventListener('change', toggleCustomMemberRow);
       }
 
       // Filter event listeners for transactions
@@ -974,6 +1041,12 @@
           </select>
         </div>
 
+        <div class="form-row" id="customMemberRow" style="display: none;">
+          <label for="customMemberName">Other Name</label>
+          <input type="text" id="customMemberName" name="customMemberName" placeholder="Former member or someone from another clan">
+          <small style="color:#999;font-size:11px;margin-top:2px;">Used as-is; keep the spelling consistent so their balance stays on one row.</small>
+        </div>
+
         <div class="form-row">
           <label for="transactionType">Transaction Type</label>
           <select id="transactionType" name="transactionType" required>
@@ -1008,6 +1081,11 @@
           <small style="color:#999;font-size:11px;margin-top:2px;">Leave empty to use today's date</small>
         </div>
 
+        <div class="form-row">
+          <label for="remarks">Remarks (optional)</label>
+          <input type="text" id="remarks" name="remarks" placeholder="e.g. loan for T9 upgrade, partial penalty repayment">
+        </div>
+
         <button type="submit" class="btn">Submit Transaction</button>
       </form>
       <div id="result"></div>
@@ -1017,6 +1095,10 @@
         <div class="bank-total-balance">
           <span>Total Bank Balance</span>
           <span id="bankTotalBalanceValue" class="value">-</span>
+        </div>
+        <div class="bank-total-balance" style="margin-left:8px;">
+          <span>Outstanding Debts</span>
+          <span id="bankTotalOwedValue" class="value" style="color:#ef5350;">-</span>
         </div>
         <div class="bank-subtabs">
           <button type="button" id="subtabBalancesBtn" class="subtab-btn active">Members' Balances</button>
@@ -1029,13 +1111,21 @@
               <thead>
                 <tr>
                   <th><input type="text" id="balancesFilterMember" placeholder="Filter by member..." class="header-filter"></th>
-                  <th colspan="5" style="text-align: center; padding: 0;"></th>
+                  <th><select id="balancesFilterStatus" class="header-filter">
+                    <option value="">All</option>
+                    <option value="active">Active</option>
+                    <option value="former">Former</option>
+                    <option value="external">External</option>
+                  </select></th>
+                  <th colspan="6" style="text-align: center; padding: 0;"></th>
                 </tr>
                 <tr>
                   <th>Member</th>
+                  <th>Status</th>
                   <th>Total Balance</th>
                   <th>Total Deposits</th>
                   <th>Total Withdrawals</th>
+                  <th>Penalties</th>
                   <th>Transactions</th>
                   <th class="last-transaction-col">Last Transaction</th>
                 </tr>
@@ -1057,8 +1147,9 @@
                     <option value="">All Types</option>
                     <option value="deposit">Deposits</option>
                     <option value="withdrawal">Withdrawals</option>
+                    <option value="penalty">Penalties</option>
                   </select></th>
-                  <th colspan="5" style="text-align: center; padding: 0;"></th>
+                  <th colspan="6" style="text-align: center; padding: 0;"></th>
                 </tr>
                 <tr>
                   <th>Member</th>
@@ -1069,6 +1160,8 @@
                   <th>Balance</th>
                   <th>Deposited By</th>
                   <th>Recipient</th>
+                  <th>Reference</th>
+                  <th>Remarks</th>
                 </tr>
               </thead>
               <tbody id="transactionsBody"></tbody>

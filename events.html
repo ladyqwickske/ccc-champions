@@ -9,6 +9,7 @@
   <script src="perf-debug.js"></script>
   <script src="config.js"></script>
   <script src="portal-shim.js"></script>
+  <script src="portal-auth.js"></script>
   <script>
   // Helper: Parse date string as UTC with proper timezone handling
   function parseDateUTC(str) {
@@ -673,7 +674,7 @@
         <div class="table-container">
           <div id="eventsLoading" class="loading"><div class="spinner"></div><p>Loading events...</p></div>
           <table id="eventsTable" style="display:none;">
-            <thead><tr><th class="sortable" data-sort="eventName">Event Name</th><th class="sortable" data-sort="eventType">Event Type</th><th class="sortable" data-sort="startDate">Start Date</th><th class="sortable" data-sort="endDate">End Date</th><th>Tracking Method</th><th>Target Pts</th><th>Actions</th></tr></thead>
+            <thead><tr><th class="sortable" data-sort="eventName">Event Name</th><th class="sortable" data-sort="eventType">Event Type</th><th class="sortable" data-sort="startDate">Start Date</th><th class="sortable" data-sort="endDate">End Date</th><th>Tracking Method</th><th>Target Pts</th><th>Penalty</th><th></th>Actions</th></tr></thead>
             <tbody id="eventsTableBody"></tbody>
           </table>
           <div id="eventsEmpty" style="display:none; text-align:center; padding:40px; color:#7f8c8d;"><p>No events found. Create your first event!</p></div>
@@ -687,6 +688,7 @@
         <div style="margin-bottom:12px;"><label for="chestEventSelect">Select Event</label><select id="chestEventSelect" onchange="EventsTab.onChestEventSelected()" style="max-width:400px;"><option value="">-- Select Chest Event --</option></select></div>
         <div id="chestEventActions" style="display:none; margin-bottom:12px;">
           <button class="btn" onclick="EventsTab.calculateChestParticipation()">🔄 Calculate Participation</button>
+          <button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Recalculate Penalties</button>
           <div id="chestCalcStatus" class="status"></div>
         </div>
         <div id="chestParticipationData" style="display:none; margin-top:12px;">
@@ -705,7 +707,7 @@
           <div><label for="manualMember">Member</label><select id="manualMember"><option value="">-- Select Member --</option></select></div>
           <div><label for="manualPoints">Points</label><input type="number" id="manualPoints" placeholder="Enter points" onkeypress="if(event.key==='Enter'){var bp=document.getElementById('manualBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToManualBatch();}else{EventsTab.submitManualEntry();}}"></div>
         </div>
-        <div style="margin-bottom:12px;"><button class="btn" onclick="var bp=document.getElementById('manualBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToManualBatch();}else{EventsTab.submitManualEntry();}">💾 Save Entry</button><button class="btn btn-secondary" onclick="EventsTab.calculateManualNonParticipants()">🙅‍♂️ Fill Non-Participants</button><button class="btn" style="background:#7c3aed;margin-left:8px;" onclick="EventsTab.toggleManualBatchEntry()">📋 Batch Entry</button><div id="manualEntryStatus" class="status"></div><div id="manualNonPartStatus" class="status"></div></div>
+        <div style="margin-bottom:12px;"><button class="btn" onclick="var bp=document.getElementById('manualBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToManualBatch();}else{EventsTab.submitManualEntry();}">💾 Save Entry</button><button class="btn btn-secondary" onclick="EventsTab.calculateManualNonParticipants()">🙅‍♂️ Fill Non-Participants</button><button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Recalculate Penalties</button><button class="btn" style="background:#7c3aed;margin-left:8px;" onclick="EventsTab.toggleManualBatchEntry()">📋 Batch Entry</button><div id="manualEntryStatus" class="status"></div><div id="manualNonPartStatus" class="status"></div></div>
         <!-- Manual Batch entry panel -->
         <div id="manualBatchPanel" style="display:none;border:1px solid #555;border-radius:8px;padding:14px;background:#232526;margin-bottom:14px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -735,7 +737,7 @@
             <div><label for="troopMember">Member</label><select id="troopMember"><option value="">-- Select Member --</option></select></div>
             <div><label for="troopPoints">Points Achieved</label><input type="number" id="troopPoints" placeholder="Enter points" onkeypress="if(event.key==='Enter'){var bp=document.getElementById('troopBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToBatchEntry();}else{EventsTab.submitTroopEntry();}}"></div>
           </div>
-          <div style="margin-bottom:12px;"><button class="btn" onclick="var bp=document.getElementById('troopBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToBatchEntry();}else{EventsTab.submitTroopEntry();}">💾 Save Points</button><button class="btn btn-secondary" onclick="EventsTab.calculateTroopNonParticipants()">🙅‍♂️ Fill Non-Participants</button><button class="btn" style="background:#7c3aed;margin-left:8px;" onclick="EventsTab.toggleBatchTroopEntry()">📋 Batch Entry</button><div id="troopEntryStatus" class="status"></div><div id="troopNonPartStatus" class="status"></div></div>
+          <div style="margin-bottom:12px;"><button class="btn" onclick="var bp=document.getElementById('troopBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToBatchEntry();}else{EventsTab.submitTroopEntry();}">💾 Save Points</button><button class="btn btn-secondary" onclick="EventsTab.calculateTroopNonParticipants()">🙅‍♂️ Fill Non-Participants</button><button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Recalculate Penalties</button><button class="btn" style="background:#7c3aed;margin-left:8px;" onclick="EventsTab.toggleBatchTroopEntry()">📋 Batch Entry</button><div id="troopEntryStatus" class="status"></div><div id="troopNonPartStatus" class="status"></div></div>
           <!-- Batch entry panel -->
           <div id="troopBatchPanel" style="display:none;border:1px solid #555;border-radius:8px;padding:14px;background:#232526;margin-bottom:14px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -768,6 +770,7 @@
           <p id="resourceEventInfo" style="color:#e0e0e0; font-size:13px; margin-bottom:12px;"></p>
           <div style="margin-bottom:12px;">
             <button class="btn" onclick="EventsTab.calculateResourceEvent()">📊 Calculate from Resources</button>
+            <button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Recalculate Penalties</button>
             <div id="resourceCalcStatus" class="status"></div>
           </div>
         </div>
@@ -791,6 +794,17 @@
           <p style="color:#b0b0b0; font-size:12px; margin-bottom:12px;">Set target points for each troop category. These override the event type defaults for this specific event.</p>
           <div id="eventTroopTargetsList" style="border:1px solid #444; border-radius:6px; padding:12px; background:#232526; margin-bottom:12px; max-height:250px; overflow-y:auto;"></div>
           <button type="button" class="btn btn-secondary" style="width:100%; margin-bottom:12px;" onclick="EventsTab.addEventTroopTargetRow()">➕ Add Category Target</button>
+        </div>
+        <div id="eventPenaltySection" style="margin:12px 0; padding:12px; border:1px solid #444; border-radius:6px; background:#232526;">
+          <label style="display:block; margin-bottom:8px;">⚖️ Target Miss Penalty</label>
+          <p style="color:#b0b0b0; font-size:12px; margin-bottom:12px;">Applied automatically to every member who does not reach this event's target. When the event has a numeric target, the penalty is pro-rated to the share of the target that was missed (e.g. 40% short of 4,000 points &rarr; 40% of the penalty). Silver penalties are rounded up to the nearest million. Individual amounts can be adjusted or waived after calculating the event.</p>
+          <label style="font-size:12px; color:#ccc; text-transform:none; letter-spacing:0; cursor:pointer;">
+            <input type="checkbox" id="eventPenaltyEnabled" onchange="EventsTab.onPenaltyEnabledChange()" style="width:auto; margin-right:6px;"> Enable penalty for this event
+          </label>
+          <div id="eventPenaltyFields" class="form-grid" style="display:none; margin-top:12px;">
+            <div><label for="eventPenaltyType">Penalty Type</label><select id="eventPenaltyType"><option value="silver">💰 Silver</option><option value="points">📦 Extra Chest Points</option></select></div>
+            <div><label for="eventPenaltyAmount">Penalty Amount</label><input type="number" id="eventPenaltyAmount" placeholder="e.g., 500000" min="0" step="1"></div>
+          </div>
         </div>
         <button class="btn" onclick="EventsTab.submitCreateEvent()">🎯 Create Event</button><div id="createStatus" class="status"></div>
 
@@ -959,6 +973,26 @@
             setEventTroopTargetsInForm('');
           }
         }
+        // Period markers only delimit time ranges, so they can't be missed
+        const penaltySection = document.getElementById('eventPenaltySection');
+        if (penaltySection) penaltySection.style.display = (method === 'period-marker') ? 'none' : '';
+      }
+
+      function onPenaltyEnabledChange() {
+        const enabled = document.getElementById('eventPenaltyEnabled')?.checked;
+        const fields = document.getElementById('eventPenaltyFields');
+        if (fields) fields.style.display = enabled ? '' : 'none';
+      }
+
+      function setPenaltyForm(event) {
+        const enabledInput = document.getElementById('eventPenaltyEnabled');
+        const typeInput = document.getElementById('eventPenaltyType');
+        const amountInput = document.getElementById('eventPenaltyAmount');
+        if (!enabledInput || !typeInput || !amountInput) return;
+        enabledInput.checked = !!(event && event.penaltyEnabled);
+        typeInput.value = (event && event.penaltyType) || 'silver';
+        amountInput.value = (event && event.penaltyAmount) ? event.penaltyAmount : '';
+        onPenaltyEnabledChange();
       }
 
       function switchTab(tabId, evt) {
@@ -1257,12 +1291,15 @@
           const targetPtsDisplay = event.participationMethod === 'period-marker'
             ? (event.targetPoints ? `<span style="color:#ffb300;font-weight:600;">${Number(event.targetPoints).toLocaleString()}</span>` : '<span style="color:#888;">Default</span>')
             : '<span style="color:#555;">—</span>';
+          const penaltyDisplay = event.penaltyEnabled && Number(event.penaltyAmount) > 0
+            ? `<span style="color:#ef5350;font-weight:600;">${Number(event.penaltyAmount).toLocaleString()} ${event.penaltyType === 'points' ? 'pts' : 'silver'}</span>`
+            : '<span style="color:#555;">—</span>';
           const row = document.createElement('tr');
-          row.innerHTML = `<td class="event-name">${escapeHtml(event.eventName)}</td><td>${escapeHtml(event.eventType)}</td><td>${formatDateUTC(event.startDate)}</td><td>${formatDateUTC(event.endDate, true)}</td><td>${methodBadge}</td><td style="text-align:center;">${targetPtsDisplay}</td><td>${viewButton}<button class="btn action-btn" onclick="EventsTab.editEvent('${escapeAttr(event.eventName)}')">✏️ Edit</button><button class="btn action-btn btn-secondary" onclick="EventsTab.deleteEvent('${escapeAttr(event.eventName)}')">🗑️ Delete</button></td>`;
+          row.innerHTML = `<td class="event-name">${escapeHtml(event.eventName)}</td><td>${escapeHtml(event.eventType)}</td><td>${formatDateUTC(event.startDate)}</td><td>${formatDateUTC(event.endDate, true)}</td><td>${methodBadge}</td><td style="text-align:center;">${targetPtsDisplay}</td><td style="text-align:center;">${penaltyDisplay}</td><td>${viewButton}<button class="btn action-btn" onclick="EventsTab.editEvent('${escapeAttr(event.eventName)}')">✏️ Edit</button><button class="btn action-btn btn-secondary" onclick="EventsTab.deleteEvent('${escapeAttr(event.eventName)}')">🗑️ Delete</button></td>`;
           tbody.appendChild(row);
         });
         if (sorted.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:#888;">No events match this filter.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;color:#888;">No events match this filter.</td></tr>';
         }
 
         // Add sort indicators to headers
@@ -1306,6 +1343,7 @@
         if (targetPtsInput) targetPtsInput.value = event.targetPoints || '';
         // Show/hide target points field based on event type
         onCreateEventTypeChange();
+        setPenaltyForm(event);
         // Load per-event troop targets if available
         if (event.troopTargets) {
           setEventTroopTargetsInForm(event.troopTargets);
@@ -1454,12 +1492,17 @@
         const endDate = document.getElementById('eventEndDate').value;
         const targetPointsInput = document.getElementById('eventTargetPoints');
         const targetPoints = (targetPointsInput && targetPointsInput.value && Number(targetPointsInput.value) > 0) ? Number(targetPointsInput.value) : null;
+        const penaltyEnabled = !!document.getElementById('eventPenaltyEnabled')?.checked;
+        const penaltyType = document.getElementById('eventPenaltyType')?.value || 'silver';
+        const penaltyAmountRaw = document.getElementById('eventPenaltyAmount')?.value;
+        const penaltyAmount = (penaltyAmountRaw && Number(penaltyAmountRaw) > 0) ? Number(penaltyAmountRaw) : 0;
         const status = document.getElementById('createStatus');
         status.textContent = '';
         status.className = 'status';
         if (!eventName) { status.textContent = 'Please enter an event name.'; status.classList.add('err'); return; }
         if (!eventType) { status.textContent = 'Please select an event type.'; status.classList.add('err'); return; }
         if (!startDate || !endDate) { status.textContent = 'Please select start and end dates.'; status.classList.add('err'); return; }
+        if (penaltyEnabled && penaltyAmount <= 0) { status.textContent = 'Please enter a penalty amount greater than 0, or disable the penalty.'; status.classList.add('err'); return; }
 
         // Log values for debugging
         console.log('submitCreateEvent:', { eventName, eventType, startDate, endDate, targetPoints });
@@ -1477,6 +1520,7 @@
             document.getElementById('eventEndDate').value = '';
             if (targetPointsInput) targetPointsInput.value = '';
             setEventTroopTargetsInForm('');
+            setPenaltyForm(null);
             document.querySelector('[onclick="EventsTab.submitCreateEvent()"]').textContent = '🎯 Create Event';
             editingEventName = null;
             loadEvents();
@@ -1494,8 +1538,8 @@
         const payload = {
           action: isEditing ? 'updateEvent' : 'addEvent',
           args: isEditing
-            ? [editingEventName, eventName, eventType, startDate, endDate, targetPoints, troopTargets]
-            : [eventName, eventType, startDate, endDate, targetPoints, troopTargets]
+            ? [editingEventName, eventName, eventType, startDate, endDate, targetPoints, troopTargets, penaltyEnabled, penaltyType, penaltyAmount]
+            : [eventName, eventType, startDate, endDate, targetPoints, troopTargets, penaltyEnabled, penaltyType, penaltyAmount]
         };
         // Extra validation: show error if eventType is undefined
         if (!eventType || eventType === 'undefined') {
@@ -1546,42 +1590,17 @@
         const status = document.getElementById('chestCalcStatus');
         status.textContent = 'Calculating...';
         status.className = 'status';
-        const requestBody = {
-          action: 'calculateChestParticipation',
-          eventName: selectedEvent.eventName,
-          startDate: selectedEvent.startDate,
-          endDate: selectedEvent.endDate,
-          eventType: selectedEvent.eventType
-        };
-        console.log('[CoT Debug] Request:', requestBody);
         fetch(window.GAS_WEB_APP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
+          body: JSON.stringify({
+            action: 'calculateChestParticipation',
+            eventName: selectedEvent.eventName,
+            startDate: selectedEvent.startDate,
+            endDate: selectedEvent.endDate,
+            eventType: selectedEvent.eventType
+          })
         }).then(res => res.json()).then(result => {
-          console.log('[CoT Debug] Full response:', result);
-          if (result && result.debug) {
-            console.log('[CoT Debug] chestTypeFilter:', result.debug.chestTypeFilter);
-            console.log('[CoT Debug] dateRange:', result.debug.dateRange);
-            console.log('[CoT Debug] memberCounts:', result.debug.memberCounts);
-            console.log('[CoT Debug] processing:', result.debug.processing);
-            if (result.debug.typeMatchedDateSpan) {
-              const span = result.debug.typeMatchedDateSpan;
-              console.log('%c[CoT Debug] Event window: ' + span.eventStartDate + ' to ' + span.eventEndDate +
-                ' (padded match window: ' + span.paddedStartDate + ' to ' + span.paddedEndDate + ')' +
-                ' | Actual COT chest dates found: ' + (span.min || 'none') + ' to ' + (span.max || 'none') +
-                ' | ' + span.totalTypeMatched + ' chest(s) matched the type, ' + span.inEventDateRange + ' fall inside the padded window',
-                span.totalTypeMatched > 0 && span.inEventDateRange === 0 ? 'color:red;font-weight:bold' : 'color:green');
-            }
-            if (result.debug.uniqueChestTypesSeen) {
-              console.log('[CoT Debug] every distinct raw ChestType value found in the date range (exact text, with counts):');
-              console.table(result.debug.uniqueChestTypesSeen);
-            }
-            if (result.debug.sampleRows && result.debug.sampleRows.length) {
-              console.log('[CoT Debug] sampleRows (raw vs resolved chest type):');
-              console.table(result.debug.sampleRows);
-            }
-          }
           if (result && result.success) {
             status.textContent = result.message;
             status.classList.add('ok');
@@ -1868,15 +1887,98 @@
         });
       }
 
+      // --- Penalty helpers (per-member adjustments after an event is calculated) ---
+      function penaltyEnabledForSelectedEvent() {
+        return !!(selectedEvent && selectedEvent.penaltyEnabled);
+      }
+
+      function penaltyUnitLabel() {
+        return (selectedEvent && selectedEvent.penaltyType === 'points') ? 'pts' : 'silver';
+      }
+
+      function penaltyBadge(amount, status) {
+        if (status === 'Exempt') return '<span class="badge" style="background:#1b5e20;color:#c8e6c9;">Exempt</span>';
+        if (status === 'Waived') return '<span class="badge" style="background:#455a64;color:#cfd8dc;">Waived</span>';
+        if (status === 'Adjusted') return '<span class="badge" style="background:#7c3aed;color:#ede9fe;">Adjusted</span>';
+        if (Number(amount) > 0) return '<span class="badge" style="background:#b71c1c;color:#ffcdd2;">Auto</span>';
+        return '<span style="color:#666;">—</span>';
+      }
+
+      function penaltyCellHtml(memberName, amount, status) {
+        if (status === 'Exempt') return penaltyBadge(0, status);
+        const value = Number(amount) || 0;
+        const attr = escapeAttr(memberName);
+        return '<div style="display:flex;align-items:center;gap:6px;justify-content:center;flex-wrap:wrap;">'
+          + `<input type="number" min="0" step="1" value="${value}" style="width:100px;padding:4px 6px;" onchange="EventsTab.savePenalty('${attr}', this.value)">`
+          + `<span style="font-size:11px;color:#888;">${penaltyUnitLabel()}</span>`
+          + `<button class="btn action-btn btn-secondary" title="Waive this penalty" onclick="EventsTab.waivePenalty('${attr}')">🚫</button>`
+          + `<button class="btn action-btn btn-secondary" title="Reset to the calculated value" onclick="EventsTab.resetPenalty('${attr}')">↺</button>`
+          + penaltyBadge(value, status)
+          + '</div>';
+      }
+
+      function penaltyStatusEl() {
+        const method = selectedEvent && selectedEvent.participationMethod;
+        if (method === 'chest-based') return document.getElementById('chestCalcStatus');
+        if (method === 'resource-troop' || method === 'resource-manual') return document.getElementById('resourceCalcStatus');
+        if (method === 'troop-based') return document.getElementById('troopEntryStatus');
+        return document.getElementById('manualEntryStatus');
+      }
+
+      function reloadParticipationForSelectedEvent() {
+        if (!selectedEvent) return;
+        const method = selectedEvent.participationMethod;
+        if (method === 'chest-based') loadChestParticipationData(selectedEvent.eventName);
+        else if (method === 'troop-based') loadTroopParticipationData(selectedEvent.eventName);
+        else if (method === 'resource-troop' || method === 'resource-manual') loadResourceParticipationData(selectedEvent.eventName);
+        else loadManualParticipationData(selectedEvent.eventName);
+      }
+
+      function sendPenaltyUpdate(memberName, amount, penaltyStatus) {
+        const statusEl = penaltyStatusEl();
+        const setStatus = (text, cls) => { if (statusEl) { statusEl.textContent = text; statusEl.className = 'status' + (cls ? ' ' + cls : ''); } };
+        if (!selectedEvent) { setStatus('Please select an event.', 'err'); return; }
+        setStatus('Saving penalty...');
+        fetch(window.GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'updateEventPenalty', eventName: selectedEvent.eventName, memberName, penaltyAmount: amount, penaltyStatus })
+        }).then(res => res.json()).then(result => {
+          setStatus(result?.message || 'Penalty updated.', result?.success ? 'ok' : 'err');
+          if (result?.success) reloadParticipationForSelectedEvent();
+        }).catch(error => setStatus('Error: ' + error.message, 'err'));
+      }
+
+      function savePenalty(memberName, value) { sendPenaltyUpdate(memberName, Number(value) || 0, 'Adjusted'); }
+      function waivePenalty(memberName) { sendPenaltyUpdate(memberName, 0, 'Waived'); }
+      function resetPenalty(memberName) { sendPenaltyUpdate(memberName, 0, 'Auto'); }
+
+      function recalculatePenalties() {
+        const statusEl = penaltyStatusEl();
+        const setStatus = (text, cls) => { if (statusEl) { statusEl.textContent = text; statusEl.className = 'status' + (cls ? ' ' + cls : ''); } };
+        if (!selectedEvent) { setStatus('Please select an event.', 'err'); return; }
+        setStatus('Recalculating penalties...');
+        fetch(window.GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'applyEventPenalties', eventName: selectedEvent.eventName })
+        }).then(res => res.json()).then(result => {
+          setStatus(result?.message || 'Penalties recalculated.', result?.success ? 'ok' : 'err');
+          if (result?.success) reloadParticipationForSelectedEvent();
+        }).catch(error => setStatus('Error: ' + error.message, 'err'));
+      }
+
       // --- Chest Participation Table ---
       function renderChestParticipationData() {
         const thead = document.getElementById('chestParticipationTableHead');
         const tbody = document.getElementById('chestParticipationTableBody');
+        const showPenalty = penaltyEnabledForSelectedEvent();
         const columns = [
           { key: 'memberName', label: 'Member Name' },
           { key: 'value1', label: 'Chest Count' },
           { key: 'value3', label: 'Participated' }
         ];
+        if (showPenalty) columns.push({ key: 'penalty', label: 'Penalty' });
         thead.innerHTML = '<tr>' + columns.map(col => `<th class="sortable" data-sort="${col.key}">${escapeHtml(col.label)}</th>`).join('') + '</tr>';
         let sorted = [...participationRawData];
         if (chestSortColumn) {
@@ -1885,7 +1987,7 @@
             if (chestSortColumn === 'memberName') {
               vA = (vA || '').toLowerCase();
               vB = (vB || '').toLowerCase();
-            } else if (chestSortColumn === 'value1') {
+            } else if (chestSortColumn === 'value1' || chestSortColumn === 'penalty') {
               vA = Number(vA) || 0;
               vB = Number(vB) || 0;
             }
@@ -1904,7 +2006,8 @@
                 ? '<span style="color:#999;">—</span>'
                 : '<span style="color:#f44336;">✕</span>'));
           const row = document.createElement('tr');
-          row.innerHTML = `<td>${escapeHtml(p.memberName)}</td><td>${p.value1 || 0}</td><td style="text-align:center;">${icon}</td>`;
+          const penaltyCell = showPenalty ? `<td style="text-align:center;">${penaltyCellHtml(p.memberName, p.penalty, p.penaltyStatus)}</td>` : '';
+          row.innerHTML = `<td>${escapeHtml(p.memberName)}</td><td>${p.value1 || 0}</td><td style="text-align:center;">${icon}</td>${penaltyCell}`;
           tbody.appendChild(row);
         });
         // Add sort indicators
@@ -1921,6 +2024,7 @@
       function renderManualParticipationData() {
         const thead = document.getElementById('manualParticipationTableHead');
         const tbody = document.getElementById('manualParticipationTableBody');
+        const showPenalty = penaltyEnabledForSelectedEvent();
         const columns = [
           { key: 'memberName', label: 'Member Name' },
           { key: 'category', label: 'Category' },
@@ -1928,6 +2032,7 @@
           { key: 'achieved', label: 'Achieved' },
           { key: 'status', label: 'Status' }
         ];
+        if (showPenalty) columns.push({ key: 'penalty', label: 'Penalty' });
         thead.innerHTML = '<tr>' + columns.map(col => `<th class="sortable" data-sort="${col.key}">${escapeHtml(col.label)}</th>`).join('') + '</tr>';
         // Build data rows with computed fields
         let rows = participationRawData.map(p => {
@@ -1961,6 +2066,8 @@
             target: targetPoints !== null && !isNaN(targetPoints) ? targetPoints : '—',
             achieved: pts,
             status: statusIcon,
+            penalty: Number(p.penalty) || 0,
+            penaltyStatus: p.penaltyStatus || '',
             _statusSort: statusSort,
             _categorySort: category ? ['G7','G8','T8','G9','T9'].indexOf(category) : -1
           };
@@ -1975,7 +2082,7 @@
             } else if (manualSortColumn === 'category') {
               vA = a._categorySort;
               vB = b._categorySort;
-            } else if (manualSortColumn === 'target' || manualSortColumn === 'achieved') {
+            } else if (manualSortColumn === 'target' || manualSortColumn === 'achieved' || manualSortColumn === 'penalty') {
               vA = Number(vA) || 0;
               vB = Number(vB) || 0;
             } else if (manualSortColumn === 'status') {
@@ -1993,7 +2100,8 @@
             ? `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:#37474f;color:#cfd8dc;">${escapeHtml(row.category)}</span>`
             : '<span style="color:#666">—</span>';
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${row.target}</td><td style="text-align:center;">${row.achieved}</td><td style="text-align:center;">${row.status}</td>`;
+          const penaltyCell = showPenalty ? `<td style="text-align:center;">${penaltyCellHtml(row.memberName, row.penalty, row.penaltyStatus)}</td>` : '';
+          tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${row.target}</td><td style="text-align:center;">${row.achieved}</td><td style="text-align:center;">${row.status}</td>${penaltyCell}`;
           tbody.appendChild(tr);
         });
         // Add sort indicators
@@ -2010,6 +2118,7 @@
       function renderTroopParticipationData() {
         const thead = document.getElementById('troopParticipationTableHead');
         const tbody = document.getElementById('troopParticipationTableBody');
+        const showPenalty = penaltyEnabledForSelectedEvent();
         const columns = [
           { key: 'memberName', label: 'Member Name' },
           { key: 'category', label: 'Category' },
@@ -2017,6 +2126,7 @@
           { key: 'achieved', label: 'Achieved' },
           { key: 'status', label: 'Status' }
         ];
+        if (showPenalty) columns.push({ key: 'penalty', label: 'Penalty' });
         thead.innerHTML = '<tr>' + columns.map(col => `<th class="sortable" data-sort="${col.key}">${escapeHtml(col.label)}</th>`).join('') + '</tr>';
         // Build data rows with computed fields
         let rows = participationRawData.map(p => {
@@ -2050,6 +2160,8 @@
             target: targetPoints !== null && !isNaN(targetPoints) ? targetPoints : '—',
             achieved: pts,
             status: statusIcon,
+            penalty: Number(p.penalty) || 0,
+            penaltyStatus: p.penaltyStatus || '',
             _statusSort: statusSort,
             _categorySort: category ? ['G7','G8','T8','G9','T9'].indexOf(category) : -1
           };
@@ -2064,7 +2176,7 @@
             } else if (troopSortColumn === 'category') {
               vA = a._categorySort;
               vB = b._categorySort;
-            } else if (troopSortColumn === 'target' || troopSortColumn === 'achieved') {
+            } else if (troopSortColumn === 'target' || troopSortColumn === 'achieved' || troopSortColumn === 'penalty') {
               vA = Number(vA) || 0;
               vB = Number(vB) || 0;
             } else if (troopSortColumn === 'status') {
@@ -2082,7 +2194,8 @@
             ? `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:#37474f;color:#cfd8dc;">${escapeHtml(row.category)}</span>`
             : '<span style="color:#666">—</span>';
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${row.target}</td><td style="text-align:center;">${row.achieved}</td><td style="text-align:center;">${row.status}</td>`;
+          const penaltyCell = showPenalty ? `<td style="text-align:center;">${penaltyCellHtml(row.memberName, row.penalty, row.penaltyStatus)}</td>` : '';
+          tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${row.target}</td><td style="text-align:center;">${row.achieved}</td><td style="text-align:center;">${row.status}</td>${penaltyCell}`;
           tbody.appendChild(tr);
         });
         // Add sort indicators
@@ -2569,9 +2682,11 @@
         const tbody = document.getElementById('resourceParticipationTableBody');
         const method = selectedEvent?.participationMethod || '';
         const isTroop = method === 'resource-troop';
+        const showPenalty = penaltyEnabledForSelectedEvent();
         const columns = isTroop
           ? [{ key: 'memberName', label: 'Member Name' }, { key: 'category', label: 'Category' }, { key: 'target', label: 'Target' }, { key: 'achieved', label: 'Contributed' }, { key: 'status', label: 'Status' }]
           : [{ key: 'memberName', label: 'Member Name' }, { key: 'achieved', label: 'Contributed' }, { key: 'target', label: 'Target' }, { key: 'status', label: 'Status' }];
+        if (showPenalty) columns.push({ key: 'penalty', label: 'Penalty' });
         thead.innerHTML = '<tr>' + columns.map(col => `<th class="sortable" data-sort="${col.key}">${escapeHtml(col.label)}</th>`).join('') + '</tr>';
 
         const eventTypeName = selectedEvent?.eventType || '';
@@ -2615,6 +2730,8 @@
             target: (targetPoints !== null && !isNaN(targetPoints) && targetPoints > 0) ? targetPoints : '—',
             achieved: pts,
             status: statusIcon,
+            penalty: Number(p.penalty) || 0,
+            penaltyStatus: p.penaltyStatus || '',
             _statusSort: statusSort,
             _categorySort: category ? ['G7','G8','T8','G9','T9'].indexOf(category) : -1
           };
@@ -2625,7 +2742,7 @@
             let vA = a[resourceSortColumn], vB = b[resourceSortColumn];
             if (resourceSortColumn === 'memberName') { vA = (vA || '').toLowerCase(); vB = (vB || '').toLowerCase(); }
             else if (resourceSortColumn === 'category') { vA = a._categorySort; vB = b._categorySort; }
-            else if (resourceSortColumn === 'target' || resourceSortColumn === 'achieved') { vA = Number(vA) || 0; vB = Number(vB) || 0; }
+            else if (resourceSortColumn === 'target' || resourceSortColumn === 'achieved' || resourceSortColumn === 'penalty') { vA = Number(vA) || 0; vB = Number(vB) || 0; }
             else if (resourceSortColumn === 'status') { vA = a._statusSort; vB = b._statusSort; }
             if (vA < vB) return resourceSortDirection === 'asc' ? -1 : 1;
             if (vA > vB) return resourceSortDirection === 'asc' ? 1 : -1;
@@ -2639,10 +2756,11 @@
             ? `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:#37474f;color:#cfd8dc;">${escapeHtml(row.category)}</span>`
             : '<span style="color:#666">—</span>';
           const tr = document.createElement('tr');
+          const penaltyCell = showPenalty ? `<td style="text-align:center;">${penaltyCellHtml(row.memberName, row.penalty, row.penaltyStatus)}</td>` : '';
           if (isTroop) {
-            tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${row.target}</td><td style="text-align:center;">${row.achieved}</td><td style="text-align:center;">${row.status}</td>`;
+            tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${row.target}</td><td style="text-align:center;">${row.achieved}</td><td style="text-align:center;">${row.status}</td>${penaltyCell}`;
           } else {
-            tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${row.achieved}</td><td style="text-align:center;">${row.target}</td><td style="text-align:center;">${row.status}</td>`;
+            tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${row.achieved}</td><td style="text-align:center;">${row.target}</td><td style="text-align:center;">${row.status}</td>${penaltyCell}`;
           }
           tbody.appendChild(tr);
         });
@@ -2861,7 +2979,7 @@
         }).catch(error => { status.textContent = 'Error: ' + error.message; status.classList.add('err'); });
       }
 
-      return { init, switchTab, loadEvents, loadEventsBundle, generateEvents, toggleAllGenTypes, onChestEventSelected, onManualEventSelected, onTroopEventSelected, onResourceEventSelected, submitManualEntry, submitTroopEntry, calculateManualNonParticipants, calculateTroopNonParticipants, calculateChestParticipation, calculateResourceEvent, submitCreateEvent, updateEventTypeMethod, submitAddEventType, renderEventTypesTable, cancelEditEventType, addTroopTargetRow, removeTroopTargetRow, addEventTroopTargetRow, removeEventTroopTargetRow, editEventType, editEvent, deleteEvent, deleteEventType, viewEventParticipation, sortTable, sortManualTable, setEventFilter, setEventTypeFilter, toggleBatchTroopEntry, saveBatchTroopEntries, addToBatchEntry, removeBatchEntry, toggleManualBatchEntry, addToManualBatch, removeManualBatchEntry, saveManualBatchEntries };
+      return { init, switchTab, loadEvents, loadEventsBundle, generateEvents, toggleAllGenTypes, onChestEventSelected, onManualEventSelected, onTroopEventSelected, onResourceEventSelected, submitManualEntry, submitTroopEntry, calculateManualNonParticipants, calculateTroopNonParticipants, calculateChestParticipation, calculateResourceEvent, submitCreateEvent, updateEventTypeMethod, submitAddEventType, renderEventTypesTable, cancelEditEventType, addTroopTargetRow, removeTroopTargetRow, addEventTroopTargetRow, removeEventTroopTargetRow, editEventType, editEvent, deleteEvent, deleteEventType, viewEventParticipation, sortTable, sortManualTable, setEventFilter, setEventTypeFilter, toggleBatchTroopEntry, saveBatchTroopEntries, addToBatchEntry, removeBatchEntry, toggleManualBatchEntry, addToManualBatch, removeManualBatchEntry, saveManualBatchEntries, onPenaltyEnabledChange, savePenalty, waivePenalty, resetPenalty, recalculatePenalties };
     })();
   </script>
 </body>
