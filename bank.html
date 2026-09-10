@@ -595,12 +595,35 @@
         return (document.getElementById('customMemberName')?.value || '').trim();
       }
 
+      function toggleCustomRecipientRow() {
+        const recipientSelect = document.getElementById('recipient');
+        const customRow = document.getElementById('customRecipientRow');
+        const customInput = document.getElementById('customRecipientName');
+        if (!recipientSelect || !customRow) return;
+        const isOther = recipientSelect.value === OTHER_MEMBER_VALUE;
+        customRow.style.display = isOther ? 'block' : 'none';
+        if (isOther) { if (customInput) customInput.focus(); }
+        else if (customInput) customInput.value = '';
+      }
+
+      function resolveRecipientName() {
+        const recipientSelect = document.getElementById('recipient');
+        if (!recipientSelect) return '';
+        if (recipientSelect.value !== OTHER_MEMBER_VALUE) return recipientSelect.value;
+        return (document.getElementById('customRecipientName')?.value || '').trim();
+      }
+
       async function loadMemberOptions() {
         const memberSelect = document.getElementById('memberName');
+        const recipientSelect = document.getElementById('recipient');
         if (!memberSelect) return;
 
         memberSelect.innerHTML = '<option value="">Loading members...</option>';
         memberSelect.disabled = true;
+        if (recipientSelect) {
+          recipientSelect.innerHTML = '<option value="">Loading members...</option>';
+          recipientSelect.disabled = true;
+        }
 
         const optionsHtml = (names) => names
           .map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
@@ -620,12 +643,22 @@
 
           memberSelect.innerHTML = html;
           memberSelect.disabled = false;
+          if (recipientSelect) {
+            recipientSelect.innerHTML = html;
+            recipientSelect.disabled = false;
+          }
           toggleCustomMemberRow();
+          toggleCustomRecipientRow();
         } catch (error) {
           // Still allow a free-text entry when the directory cannot be loaded
           memberSelect.innerHTML = '<option value="">Failed to load members</option>'
             + `<option value="${OTHER_MEMBER_VALUE}">➕ Other name (type it in)...</option>`;
           memberSelect.disabled = false;
+          if (recipientSelect) {
+            recipientSelect.innerHTML = '<option value="">Failed to load members</option>'
+              + `<option value="${OTHER_MEMBER_VALUE}">➕ Other name (type it in)...</option>`;
+            recipientSelect.disabled = false;
+          }
           console.error('Failed to load members:', error);
         }
       }
@@ -660,6 +693,7 @@
         document.getElementById('submitTransactionBtn').textContent = 'Submit Transaction';
         updateTransactionFields();
         toggleCustomMemberRow();
+        toggleCustomRecipientRow();
       }
 
       function editTransaction(sheetRow) {
@@ -682,7 +716,13 @@
         document.getElementById('amount').value = Number(transaction.amount || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
         document.getElementById('fee').value = transaction.fee || 0;
         document.getElementById('depositedBy').value = transaction.depositedBy || '';
-        document.getElementById('recipient').value = transaction.recipient || '';
+        const recipientSelect = document.getElementById('recipient');
+        recipientSelect.value = transaction.recipient || '';
+        if (recipientSelect.value !== (transaction.recipient || '')) {
+          recipientSelect.value = OTHER_MEMBER_VALUE;
+          document.getElementById('customRecipientName').value = transaction.recipient || '';
+        }
+        toggleCustomRecipientRow();
         document.getElementById('remarks').value = transaction.remarks || '';
         document.getElementById('transactionDate').value = transaction.timestamp ? String(transaction.timestamp).substring(0, 10) : '';
         document.getElementById('submitTransactionBtn').textContent = 'Update Transaction';
@@ -885,21 +925,35 @@
         const transactionType = transactionTypeSelect.value;
         const recipientLabel = document.getElementById('recipientLabel');
         const recipientInput = document.getElementById('recipient');
+        const customRecipientRow = document.getElementById('customRecipientRow');
+        const feeRow = document.getElementById('feeRow');
+        const feeInput = document.getElementById('fee');
+        if (feeRow) feeRow.style.display = transactionType === 'penalty' ? 'none' : 'block';
+        if (transactionType === 'penalty' && feeInput) feeInput.value = '0';
         if (transactionType === 'deposit') {
           depositedByRow.style.display = 'block';
           recipientRow.style.display = 'none';
+          if (customRecipientRow) customRecipientRow.style.display = 'none';
         } else if (transactionType === 'transfer') {
           depositedByRow.style.display = 'none';
           recipientRow.style.display = 'block';
           document.getElementById('depositedBy').value = '';
           if (recipientLabel) recipientLabel.textContent = 'Recipient (required)';
           if (recipientInput) recipientInput.placeholder = 'Who receives the funds';
+          toggleCustomRecipientRow();
         } else if (transactionType === 'withdrawal') {
           depositedByRow.style.display = 'none';
           recipientRow.style.display = 'block';
           document.getElementById('depositedBy').value = '';
           if (recipientLabel) recipientLabel.textContent = 'Recipient (optional)';
           if (recipientInput) recipientInput.placeholder = 'Who received the funds (if different)';
+          toggleCustomRecipientRow();
+        } else if (transactionType === 'penalty') {
+          depositedByRow.style.display = 'none';
+          recipientRow.style.display = 'none';
+          document.getElementById('depositedBy').value = '';
+          if (recipientInput) recipientInput.value = '';
+          if (customRecipientRow) customRecipientRow.style.display = 'none';
         }
       }
       
@@ -922,7 +976,7 @@
           const amount = parseFormattedNumber(document.getElementById('amount').value);
           const fee = parseFloat(document.getElementById('fee').value);
           const depositedBy = document.getElementById('depositedBy').value.trim();
-          const recipient = document.getElementById('recipient').value.trim();
+          const recipient = resolveRecipientName();
           const remarks = (document.getElementById('remarks')?.value || '').trim();
           const dateInput = document.getElementById('transactionDate').value;
           var timestamp;
@@ -1004,6 +1058,10 @@
       const memberSelectEl = document.getElementById('memberName');
       if (memberSelectEl) {
         memberSelectEl.addEventListener('change', toggleCustomMemberRow);
+      }
+      const recipientSelectEl = document.getElementById('recipient');
+      if (recipientSelectEl) {
+        recipientSelectEl.addEventListener('change', toggleCustomRecipientRow);
       }
 
       // Filter event listeners for transactions
@@ -1148,6 +1206,7 @@
             <option value="deposit">Deposit</option>
             <option value="withdrawal">Withdrawal</option>
             <option value="transfer">Transfer to member</option>
+            <option value="penalty">Penalty</option>
           </select>
         </div>
 
@@ -1158,10 +1217,18 @@
 
         <div class="form-row" id="recipientRow" style="display: none;">
           <label for="recipient" id="recipientLabel">Recipient (optional)</label>
-          <input type="text" id="recipient" name="recipient" placeholder="Who receives the deposit (if different)">
+          <select id="recipient" name="recipient">
+            <option value="">Loading members...</option>
+          </select>
         </div>
 
-        <div class="form-row">
+        <div class="form-row" id="customRecipientRow" style="display: none;">
+          <label for="customRecipientName">Other Recipient</label>
+          <input type="text" id="customRecipientName" name="customRecipientName" placeholder="Former member or someone from another clan">
+          <small style="color:#999;font-size:11px;margin-top:2px;">Used as-is; keep the spelling consistent so their balance stays on one row.</small>
+        </div>
+
+        <div class="form-row" id="feeRow">
           <label for="fee">Percentage Fee (%)</label>
           <input type="number" id="fee" name="fee" min="0" max="100" step="0.01" required>
         </div>
@@ -1244,6 +1311,7 @@
                     <option value="deposit">Deposits</option>
                     <option value="withdrawal">Withdrawals</option>
                     <option value="transfer">Transfers</option>
+                    <option value="penalty">Penalties</option>
                     <option value="penalty">Penalties</option>
                   </select></th>
                   <th colspan="6" style="text-align: center; padding: 0;"></th>
