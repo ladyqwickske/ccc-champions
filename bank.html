@@ -634,19 +634,24 @@
       let editingSheetRow = null;
 
       function parseFormattedNumber(value) {
-        return parseFloat(String(value || '').replace(/,/g, ''));
+        const rawValue = String(value || '').trim();
+        const hasComma = rawValue.includes(',');
+        const hasPeriod = rawValue.includes('.');
+        const decimalIndex = hasComma && hasPeriod
+          ? Math.max(rawValue.lastIndexOf(','), rawValue.lastIndexOf('.'))
+          : -1;
+        const wholePart = decimalIndex === -1 ? rawValue : rawValue.substring(0, decimalIndex);
+        const decimalPart = decimalIndex === -1 ? '' : rawValue.substring(decimalIndex + 1);
+        const normalizedValue = wholePart.replace(/[\s,\.]/g, '')
+          + (decimalIndex === -1 ? '' : '.' + decimalPart.replace(/[\s,\.]/g, ''));
+        return parseFloat(normalizedValue);
       }
 
       function formatAmountInput() {
         const amountInput = document.getElementById('amount');
         if (!amountInput) return;
-        const rawValue = amountInput.value.replace(/,/g, '');
-        if (!rawValue || rawValue === '.') return;
-        const [wholePart, decimalPart] = rawValue.split('.');
-        const formattedWholePart = Number(wholePart || 0).toLocaleString('en-US');
-        amountInput.value = decimalPart === undefined
-          ? formattedWholePart
-          : formattedWholePart + '.' + decimalPart;
+        const amount = parseFormattedNumber(amountInput.value);
+        if (!isNaN(amount)) amountInput.value = amount.toLocaleString('en-US', { maximumFractionDigits: 2 });
       }
 
       function resetTransactionForm() {
@@ -957,7 +962,7 @@
       }
 
       const amountInput = document.getElementById('amount');
-      if (amountInput) amountInput.addEventListener('input', formatAmountInput);
+      if (amountInput) amountInput.addEventListener('blur', formatAmountInput);
 
       const transactionsBody = document.getElementById('transactionsBody');
       if (transactionsBody) {
