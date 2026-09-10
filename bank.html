@@ -1006,7 +1006,6 @@
             .withSuccessHandler(function(msg) {
               if (result) result.innerHTML = '<div class="success">' + msg + '</div>';
               resetTransactionForm();
-              loadMemberOptions();
               loadTransactions();
               loadMemberBalances();
             })
