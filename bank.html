@@ -152,6 +152,17 @@
       transition: all 0.2s;
     }
     .btn:hover { background: #ffc933; }
+    .btn-secondary {
+      padding: 6px 10px;
+      background: #1a1b1c;
+      color: #ffb300;
+      border: 1px solid #ffb300;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-secondary:hover { background: #2a2b2c; }
     .success { color: #81c784; margin-top: 12px; }
     .error { color: #ef5350; margin-top: 12px; }
 
@@ -620,6 +631,60 @@
       }
 
       let allTransactionsData = [];
+      let editingSheetRow = null;
+
+      function parseFormattedNumber(value) {
+        return parseFloat(String(value || '').replace(/,/g, ''));
+      }
+
+      function formatAmountInput() {
+        const amountInput = document.getElementById('amount');
+        if (!amountInput) return;
+        const rawValue = amountInput.value.replace(/,/g, '');
+        if (!rawValue || rawValue === '.') return;
+        const [wholePart, decimalPart] = rawValue.split('.');
+        const formattedWholePart = Number(wholePart || 0).toLocaleString('en-US');
+        amountInput.value = decimalPart === undefined
+          ? formattedWholePart
+          : formattedWholePart + '.' + decimalPart;
+      }
+
+      function resetTransactionForm() {
+        editingSheetRow = null;
+        form.reset();
+        document.getElementById('submitTransactionBtn').textContent = 'Submit Transaction';
+        updateTransactionFields();
+        toggleCustomMemberRow();
+      }
+
+      function editTransaction(sheetRow) {
+        const transaction = allTransactionsData.find(tx => Number(tx.sheetRow) === Number(sheetRow));
+        if (!transaction) return;
+        if (String(transaction.reference || '').indexOf('Event Penalty:') === 0) {
+          showToast('Event penalty transactions must be changed from the event.', true);
+          return;
+        }
+
+        editingSheetRow = transaction.sheetRow;
+        const memberSelect = document.getElementById('memberName');
+        memberSelect.value = transaction.memberName;
+        if (memberSelect.value !== transaction.memberName) {
+          memberSelect.value = OTHER_MEMBER_VALUE;
+          document.getElementById('customMemberName').value = transaction.memberName;
+        }
+        toggleCustomMemberRow();
+        document.getElementById('transactionType').value = transaction.transactionType;
+        document.getElementById('amount').value = Number(transaction.amount || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+        document.getElementById('fee').value = transaction.fee || 0;
+        document.getElementById('depositedBy').value = transaction.depositedBy || '';
+        document.getElementById('recipient').value = transaction.recipient || '';
+        document.getElementById('remarks').value = transaction.remarks || '';
+        document.getElementById('transactionDate').value = transaction.timestamp ? String(transaction.timestamp).substring(0, 10) : '';
+        document.getElementById('submitTransactionBtn').textContent = 'Update Transaction';
+        updateTransactionFields();
+        result.innerHTML = '';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
 
       async function loadTransactions() {
         const transactionsBody = document.getElementById('transactionsBody');
@@ -666,6 +731,7 @@
             <td>${escapeHtml(tx.recipient || '-')}</td>
             <td>${escapeHtml(tx.reference || '-')}</td>
             <td>${escapeHtml(tx.remarks || '-')}</td>
+            <td>${String(tx.reference || '').indexOf('Event Penalty:') === 0 ? '-' : `<button type="button" class="btn-secondary edit-transaction-btn" data-sheet-row="${Number(tx.sheetRow)}">Edit</button>`}</td>
           </tr>
         `;
         }).join('');
@@ -839,7 +905,7 @@
 
           const memberName = resolveMemberName();
           const transactionType = document.getElementById('transactionType').value;
-          const amount = parseFloat(document.getElementById('amount').value);
+          const amount = parseFormattedNumber(document.getElementById('amount').value);
           const fee = parseFloat(document.getElementById('fee').value);
           const depositedBy = document.getElementById('depositedBy').value.trim();
           const recipient = document.getElementById('recipient').value.trim();
@@ -867,8 +933,7 @@
           google.script.run
             .withSuccessHandler(function(msg) {
               if (result) result.innerHTML = '<div class="success">' + msg + '</div>';
-              form.reset();
-              toggleCustomMemberRow();
+              resetTransactionForm();
               loadMemberOptions();
               loadTransactions();
               loadMemberBalances();
@@ -876,7 +941,8 @@
             .withFailureHandler(function(err) {
               if (result) result.innerHTML = '<div class="error">' + (err && err.message ? err.message : 'Failed to save transaction') + '</div>';
             })
-            .addBankTransaction({
+            [editingSheetRow ? 'updateBankTransaction' : 'addBankTransaction']({
+              sheetRow: editingSheetRow,
               memberName,
               timestamp,
               transactionType,
@@ -887,6 +953,17 @@
               recipient: recipient || '',
               remarks: remarks || ''
             });
+        });
+      }
+
+      const amountInput = document.getElementById('amount');
+      if (amountInput) amountInput.addEventListener('input', formatAmountInput);
+
+      const transactionsBody = document.getElementById('transactionsBody');
+      if (transactionsBody) {
+        transactionsBody.addEventListener('click', function(event) {
+          const editButton = event.target.closest('.edit-transaction-btn');
+          if (editButton) editTransaction(editButton.dataset.sheetRow);
         });
       }
 
@@ -1072,7 +1149,7 @@
 
         <div class="form-row">
           <label for="amount">Amount</label>
-          <input type="number" id="amount" name="amount" min="0" step="0.01" required>
+          <input type="text" id="amount" name="amount" inputmode="decimal" autocomplete="off" placeholder="1,000,000,000" required>
         </div>
 
         <div class="form-row">
@@ -1086,7 +1163,7 @@
           <input type="text" id="remarks" name="remarks" placeholder="e.g. loan for T9 upgrade, partial penalty repayment">
         </div>
 
-        <button type="submit" class="btn">Submit Transaction</button>
+        <button type="submit" id="submitTransactionBtn" class="btn">Submit Transaction</button>
       </form>
       <div id="result"></div>
 
@@ -1117,7 +1194,7 @@
                     <option value="former">Former</option>
                     <option value="external">External</option>
                   </select></th>
-                  <th colspan="6" style="text-align: center; padding: 0;"></th>
+                  <th colspan="7" style="text-align: center; padding: 0;"></th>
                 </tr>
                 <tr>
                   <th>Member</th>
@@ -1162,6 +1239,7 @@
                   <th>Recipient</th>
                   <th>Reference</th>
                   <th>Remarks</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="transactionsBody"></tbody>
