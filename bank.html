@@ -723,7 +723,7 @@
         emptyEl.textContent = '';
         transactionsBody.innerHTML = items.map(tx => {
           const type = String(tx.transactionType || '').toLowerCase();
-          const typeColor = type === 'penalty' ? '#ef5350' : (type === 'withdrawal' ? '#ffb300' : '#81c784');
+          const typeColor = type === 'penalty' ? '#ef5350' : (type === 'withdrawal' ? '#ffb300' : (type === 'transfer' ? '#64b5f6' : '#81c784'));
           return `
           <tr>
             <td>${escapeHtml(tx.memberName || '-')}</td>
@@ -887,9 +887,13 @@
         const recipientInput = document.getElementById('recipient');
         if (transactionType === 'deposit') {
           depositedByRow.style.display = 'block';
+          recipientRow.style.display = 'none';
+        } else if (transactionType === 'transfer') {
+          depositedByRow.style.display = 'none';
           recipientRow.style.display = 'block';
-          if (recipientLabel) recipientLabel.textContent = 'Recipient (optional for deposits)';
-          if (recipientInput) recipientInput.placeholder = 'Who receives the deposit (if different)';
+          document.getElementById('depositedBy').value = '';
+          if (recipientLabel) recipientLabel.textContent = 'Recipient (required)';
+          if (recipientInput) recipientInput.placeholder = 'Who receives the funds';
         } else if (transactionType === 'withdrawal') {
           depositedByRow.style.display = 'none';
           recipientRow.style.display = 'block';
@@ -934,6 +938,10 @@
           }
           if (!(amount > 0)) {
             if (result) result.innerHTML = '<div class="error">Amount must be greater than 0.</div>';
+            return;
+          }
+          if (transactionType === 'transfer' && !recipient) {
+            if (result) result.innerHTML = '<div class="error">Please select or enter a recipient for the transfer.</div>';
             return;
           }
 
@@ -1139,6 +1147,7 @@
           <select id="transactionType" name="transactionType" required>
             <option value="deposit">Deposit</option>
             <option value="withdrawal">Withdrawal</option>
+            <option value="transfer">Transfer to member</option>
           </select>
         </div>
 
@@ -1234,6 +1243,7 @@
                     <option value="">All Types</option>
                     <option value="deposit">Deposits</option>
                     <option value="withdrawal">Withdrawals</option>
+                    <option value="transfer">Transfers</option>
                     <option value="penalty">Penalties</option>
                   </select></th>
                   <th colspan="6" style="text-align: center; padding: 0;"></th>
