@@ -883,14 +883,19 @@
       
       function updateTransactionFields() {
         const transactionType = transactionTypeSelect.value;
+        const recipientLabel = document.getElementById('recipientLabel');
+        const recipientInput = document.getElementById('recipient');
         if (transactionType === 'deposit') {
           depositedByRow.style.display = 'block';
-          recipientRow.style.display = 'none';
-          document.getElementById('recipient').value = '';
+          recipientRow.style.display = 'block';
+          if (recipientLabel) recipientLabel.textContent = 'Recipient (optional for deposits)';
+          if (recipientInput) recipientInput.placeholder = 'Who receives the deposit (if different)';
         } else if (transactionType === 'withdrawal') {
           depositedByRow.style.display = 'none';
           recipientRow.style.display = 'block';
           document.getElementById('depositedBy').value = '';
+          if (recipientLabel) recipientLabel.textContent = 'Recipient (optional)';
+          if (recipientInput) recipientInput.placeholder = 'Who received the funds (if different)';
         }
       }
       
@@ -1143,8 +1148,8 @@
         </div>
 
         <div class="form-row" id="recipientRow" style="display: none;">
-          <label for="recipient">Recipient (optional)</label>
-          <input type="text" id="recipient" name="recipient" placeholder="Who received the funds (if different)">
+          <label for="recipient" id="recipientLabel">Recipient (optional)</label>
+          <input type="text" id="recipient" name="recipient" placeholder="Who receives the deposit (if different)">
         </div>
 
         <div class="form-row">
