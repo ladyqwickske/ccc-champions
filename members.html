@@ -1891,7 +1891,7 @@
 
       // ── Penalty Exemptions ────────────────────────────────────────────
       let exemptSelection = null;   // Set of lowercased member names
-      let exemptReasons = {};
+      let exemptMeta = {};
 
       function loadExemptMembers(force) {
         const status = document.getElementById('exemptStatus');
@@ -1905,12 +1905,17 @@
           .then(res => res.json())
           .then(result => {
             exemptSelection = new Set();
-            exemptReasons = {};
+            exemptMeta = {};
             (result && result.members ? result.members : []).forEach(entry => {
               const key = String(entry.name || '').trim().toLowerCase();
               if (!key) return;
               exemptSelection.add(key);
-              exemptReasons[key] = entry.reason || '';
+              exemptMeta[key] = {
+                name: entry.name || key,
+                reason: entry.reason || '',
+                startDate: entry.startDate || '',
+                endDate: entry.endDate || ''
+              };
             });
             if (status) { status.textContent = ''; status.className = 'status'; }
             renderExemptList();
@@ -1928,14 +1933,20 @@
         const term = (document.getElementById('exemptSearchInput')?.value || '').toLowerCase().trim();
         const knownKeys = new Set(membersData.map(m => (m.name || '').toLowerCase()));
         // Exempt names that are no longer clan members must stay listed so they can be removed
-        const extras = [...exemptSelection].filter(key => !knownKeys.has(key)).map(key => exemptReasons[key + '__name'] || key);
+        const extras = [...exemptSelection].filter(key => !knownKeys.has(key)).map(key => (exemptMeta[key] && exemptMeta[key].name) || key);
         const rows = membersData.map(m => m.name)
           .concat(extras)
           .filter(Boolean)
           .filter(name => !term || name.toLowerCase().includes(term))
           .sort((a, b) => a.localeCompare(b));
 
-        if (summary) summary.textContent = `${exemptSelection.size} member(s) exempt from penalties.`;
+        if (summary) {
+          const datedCount = [...exemptSelection].filter(key => {
+            const meta = exemptMeta[key] || {};
+            return !!(meta.startDate || meta.endDate);
+          }).length;
+          summary.textContent = `${exemptSelection.size} member(s) exempt from penalties (${datedCount} date-limited).`;
+        }
 
         if (rows.length === 0) {
           container.innerHTML = '<p style="color:#888; font-size:13px;">No members match this filter.</p>';
@@ -1946,10 +1957,16 @@
           const key = name.toLowerCase();
           const checked = exemptSelection.has(key) ? ' checked' : '';
           const unknown = !knownKeys.has(key) ? ' <span style="color:#888;font-size:11px;">(not an active member)</span>' : '';
-          return `<label style="display:flex; align-items:center; gap:8px; padding:5px 4px; cursor:pointer; text-transform:none; letter-spacing:0; color:#e0e0e0; font-weight:400; font-size:13px;">
-            <input type="checkbox" style="width:auto;" data-exempt="${escapeHtml(name)}"${checked} onchange="MembersTab.toggleExemptMember(this)">
-            <span>${escapeHtml(name)}${unknown}</span>
-          </label>`;
+          const meta = exemptMeta[key] || {};
+          return `<div style="display:grid; grid-template-columns: minmax(170px,1.4fr) minmax(150px,1fr) 125px 125px; gap:8px; align-items:center; padding:5px 4px; color:#e0e0e0; font-size:13px;">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; text-transform:none; letter-spacing:0; font-weight:400; margin:0;">
+              <input type="checkbox" style="width:auto;" data-exempt="${escapeHtml(name)}"${checked} onchange="MembersTab.toggleExemptMember(this)">
+              <span>${escapeHtml(name)}${unknown}</span>
+            </label>
+            <input type="text" placeholder="Reason" value="${escapeHtml(meta.reason || '')}" data-exempt="${escapeHtml(name)}" data-field="reason" onchange="MembersTab.updateExemptField(this)" style="width:100%; padding:6px; font-size:12px;">
+            <input type="date" value="${escapeHtml(meta.startDate || '')}" data-exempt="${escapeHtml(name)}" data-field="startDate" onchange="MembersTab.updateExemptField(this)" title="Start date (blank = always)" style="width:100%; padding:6px; font-size:12px;">
+            <input type="date" value="${escapeHtml(meta.endDate || '')}" data-exempt="${escapeHtml(name)}" data-field="endDate" onchange="MembersTab.updateExemptField(this)" title="End date (blank = always)" style="width:100%; padding:6px; font-size:12px;">
+          </div>`;
         }).join('');
       }
 
@@ -1957,9 +1974,20 @@
         const name = input.getAttribute('data-exempt') || '';
         const key = name.toLowerCase();
         if (input.checked) exemptSelection.add(key); else exemptSelection.delete(key);
-        exemptReasons[key + '__name'] = name;
+        exemptMeta[key] = exemptMeta[key] || { name, reason: '', startDate: '', endDate: '' };
+        exemptMeta[key].name = name;
         const summary = document.getElementById('exemptSummary');
         if (summary) summary.textContent = `${exemptSelection.size} member(s) exempt from penalties.`;
+      }
+
+      function updateExemptField(input) {
+        const name = input.getAttribute('data-exempt') || '';
+        const key = name.toLowerCase();
+        const field = input.getAttribute('data-field') || '';
+        if (!key || !field) return;
+        exemptMeta[key] = exemptMeta[key] || { name, reason: '', startDate: '', endDate: '' };
+        exemptMeta[key].name = name;
+        exemptMeta[key][field] = input.value || '';
       }
 
       function saveExemptMembers() {
@@ -1968,8 +1996,10 @@
         const byKey = {};
         membersData.forEach(m => { if (m.name) byKey[m.name.toLowerCase()] = m.name; });
         const members = [...exemptSelection].map(key => ({
-          name: byKey[key] || exemptReasons[key + '__name'] || key,
-          reason: exemptReasons[key] || ''
+          name: byKey[key] || (exemptMeta[key] && exemptMeta[key].name) || key,
+          reason: (exemptMeta[key] && exemptMeta[key].reason) || '',
+          startDate: (exemptMeta[key] && exemptMeta[key].startDate) || '',
+          endDate: (exemptMeta[key] && exemptMeta[key].endDate) || ''
         }));
         if (status) { status.textContent = 'Saving...'; status.className = 'status'; }
         fetch(window.GAS_WEB_APP_URL, {
@@ -2131,7 +2161,7 @@
         document.getElementById('memberEmpty').style.display = 'block';
       }
 
-      return { init, loadAllData, switchTab, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, togglePointTargetsPanel, savePtDefault, addPtOverride, updatePtOverride, loadExemptMembers, toggleExemptMember, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts };
+      return { init, loadAllData, switchTab, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, togglePointTargetsPanel, savePtDefault, addPtOverride, updatePtOverride, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts };
     })();
   </script>
 </body>
