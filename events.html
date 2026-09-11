@@ -301,13 +301,17 @@
       width: 100%;
     }
     #chestTypesList {
-      display: block;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 16px;
+      row-gap: 0;
       padding: 0;
       margin: 0;
+      text-align: left;
     }
     .checkbox-item:hover { background: #2a2b2c; }
     .checkbox-item input[type="checkbox"] { cursor: pointer; }
-    .checkbox-item label { margin: 0; font-weight: normal; text-transform: none; color: #e0e0e0; cursor: pointer; }
+    .checkbox-item label { margin: 0; font-weight: normal; text-transform: none; color: #e0e0e0; cursor: pointer; text-align: left; }
 
     /* Event Type Section */
     .event-type-form {
