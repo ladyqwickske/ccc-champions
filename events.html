@@ -291,6 +291,7 @@
     .checkbox-item {
       display: flex;
       align-items: center;
+      justify-content: flex-start;
       gap: 8px;
       padding: 4px 0;
       margin: 0;
@@ -299,6 +300,7 @@
       min-width: 0;
       box-sizing: border-box;
       width: 100%;
+      text-align: left;
     }
     #chestTypesList {
       display: grid;
@@ -310,8 +312,27 @@
       text-align: left;
     }
     .checkbox-item:hover { background: #2a2b2c; }
-    .checkbox-item input[type="checkbox"] { cursor: pointer; }
-    .checkbox-item label { margin: 0; font-weight: normal; text-transform: none; color: #e0e0e0; cursor: pointer; text-align: left; }
+    /* Override the global input{width:100%;padding;border...} rule so checkboxes render at their native size instead of stretching full-width */
+    .checkbox-item input[type="checkbox"] {
+      width: auto;
+      flex: 0 0 auto;
+      padding: 0;
+      margin: 0;
+      border: none;
+      border-radius: 0;
+      background: none;
+      cursor: pointer;
+    }
+    .checkbox-item label {
+      flex: 1 1 auto;
+      margin: 0;
+      font-weight: normal;
+      text-transform: none;
+      color: #e0e0e0;
+      cursor: pointer;
+      text-align: left;
+      display: inline;
+    }
 
     /* Event Type Section */
     .event-type-form {
