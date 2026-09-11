@@ -687,6 +687,7 @@
         <p style="margin-bottom:12px; color:#e0e0e0;">View and calculate participation for chest-based events.</p>
         <div style="margin-bottom:12px;"><label for="chestEventSelect">Select Event</label><select id="chestEventSelect" onchange="EventsTab.onChestEventSelected()" style="max-width:400px;"><option value="">-- Select Chest Event --</option></select></div>
         <div id="chestEventActions" style="display:none; margin-bottom:12px;">
+          <p id="chestEventInfo" style="color:#e0e0e0; font-size:13px; margin-bottom:12px;"></p>
           <button class="btn" onclick="EventsTab.calculateChestParticipation()">🔄 Calculate Participation</button>
           <button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Recalculate Penalties</button>
           <div id="chestCalcStatus" class="status"></div>
@@ -850,11 +851,11 @@
         <h3 style="margin:0 0 12px 0;">Manage Event Types</h3>
         <div class="event-type-form">
           <h4 style="margin:0 0 8px 0;">Add New Event Type</h4>
-          <div class="form-grid"><div><label for="newEventTypeName">Event Type Name</label><input type="text" id="newEventTypeName" placeholder="e.g., Alliance War"></div><div><label for="newEventTypeMethod">Tracking Method</label><select id="newEventTypeMethod" onchange="EventsTab.updateEventTypeMethod()"><option value="" selected>-- Select Method --</option><option value="chest-based">Chest-Based</option><option value="manual-entry">Manual Entry</option><option value="troop-based">Troop-Based</option><option value="resource-troop">Resource (Troop Targets)</option><option value="resource-manual">Resource (Flat Target)</option><option value="period-marker">Period Marker (No Tracking)</option></select></div></div>
+          <div class="form-grid"><div><label for="newEventTypeName">Event Type Name</label><input type="text" id="newEventTypeName" placeholder="e.g., Alliance War"></div><div><label for="newEventTypeMethod">Tracking Method</label><select id="newEventTypeMethod" onchange="EventsTab.updateEventTypeMethod()"><option value="" selected>-- Select Method --</option><option value="chest-based">Chest-Based</option><option value="chest-troop">Chest-Based (Troop Targets)</option><option value="manual-entry">Manual Entry</option><option value="troop-based">Troop-Based</option><option value="resource-troop">Resource (Troop Targets)</option><option value="resource-manual">Resource (Flat Target)</option><option value="period-marker">Period Marker (No Tracking)</option></select></div></div>
           <div id="chestTypeSection" style="display:none; margin-bottom:12px;"><label>Chest Types for This Event Type</label><div id="chestTypesList" style="max-height:200px; overflow-y:auto; border:1px solid #444; border-radius:6px; padding:8px; background:#232526;"><div class="loading" style="padding:20px; text-align:center; color:#e0e0e0;">Loading chest types...</div></div><div class="note">Select which chest types count for this event type.</div></div>
           <div id="troopTargetSection" style="display:none; margin-bottom:12px;">
             <label style="display:block; margin-bottom:8px;">Category Targets</label>
-            <p style="color:#e0e0e0; font-size:12px; margin-bottom:12px;">Set target points for each troop category (G7, G8, T8, G9, T9).</p>
+            <p style="color:#e0e0e0; font-size:12px; margin-bottom:12px;" id="troopTargetSectionHint">Set target points for each troop category (G7, G8, T8, G9, T9). For chest-based troop targets, this is the number of chests expected per category.</p>
             <div id="troopTargetsList" style="border:1px solid #444; border-radius:6px; padding:12px; background:#232526; margin-bottom:12px; max-height:250px; overflow-y:auto;"></div>
             <button type="button" class="btn" style="width:100%; margin-bottom:12px;" onclick="EventsTab.addTroopTargetRow()">➕ Add Category Target</button>
           </div>
@@ -966,9 +967,9 @@
           endDateInput.required = false;
           if (targetPointsGroup) targetPointsGroup.style.display = 'none';
         }
-        // Show/hide troop targets for resource-troop and troop-based methods
+        // Show/hide troop targets for resource-troop, troop-based, and chest-troop methods
         if (troopTargetSection) {
-          const showTroop = (method === 'resource-troop' || method === 'troop-based');
+          const showTroop = (method === 'resource-troop' || method === 'troop-based' || method === 'chest-troop');
           troopTargetSection.style.display = showTroop ? 'block' : 'none';
           if (showTroop && typeData && typeData.troopTargets && !editingEventName) {
             // Pre-populate from event type defaults (only for new events)
@@ -1277,6 +1278,8 @@
           let methodBadge;
           if (event.participationMethod === 'chest-based') {
             methodBadge = '<span class="badge chest">Chest-Based</span>';
+          } else if (event.participationMethod === 'chest-troop') {
+            methodBadge = '<span class="badge chest">Chest-Based (Troop)</span>';
           } else if (event.participationMethod === 'manual-entry') {
             methodBadge = '<span class="badge manual">Manual Entry</span>';
           } else if (event.participationMethod === 'period-marker') {
@@ -1393,7 +1396,7 @@
       function populateChestEventSelect() {
         const select = document.getElementById('chestEventSelect');
         if (!eventsData || eventsData.length === 0) { select.innerHTML = '<option value="">-- No events available --</option>'; return; }
-        const chestEvents = eventsData.filter(e => e.participationMethod === 'chest-based');
+        const chestEvents = eventsData.filter(e => e.participationMethod === 'chest-based' || e.participationMethod === 'chest-troop');
         if (chestEvents.length === 0) { select.innerHTML = '<option value="">-- No chest-based events --</option>'; return; }
         select.innerHTML = buildGroupedOptions(chestEvents, '-- Select Chest Event --');
       }
@@ -1565,6 +1568,18 @@
         currentParticipationEventName = eventName;
         if (!selectedEvent) return;
         document.getElementById('chestEventActions').style.display = 'block';
+        const infoEl = document.getElementById('chestEventInfo');
+        if (infoEl) {
+          if (selectedEvent.participationMethod === 'chest-troop') {
+            const eventTypeName = selectedEvent.eventType || '';
+            const targets = getEventTroopTargets(eventTypeName);
+            infoEl.innerHTML = targets
+              ? 'Expected chest count varies by troop category: ' + Object.entries(targets).map(([cat, n]) => `<strong>${escapeHtml(cat)}</strong>=${escapeHtml(String(n))}`).join(', ')
+              : 'Expected chest count varies by troop category (no targets configured yet).';
+          } else {
+            infoEl.innerHTML = '';
+          }
+        }
         loadChestParticipationData(eventName);
       }
 
@@ -1772,7 +1787,7 @@
           loadingIndicator.style.display = 'none';
           if (result && result.success && result.data && result.data.length > 0) {
             participationRawData = result.data;
-            renderChestParticipationData();
+            ensureTroopSummaryLoaded().then(() => renderChestParticipationData());
           } else {
             thead.innerHTML = '';
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:40px; color:#7f8c8d;">No data yet. Click "Calculate" above.</td></tr>';
@@ -1923,7 +1938,7 @@
 
       function penaltyStatusEl() {
         const method = selectedEvent && selectedEvent.participationMethod;
-        if (method === 'chest-based') return document.getElementById('chestCalcStatus');
+        if (method === 'chest-based' || method === 'chest-troop') return document.getElementById('chestCalcStatus');
         if (method === 'resource-troop' || method === 'resource-manual') return document.getElementById('resourceCalcStatus');
         if (method === 'troop-based') return document.getElementById('troopEntryStatus');
         return document.getElementById('manualEntryStatus');
@@ -1932,7 +1947,7 @@
       function reloadParticipationForSelectedEvent() {
         if (!selectedEvent) return;
         const method = selectedEvent.participationMethod;
-        if (method === 'chest-based') loadChestParticipationData(selectedEvent.eventName);
+        if (method === 'chest-based' || method === 'chest-troop') loadChestParticipationData(selectedEvent.eventName);
         else if (method === 'troop-based') loadTroopParticipationData(selectedEvent.eventName);
         else if (method === 'resource-troop' || method === 'resource-manual') loadResourceParticipationData(selectedEvent.eventName);
         else loadManualParticipationData(selectedEvent.eventName);
@@ -1977,11 +1992,12 @@
         const thead = document.getElementById('chestParticipationTableHead');
         const tbody = document.getElementById('chestParticipationTableBody');
         const showPenalty = penaltyEnabledForSelectedEvent();
-        const columns = [
-          { key: 'memberName', label: 'Member Name' },
-          { key: 'value1', label: 'Chest Count' },
-          { key: 'value3', label: 'Participated' }
-        ];
+        const isChestTroop = selectedEvent?.participationMethod === 'chest-troop';
+        const eventTypeName = selectedEvent?.eventType || '';
+        const targets = isChestTroop ? getEventTroopTargets(eventTypeName) : null;
+        const columns = isChestTroop
+          ? [{ key: 'memberName', label: 'Member Name' }, { key: 'category', label: 'Category' }, { key: 'target', label: 'Target' }, { key: 'value1', label: 'Chest Count' }, { key: 'value3', label: 'Participated' }]
+          : [{ key: 'memberName', label: 'Member Name' }, { key: 'value1', label: 'Chest Count' }, { key: 'value3', label: 'Participated' }];
         if (showPenalty) columns.push({ key: 'penalty', label: 'Penalty' });
         thead.innerHTML = '<tr>' + columns.map(col => `<th class="sortable" data-sort="${col.key}">${escapeHtml(col.label)}</th>`).join('') + '</tr>';
         let sorted = [...participationRawData];
@@ -2011,7 +2027,15 @@
                 : '<span style="color:#f44336;">✕</span>'));
           const row = document.createElement('tr');
           const penaltyCell = showPenalty ? `<td style="text-align:center;">${penaltyCellHtml(p.memberName, p.penalty, p.penaltyStatus)}</td>` : '';
-          row.innerHTML = `<td>${escapeHtml(p.memberName)}</td><td>${p.value1 || 0}</td><td style="text-align:center;">${icon}</td>${penaltyCell}`;
+          if (isChestTroop) {
+            const nameKey = normalizeName(p.memberName);
+            const category = (troopSummaryMap[nameKey] || {}).category || '—';
+            const targetPoints = (targets && category !== '—') ? Number(targets[category]) : null;
+            const targetCell = (targetPoints !== null && !isNaN(targetPoints)) ? targetPoints : '—';
+            row.innerHTML = `<td>${escapeHtml(p.memberName)}</td><td style="text-align:center;">${escapeHtml(category)}</td><td style="text-align:center;">${targetCell}</td><td>${p.value1 || 0}</td><td style="text-align:center;">${icon}</td>${penaltyCell}`;
+          } else {
+            row.innerHTML = `<td>${escapeHtml(p.memberName)}</td><td>${p.value1 || 0}</td><td style="text-align:center;">${icon}</td>${penaltyCell}`;
+          }
           tbody.appendChild(row);
         });
         // Add sort indicators
@@ -2262,9 +2286,13 @@
 
       function updateEventTypeMethod() {
         const method = document.getElementById('newEventTypeMethod').value;
-        document.getElementById('chestTypeSection').style.display = method === 'chest-based' ? 'block' : 'none';
-        document.getElementById('troopTargetSection').style.display = (method === 'troop-based' || method === 'resource-troop') ? 'block' : 'none';
+        document.getElementById('chestTypeSection').style.display = (method === 'chest-based' || method === 'chest-troop') ? 'block' : 'none';
+        document.getElementById('troopTargetSection').style.display = (method === 'troop-based' || method === 'resource-troop' || method === 'chest-troop') ? 'block' : 'none';
         document.getElementById('resourceNameSection').style.display = (method === 'resource-troop' || method === 'resource-manual') ? 'block' : 'none';
+        const hint = document.getElementById('troopTargetSectionHint');
+        if (hint) hint.textContent = method === 'chest-troop'
+          ? 'Set the number of chests expected from each troop category (G7, G8, T8, G9, T9).'
+          : 'Set target points for each troop category (G7, G8, T8, G9, T9).';
       }
 
       function submitAddEventType() {
@@ -2283,9 +2311,10 @@
         let troopTargets = '';
         let resourceName = '';
         
-        if (method === 'chest-based') {
+        if (method === 'chest-based' || method === 'chest-troop') {
           selectedChestTypes = getSelectedChestTypes().join(',');
-        } else if (method === 'troop-based' || method === 'resource-troop') {
+        }
+        if (method === 'troop-based' || method === 'resource-troop' || method === 'chest-troop') {
           troopTargets = getTroopTargets();
           if (!troopTargets) { status.textContent = 'Please add at least one category target.'; status.classList.add('err'); return; }
         }
@@ -2429,6 +2458,10 @@
         updateEventTypeMethod();
         if (eventType.trackingMethod === 'chest-based') setSelectedChestTypes(eventType.chestTypes);
         else if (eventType.trackingMethod === 'troop-based' || eventType.trackingMethod === 'resource-troop') setTimeout(() => { setTroopTargets(eventType.troopTargets); }, 50);
+        else if (eventType.trackingMethod === 'chest-troop') {
+          setSelectedChestTypes(eventType.chestTypes);
+          setTimeout(() => { setTroopTargets(eventType.troopTargets); }, 50);
+        }
         if (eventType.trackingMethod === 'resource-troop' || eventType.trackingMethod === 'resource-manual') {
           document.getElementById('newEventTypeResource').value = eventType.resourceName || '';
         }
@@ -2497,6 +2530,7 @@
           let methodBadge;
           switch (eventType.trackingMethod) {
             case 'chest-based': methodBadge = '<span class="badge chest">Chest</span>'; break;
+            case 'chest-troop': methodBadge = '<span class="badge chest">Chest (Troop)</span>'; break;
             case 'troop-based': methodBadge = '<span class="badge" style="background:#9c27b0;color:#f3e5f5;">Troop</span>'; break;
             case 'resource-troop': methodBadge = '<span class="badge resource">Resource (Troop)</span>'; break;
             case 'resource-manual': methodBadge = '<span class="badge resource">Resource (Flat)</span>'; break;
@@ -2575,7 +2609,7 @@
       function viewEventParticipation(eventName) {
         const evt = eventsData.find(e => e.eventName === eventName);
         if (!evt) return;
-        if (evt.participationMethod === 'chest-based') {
+        if (evt.participationMethod === 'chest-based' || evt.participationMethod === 'chest-troop') {
           switchTab('chestEventsTab');
           populateChestEventSelect();
           document.getElementById('chestEventSelect').value = eventName;
