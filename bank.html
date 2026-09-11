@@ -585,6 +585,28 @@
         const customInput = document.getElementById('customMemberName');
         if (!memberSelect || !customRow) return;
         const isOther = memberSelect.value === OTHER_MEMBER_VALUE;
+        if (exportNegativeBalancesBtn) {
+          exportNegativeBalancesBtn.addEventListener('click', async function () {
+            exportNegativeBalancesBtn.disabled = true;
+            try {
+              const csv = await runGASFunction('exportBankNegativeBalancesCsv');
+              if (!csv || csv.split('\n').length <= 1) {
+                showToast('No members currently owe the bank.', false);
+                return;
+              }
+              const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = 'members-owing-bank.csv';
+              link.click();
+              URL.revokeObjectURL(url);
+            } catch (error) {
+              showToast('Could not export bank debts: ' + error.message, true);
+            } finally {
+              exportNegativeBalancesBtn.disabled = false;
+            }
+          });
+        }
         customRow.style.display = isOther ? 'block' : 'none';
         if (isOther) { if (customInput) customInput.focus(); }
         else if (customInput) customInput.value = '';
@@ -1308,6 +1330,7 @@
           <span>Outstanding Debts</span>
           <span id="bankTotalOwedValue" class="value" style="color:#ef5350;">-</span>
         </div>
+        <button type="button" id="exportNegativeBalancesBtn" class="btn-secondary">Export Members Owing Silver (CSV)</button>
         <div class="bank-subtabs">
           <button type="button" id="subtabBalancesBtn" class="subtab-btn active">Members' Balances</button>
           <button type="button" id="subtabTransactionsBtn" class="subtab-btn">Transaction History</button>

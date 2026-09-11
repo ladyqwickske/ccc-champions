@@ -470,6 +470,16 @@
       }
 
       const transactions = data.transactions || [];
+      const penaltyTransactions = transactions.filter(tx => String(tx.transactionType || '').toLowerCase() === 'penalty');
+      if (penaltyTransactions.length > 0) {
+        html += '<h2>Silver Penalties Due</h2><div class="table-wrap"><table><thead><tr><th>Penalty</th><th>Due Date</th><th>Status</th></tr></thead><tbody>'
+          + penaltyTransactions.map(tx => {
+            const dueDate = tx.dueDate || getPenaltyDueDate(tx.timestamp);
+            const overdue = dueDate && dueDate < new Date().toISOString().substring(0, 10);
+            return '<tr><td>' + fmt(tx.balance) + '</td><td>' + escapeHtml(formatDateOnly(dueDate)) + '</td><td style="color:' + (overdue ? '#ef5350' : '#8bc34a') + ';font-weight:600;">' + (overdue ? 'Overdue' : 'Due') + '</td></tr>';
+          }).join('')
+          + '</tbody></table></div>';
+      }
       html += '<h2>Recent Bank Transactions</h2>';
       if (transactions.length === 0) {
         html += '<p class="note">You have no bank transactions yet.</p>';
@@ -501,6 +511,17 @@
     function card(label, value, sub) {
       return '<div class="card"><div class="label">' + label + '</div><div class="value">' + value + '</div>'
         + (sub ? '<div class="sub">' + sub + '</div>' : '') + '</div>';
+    }
+    function getPenaltyDueDate(timestamp) {
+      const dueDate = new Date(timestamp || Date.now());
+      if (isNaN(dueDate.getTime())) return '';
+      dueDate.setUTCDate(dueDate.getUTCDate() + 14);
+      return dueDate.toISOString().substring(0, 10);
+    }
+    function formatDateOnly(value) {
+      if (!value) return '-';
+      const parsed = new Date(value + 'T00:00:00Z');
+      return isNaN(parsed.getTime()) ? String(value) : parsed.toISOString().substring(0, 10);
     }
   </script>
 </body>
