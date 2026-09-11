@@ -67,12 +67,32 @@
     .badge-deposit { background: rgba(76,175,80,0.2); color: #8bc34a; }
     .badge-withdrawal { background: rgba(255,179,0,0.2); color: #ffb300; }
     .badge-penalty { background: rgba(244,67,54,0.2); color: #ef5350; }
+    .badge-transfer { background: rgba(66,165,245,0.2); color: #42a5f5; }
 
     .loading { text-align: center; padding: 40px; color: #e0e0e0; }
     .spinner { border: 4px solid #444; border-top: 4px solid #ffb300; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 16px; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     .empty-state { text-align: center; padding: 40px; color: #888; font-size: 14px; }
     .note { font-size: 12px; color: #888; margin-top: 8px; }
+    #google_translate_element, #translateToggleBtn { top: auto !important; right: 8px !important; bottom: 8px !important; }
+    @media (max-width: 800px) {
+      #google_translate_element {
+        max-width: 0;
+        overflow: hidden;
+        opacity: 0;
+        pointer-events: none;
+        transition: max-width 0.2s ease, opacity 0.2s ease;
+      }
+      body.translate-open #google_translate_element {
+        max-width: 260px;
+        opacity: 1;
+        pointer-events: auto;
+      }
+      #translateToggleBtn { display: inline-flex !important; }
+    }
+    @media (min-width: 801px) {
+      #translateToggleBtn { display: none !important; }
+    }
 
     @media (max-width: 800px) {
       body { padding: 16px 10px 48px 10px; }
@@ -113,6 +133,30 @@
   </style>
 </head>
 <body>
+  <div id="google_translate_element" style="position:fixed;bottom:8px;right:8px;z-index:7000;"></div>
+  <button id="translateToggleBtn" type="button" aria-label="Toggle translation" style="position:fixed;bottom:8px;right:8px;z-index:7001;display:none;align-items:center;justify-content:center;width:38px;height:38px;border:1px solid #444;border-radius:8px;background:#232526;color:#ffb300;font-size:18px;cursor:pointer;">🌐</button>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const translateToggleBtn = document.getElementById('translateToggleBtn');
+      const translateWidget = document.getElementById('google_translate_element');
+      if (!translateToggleBtn || !translateWidget) return;
+      translateToggleBtn.addEventListener('click', function (event) {
+        event.stopPropagation();
+        document.body.classList.toggle('translate-open');
+      });
+      document.addEventListener('click', function (event) {
+        if (!document.body.classList.contains('translate-open')) return;
+        if (translateWidget.contains(event.target) || translateToggleBtn.contains(event.target)) return;
+        document.body.classList.remove('translate-open');
+      });
+    });
+  </script>
+  <script type="text/javascript">
+    function googleTranslateElementInit() {
+      new google.translate.TranslateElement({ pageLanguage: 'en', layout: google.translate.TranslateElement.InlineLayout.SIMPLE }, 'google_translate_element');
+    }
+  </script>
+  <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
   <script>
     // --- Auth (same contract as the other portal pages) ---
     const AUTH_KEY = 'ccc_portal_google_auth';
@@ -431,15 +475,19 @@
         html += '<p class="note">You have no bank transactions yet.</p>';
       } else {
         html += '<div class="table-wrap"><table><thead><tr>'
-          + '<th>Date</th><th>Type</th><th>Amount</th><th>Reference</th><th>Remarks</th>'
+          + '<th>Date</th><th>Type</th><th>Amount</th><th>Balance Impact</th><th>From / To</th><th>Reference</th><th>Remarks</th>'
           + '</tr></thead><tbody>'
           + transactions.map(tx => {
             const type = String(tx.transactionType || '').toLowerCase();
-            const badgeClass = type === 'penalty' ? 'badge-penalty' : (type === 'withdrawal' ? 'badge-withdrawal' : 'badge-deposit');
+            const badgeClass = type === 'penalty' ? 'badge-penalty' : (type === 'withdrawal' ? 'badge-withdrawal' : (type === 'transfer' ? 'badge-transfer' : 'badge-deposit'));
+            const impact = tx.balanceImpact == null ? tx.balance : tx.balanceImpact;
+            const sourceLabel = tx.counterparty ? ((tx.direction === 'received' ? 'From: ' : 'To: ') + tx.counterparty) : '-';
             return '<tr>'
               + '<td>' + escapeHtml(formatTimestamp(tx.timestamp)) + '</td>'
               + '<td><span class="badge ' + badgeClass + '">' + escapeHtml(tx.transactionType || '-') + '</span></td>'
               + '<td>' + fmt(tx.balance) + '</td>'
+              + '<td style="color:' + (Number(impact) < 0 ? '#ef5350' : '#8bc34a') + ';font-weight:600;">' + (Number(impact) > 0 ? '+' : '') + fmt(impact) + '</td>'
+              + '<td>' + escapeHtml(sourceLabel) + '</td>'
               + '<td>' + escapeHtml(tx.reference || '-') + '</td>'
               + '<td>' + escapeHtml(tx.remarks || '-') + '</td>'
               + '</tr>';

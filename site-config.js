@@ -26,7 +26,8 @@ const SITE_CONFIG = {
   // Members hidden from progress stats when not logged in (e.g. leaders with special privileges)
   // Names must match exactly as they appear in the Members sheet (case-insensitive match applied at runtime)
   maskedMembers: [
-    'Champions CQ'
+    'Champions CQ',
+    'cCc CP CITY'
     // 'AnotherSpecialMember'
   ],
 
