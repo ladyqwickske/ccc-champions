@@ -249,6 +249,8 @@
       font-size: 11px;
       z-index: 1;
     }
+    .sort-header { padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; text-align: left; }
+    .sort-header:hover { color: #ffb300; }
     .last-transaction-col {
       min-width: 220px;
       width: 220px;
@@ -810,6 +812,7 @@
       }
 
       let allBalancesData = [];
+      let balanceSort = { key: 'totalBalance', direction: 'desc' };
 
       async function loadMemberBalances() {
         const balancesBody = document.getElementById('balancesBody');
@@ -851,7 +854,7 @@
         }
 
         emptyEl.textContent = '';
-        balancesBody.innerHTML = items.map(item => {
+        balancesBody.innerHTML = sortBalanceItems(items).map(item => {
           const balance = Number(item.totalBalance) || 0;
           const owes = balance < 0;
           const balanceCell = owes
@@ -871,14 +874,54 @@
             <td>${escapeHtml(item.memberName || '-')}</td>
             <td>${statusBadge}</td>
             <td>${balanceCell}</td>
-            <td>${fmt(item.depositsTotal)}</td>
-            <td>${fmt(item.withdrawalsTotal)}</td>
             <td>${penalties > 0 ? `<span style="color:#ef5350;">${fmt(penalties)}</span>` : fmt(0)}</td>
             <td>${Number(item.transactionCount || 0)}</td>
             <td class="last-transaction-col">${escapeHtml(formatTimestamp(item.lastTimestamp))}</td>
           </tr>
         `;
         }).join('');
+      }
+
+      function sortBalanceItems(items) {
+        const direction = balanceSort.direction === 'asc' ? 1 : -1;
+        return items.slice().sort((left, right) => {
+          let leftValue = left[balanceSort.key];
+          let rightValue = right[balanceSort.key];
+          if (balanceSort.key === 'status') {
+            leftValue = String(leftValue || 'external').toLowerCase();
+            rightValue = String(rightValue || 'external').toLowerCase();
+          } else if (balanceSort.key === 'lastTimestamp') {
+            leftValue = leftValue ? new Date(leftValue).getTime() : 0;
+            rightValue = rightValue ? new Date(rightValue).getTime() : 0;
+          } else if (balanceSort.key !== 'memberName') {
+            leftValue = Number(leftValue) || 0;
+            rightValue = Number(rightValue) || 0;
+          } else {
+            leftValue = String(leftValue || '').toLowerCase();
+            rightValue = String(rightValue || '').toLowerCase();
+          }
+          if (leftValue < rightValue) return -1 * direction;
+          if (leftValue > rightValue) return 1 * direction;
+          return String(left.memberName || '').localeCompare(String(right.memberName || ''));
+        });
+      }
+
+      function sortBalances(key) {
+        if (balanceSort.key === key) {
+          balanceSort.direction = balanceSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+          balanceSort = { key: key, direction: key === 'memberName' || key === 'status' ? 'asc' : 'desc' };
+        }
+        updateBalanceSortIndicators();
+        filterBalances();
+      }
+
+      function updateBalanceSortIndicators() {
+        document.querySelectorAll('[data-balance-sort]').forEach(button => {
+          const baseLabel = button.dataset.balanceLabel;
+          button.textContent = baseLabel + (button.dataset.balanceSort === balanceSort.key
+            ? (balanceSort.direction === 'asc' ? ' ▲' : ' ▼') : '');
+        });
       }
 
       function filterBalances() {
@@ -1053,6 +1096,9 @@
       if (balancesFilterStatus) {
         balancesFilterStatus.addEventListener('change', filterBalances);
       }
+      document.querySelectorAll('[data-balance-sort]').forEach(button => {
+        button.addEventListener('click', () => sortBalances(button.dataset.balanceSort));
+      });
 
       const memberSelectEl = document.getElementById('memberName');
       if (memberSelectEl) {
@@ -1279,17 +1325,15 @@
                     <option value="former">Former</option>
                     <option value="external">External</option>
                   </select></th>
-                  <th colspan="7" style="text-align: center; padding: 0;"></th>
+                  <th colspan="4" style="text-align: center; padding: 0;"></th>
                 </tr>
                 <tr>
-                  <th>Member</th>
-                  <th>Status</th>
-                  <th>Total Balance</th>
-                  <th>Total Deposits</th>
-                  <th>Total Withdrawals</th>
-                  <th>Penalties</th>
-                  <th>Transactions</th>
-                  <th class="last-transaction-col">Last Transaction</th>
+                  <th><button type="button" class="sort-header" data-balance-sort="memberName" data-balance-label="Member">Member</button></th>
+                  <th><button type="button" class="sort-header" data-balance-sort="status" data-balance-label="Status">Status</button></th>
+                  <th><button type="button" class="sort-header" data-balance-sort="totalBalance" data-balance-label="Balance">Balance</button></th>
+                  <th><button type="button" class="sort-header" data-balance-sort="penaltiesTotal" data-balance-label="Penalties">Penalties</button></th>
+                  <th><button type="button" class="sort-header" data-balance-sort="transactionCount" data-balance-label="Transactions">Transactions</button></th>
+                  <th class="last-transaction-col"><button type="button" class="sort-header" data-balance-sort="lastTimestamp" data-balance-label="Last Transaction">Last Transaction</button></th>
                 </tr>
               </thead>
               <tbody id="balancesBody"></tbody>
