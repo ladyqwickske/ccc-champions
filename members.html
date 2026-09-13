@@ -863,16 +863,6 @@
 
 
   <script>
-    const normalizeResponse = (result) => {
-      if (!result) return { success: false, error: 'No result' };
-      if (result.success !== undefined) return result;
-      if (Array.isArray(result)) return { success: true, data: result };
-      if (result.error) return { success: false, error: result.error };
-      if (result.message && !result.data) return { success: true, message: result.message };
-      if (typeof result === 'object') return { success: true, data: result, ...result };
-      return { success: true, data: result };
-    };
-
     // Slow Apps Script calls can come back as a transient 404 from the redirect target, so retry once.
     async function postAction(payload, retries = 1) {
       for (let attempt = 0; ; attempt++) {
@@ -1352,54 +1342,43 @@
         showLoading();
         try {
           const t0 = performance.now();
-          const [membersRes, troopRes, heroRes] = await Promise.all([
-            fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'getAllMembers' }) }),
-            fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'getAllTroopLevelsSummary' }) }),
-            fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'getHeroLevels' }) })
-          ]);
-          const elapsed = Math.round(performance.now() - t0);
-          console.log('[PERF] Members page fetches: %dms | Edge cache: members=%s, troops=%s, heroes=%s',
-            elapsed,
-            membersRes.headers.get('X-Cache') || 'N/A',
-            troopRes.headers.get('X-Cache') || 'N/A',
-            heroRes.headers.get('X-Cache') || 'N/A');
-          const [membersResult, troopSummary, heroLevels] = await Promise.all([
-            membersRes.json(),
-            troopRes.json().catch(() => null),
-            heroRes.json().catch(() => null)
-          ]);
+          const res = await fetch(window.GAS_WEB_APP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'getMembersPageBundle' })
+          });
+          const bundle = await res.json();
+          console.log('[PERF] Members page bundle: %dms | Edge cache: %s',
+            Math.round(performance.now() - t0),
+            res.headers.get('X-Cache') || 'N/A');
 
-          // Process members
-          const result = normalizeResponse(membersResult);
-          if (!result.success) { onError({ message: result.error }); return; }
-          membersData = result.data || [];
+          if (!bundle || bundle.success === false) {
+            onError({ message: bundle?.error || bundle?.message || 'Failed to load members' });
+            return;
+          }
+          membersData = bundle.members || [];
 
           // Process troop data
           troopData = {};
-          const troopArr = Array.isArray(troopSummary) ? troopSummary : (troopSummary && Array.isArray(troopSummary.data) ? troopSummary.data : null);
-          if (troopArr) {
-            troopArr.forEach(entry => {
-              const name = (entry.playerName || '').trim();
-              if (name) {
-                troopData[name.toLowerCase()] = {
-                  G: entry.G_currentLevel ?? null,
-                  M: entry.M_currentLevel ?? null,
-                  S: entry.S_currentLevel ?? null,
-                  E: entry.E_currentLevel ?? null,
-                  C: entry.C_currentLevel ?? null
-                };
-              }
-            });
-          }
+          (bundle.troops || []).forEach(entry => {
+            const name = (entry.playerName || '').trim();
+            if (name) {
+              troopData[name.toLowerCase()] = {
+                G: entry.G_currentLevel ?? null,
+                M: entry.M_currentLevel ?? null,
+                S: entry.S_currentLevel ?? null,
+                E: entry.E_currentLevel ?? null,
+                C: entry.C_currentLevel ?? null
+              };
+            }
+          });
 
           // Process hero data
           heroData = {};
-          if (heroLevels && heroLevels.success && Array.isArray(heroLevels.data)) {
-            heroLevels.data.forEach(entry => {
-              const name = (entry.playerName || '').trim();
-              if (name) heroData[name.toLowerCase()] = { level: entry.level, timestamp: entry.timestamp };
-            });
-          }
+          (bundle.heroes || []).forEach(entry => {
+            const name = (entry.playerName || '').trim();
+            if (name) heroData[name.toLowerCase()] = { level: entry.level, timestamp: entry.timestamp };
+          });
 
           filteredData = [...membersData];
           filteredData.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
