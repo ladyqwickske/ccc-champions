@@ -873,6 +873,24 @@
       return { success: true, data: result };
     };
 
+    // Slow Apps Script calls can come back as a transient 404 from the redirect target, so retry once.
+    async function postAction(payload, retries = 1) {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          const res = await fetch(window.GAS_WEB_APP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+          return await res.json();
+        } catch (err) {
+          if (attempt >= retries) throw err;
+          await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
+        }
+      }
+    }
+
     window.addEventListener('DOMContentLoaded', () => {
       MembersTab.init();
     });
@@ -1897,12 +1915,7 @@
         const status = document.getElementById('exemptStatus');
         if (exemptSelection && !force) { renderExemptList(); return; }
         if (status) { status.textContent = 'Loading exemptions...'; status.className = 'status'; }
-        fetch(window.GAS_WEB_APP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'getExemptMembers' })
-        })
-          .then(res => res.json())
+        postAction({ action: 'getExemptMembers' })
           .then(result => {
             exemptSelection = new Set();
             exemptMeta = {};
@@ -2026,12 +2039,7 @@
         const status = document.getElementById('accountsStatus');
         if (memberAccounts && !force) { renderMemberAccounts(); return; }
         if (status) { status.textContent = 'Loading linked accounts...'; status.className = 'status'; }
-        fetch(window.GAS_WEB_APP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'getMemberGoogleAccounts' })
-        })
-          .then(res => res.json())
+        postAction({ action: 'getMemberGoogleAccounts' })
           .then(result => {
             memberAccounts = (result && result.members) ? result.members : [];
             if (status) { status.textContent = ''; status.className = 'status'; }
