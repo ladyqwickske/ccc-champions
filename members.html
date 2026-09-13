@@ -882,8 +882,15 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
           });
-          if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-          return await res.json();
+          const text = await res.text();
+          let parsed;
+          try {
+            parsed = JSON.parse(text);
+          } catch (e) {
+            throw new Error(`Invalid response (HTTP ${res.status}): ${text.slice(0, 120)}`);
+          }
+          if (!res.ok) throw new Error(parsed.error || parsed.message || `HTTP ${res.status}`);
+          return parsed;
         } catch (err) {
           if (attempt >= retries) throw err;
           await new Promise(r => setTimeout(r, 1500 * (attempt + 1)));
