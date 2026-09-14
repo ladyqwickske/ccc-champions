@@ -714,6 +714,7 @@
         <div id="chestEventActions" style="display:none; margin-bottom:12px;">
           <p id="chestEventInfo" style="color:#e0e0e0; font-size:13px; margin-bottom:12px;"></p>
           <button class="btn" onclick="EventsTab.calculateChestParticipation()">🔄 Calculate Participation</button>
+          <button class="btn btn-secondary" onclick="EventsTab.calculatePenalties()">🧮 Calculate Penalties</button>
           <button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Apply Penalties</button>
           <div id="chestCalcStatus" class="status"></div>
         </div>
@@ -733,7 +734,7 @@
           <div><label for="manualMember">Member</label><select id="manualMember"><option value="">-- Select Member --</option></select></div>
           <div><label for="manualPoints">Points</label><input type="number" id="manualPoints" placeholder="Enter points" onkeypress="if(event.key==='Enter'){var bp=document.getElementById('manualBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToManualBatch();}else{EventsTab.submitManualEntry();}}"></div>
         </div>
-        <div style="margin-bottom:12px;"><button class="btn" onclick="var bp=document.getElementById('manualBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToManualBatch();}else{EventsTab.submitManualEntry();}">💾 Save Entry</button><button class="btn btn-secondary" onclick="EventsTab.calculateManualNonParticipants()">🙅‍♂️ Fill Non-Participants</button><button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Apply Penalties</button><button class="btn" style="background:#7c3aed;margin-left:8px;" onclick="EventsTab.toggleManualBatchEntry()">📋 Batch Entry</button><div id="manualEntryStatus" class="status"></div><div id="manualNonPartStatus" class="status"></div></div>
+        <div style="margin-bottom:12px;"><button class="btn" onclick="var bp=document.getElementById('manualBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToManualBatch();}else{EventsTab.submitManualEntry();}">💾 Save Entry</button><button class="btn btn-secondary" onclick="EventsTab.calculateManualNonParticipants()">🙅‍♂️ Fill Non-Participants</button><button class="btn btn-secondary" onclick="EventsTab.calculatePenalties()">🧮 Calculate Penalties</button><button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Apply Penalties</button><button class="btn" style="background:#7c3aed;margin-left:8px;" onclick="EventsTab.toggleManualBatchEntry()">📋 Batch Entry</button><div id="manualEntryStatus" class="status"></div><div id="manualNonPartStatus" class="status"></div></div>
         <!-- Manual Batch entry panel -->
         <div id="manualBatchPanel" style="display:none;border:1px solid #555;border-radius:8px;padding:14px;background:#232526;margin-bottom:14px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -763,7 +764,7 @@
             <div><label for="troopMember">Member</label><select id="troopMember"><option value="">-- Select Member --</option></select></div>
             <div><label for="troopPoints">Points Achieved</label><input type="number" id="troopPoints" placeholder="Enter points" onkeypress="if(event.key==='Enter'){var bp=document.getElementById('troopBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToBatchEntry();}else{EventsTab.submitTroopEntry();}}"></div>
           </div>
-          <div style="margin-bottom:12px;"><button class="btn" onclick="var bp=document.getElementById('troopBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToBatchEntry();}else{EventsTab.submitTroopEntry();}">💾 Save Points</button><button class="btn btn-secondary" onclick="EventsTab.calculateTroopNonParticipants()">🙅‍♂️ Fill Non-Participants</button><button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Apply Penalties</button><button class="btn" style="background:#7c3aed;margin-left:8px;" onclick="EventsTab.toggleBatchTroopEntry()">📋 Batch Entry</button><div id="troopEntryStatus" class="status"></div><div id="troopNonPartStatus" class="status"></div></div>
+          <div style="margin-bottom:12px;"><button class="btn" onclick="var bp=document.getElementById('troopBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToBatchEntry();}else{EventsTab.submitTroopEntry();}">💾 Save Points</button><button class="btn btn-secondary" onclick="EventsTab.calculateTroopNonParticipants()">🙅‍♂️ Fill Non-Participants</button><button class="btn btn-secondary" onclick="EventsTab.calculatePenalties()">🧮 Calculate Penalties</button><button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Apply Penalties</button><button class="btn" style="background:#7c3aed;margin-left:8px;" onclick="EventsTab.toggleBatchTroopEntry()">📋 Batch Entry</button><div id="troopEntryStatus" class="status"></div><div id="troopNonPartStatus" class="status"></div></div>
           <!-- Batch entry panel -->
           <div id="troopBatchPanel" style="display:none;border:1px solid #555;border-radius:8px;padding:14px;background:#232526;margin-bottom:14px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -796,6 +797,7 @@
           <p id="resourceEventInfo" style="color:#e0e0e0; font-size:13px; margin-bottom:12px;"></p>
           <div style="margin-bottom:12px;">
             <button class="btn" onclick="EventsTab.calculateResourceEvent()">📊 Calculate from Resources</button>
+            <button class="btn btn-secondary" onclick="EventsTab.calculatePenalties()">🧮 Calculate Penalties</button>
             <button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Apply Penalties</button>
             <div id="resourceCalcStatus" class="status"></div>
           </div>
@@ -947,6 +949,7 @@
       let troopSummaryMap = {};
       let troopTargetsCache = {};
       let memberJoinDatesMap = {};
+      let penaltyPreviewByMember = {};
 
 
       function init() {
@@ -1944,6 +1947,7 @@
         if (status === 'Exempt') return '<span class="badge" style="background:#1b5e20;color:#c8e6c9;">Exempt</span>';
         if (status === 'Waived') return '<span class="badge" style="background:#455a64;color:#cfd8dc;">Waived</span>';
         if (status === 'Adjusted') return '<span class="badge" style="background:#7c3aed;color:#ede9fe;">Adjusted</span>';
+        if (status === 'Preview') return '<span class="badge" style="background:#5c4b18;color:#fff3cd;">Preview</span>';
         if (Number(amount) > 0) return '<span class="badge" style="background:#b71c1c;color:#ffcdd2;">Auto</span>';
         return '<span style="color:#666;">—</span>';
       }
@@ -1978,6 +1982,49 @@
         else loadManualParticipationData(selectedEvent.eventName);
       }
 
+      function renderParticipationForSelectedEvent() {
+        if (!selectedEvent) return;
+        const method = selectedEvent.participationMethod;
+        if (method === 'chest-based' || method === 'chest-troop') renderChestParticipationData();
+        else if (method === 'troop-based') renderTroopParticipationData();
+        else if (method === 'resource-troop' || method === 'resource-manual') renderResourceParticipationData();
+        else renderManualParticipationData();
+      }
+
+      function applyPenaltyPreview(preview) {
+        penaltyPreviewByMember = {};
+        (preview || []).forEach(item => {
+          penaltyPreviewByMember[normalizeName(item.memberName)] = {
+            amount: Number(item.amount) || 0,
+            status: item.status === 'Auto' ? 'Preview' : (item.status || '')
+          };
+        });
+        participationRawData = participationRawData.map(row => {
+          const proposal = penaltyPreviewByMember[normalizeName(row.memberName)];
+          return proposal ? { ...row, penalty: proposal.amount, penaltyStatus: proposal.status } : row;
+        });
+      }
+
+      function calculatePenalties() {
+        const statusEl = penaltyStatusEl();
+        const setStatus = (text, cls) => { if (statusEl) { statusEl.textContent = text; statusEl.className = 'status' + (cls ? ' ' + cls : ''); } };
+        if (!selectedEvent) { setStatus('Please select an event.', 'err'); return; }
+        setStatus('Calculating proposed penalties...');
+        fetch(window.GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'calculateEventPenalties', eventName: selectedEvent.eventName })
+        }).then(res => res.json()).then(result => {
+          if (result?.success) {
+            applyPenaltyPreview(result.preview);
+            renderParticipationForSelectedEvent();
+            setStatus(result.message || 'Proposed penalties calculated. Review and apply when ready.', 'ok');
+          } else {
+            setStatus(result?.message || 'Penalty calculation failed.', 'err');
+          }
+        }).catch(error => setStatus('Error: ' + error.message, 'err'));
+      }
+
       function sendPenaltyUpdate(memberName, amount, penaltyStatus) {
         const statusEl = penaltyStatusEl();
         const setStatus = (text, cls) => { if (statusEl) { statusEl.textContent = text; statusEl.className = 'status' + (cls ? ' ' + cls : ''); } };
@@ -1989,7 +2036,8 @@
           body: JSON.stringify({ action: 'updateEventPenalty', eventName: selectedEvent.eventName, memberName, penaltyAmount: amount, penaltyStatus })
         }).then(res => res.json()).then(result => {
           setStatus(result?.message || 'Penalty updated.', result?.success ? 'ok' : 'err');
-          if (result?.success) reloadParticipationForSelectedEvent();
+          if (result?.success && Object.keys(penaltyPreviewByMember).length > 0) calculatePenalties();
+          else if (result?.success) reloadParticipationForSelectedEvent();
         }).catch(error => setStatus('Error: ' + error.message, 'err'));
       }
 
@@ -2008,7 +2056,10 @@
           body: JSON.stringify({ action: 'applyEventPenalties', eventName: selectedEvent.eventName })
         }).then(res => res.json()).then(result => {
           setStatus(result?.message || 'Penalties applied.', result?.success ? 'ok' : 'err');
-          if (result?.success) reloadParticipationForSelectedEvent();
+          if (result?.success) {
+            penaltyPreviewByMember = {};
+            reloadParticipationForSelectedEvent();
+          }
         }).catch(error => setStatus('Error: ' + error.message, 'err'));
       }
 
@@ -3042,7 +3093,7 @@
         }).catch(error => { status.textContent = 'Error: ' + error.message; status.classList.add('err'); });
       }
 
-      return { init, switchTab, loadEvents, loadEventsBundle, generateEvents, toggleAllGenTypes, onChestEventSelected, onManualEventSelected, onTroopEventSelected, onResourceEventSelected, submitManualEntry, submitTroopEntry, calculateManualNonParticipants, calculateTroopNonParticipants, calculateChestParticipation, calculateResourceEvent, submitCreateEvent, updateEventTypeMethod, submitAddEventType, renderEventTypesTable, cancelEditEventType, addTroopTargetRow, removeTroopTargetRow, addEventTroopTargetRow, removeEventTroopTargetRow, editEventType, editEvent, deleteEvent, deleteEventType, viewEventParticipation, sortTable, sortManualTable, setEventFilter, setEventTypeFilter, toggleBatchTroopEntry, saveBatchTroopEntries, addToBatchEntry, removeBatchEntry, toggleManualBatchEntry, addToManualBatch, removeManualBatchEntry, saveManualBatchEntries, onPenaltyEnabledChange, savePenalty, waivePenalty, resetPenalty, recalculatePenalties };
+      return { init, switchTab, loadEvents, loadEventsBundle, generateEvents, toggleAllGenTypes, onChestEventSelected, onManualEventSelected, onTroopEventSelected, onResourceEventSelected, submitManualEntry, submitTroopEntry, calculateManualNonParticipants, calculateTroopNonParticipants, calculateChestParticipation, calculateResourceEvent, submitCreateEvent, updateEventTypeMethod, submitAddEventType, renderEventTypesTable, cancelEditEventType, addTroopTargetRow, removeTroopTargetRow, addEventTroopTargetRow, removeEventTroopTargetRow, editEventType, editEvent, deleteEvent, deleteEventType, viewEventParticipation, sortTable, sortManualTable, setEventFilter, setEventTypeFilter, toggleBatchTroopEntry, saveBatchTroopEntries, addToBatchEntry, removeBatchEntry, toggleManualBatchEntry, addToManualBatch, removeManualBatchEntry, saveManualBatchEntries, onPenaltyEnabledChange, savePenalty, waivePenalty, resetPenalty, calculatePenalties, recalculatePenalties };
     })();
   </script>
 </body>
