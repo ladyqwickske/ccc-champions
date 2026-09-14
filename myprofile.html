@@ -461,6 +461,33 @@
         }
       }
 
+      if (data.role === 'admin') {
+        const norms = data.normHistory || [];
+        html += '<h2>Norms: Last Two Completed Periods</h2>';
+        if (norms.length === 0) {
+          html += '<p class="note">No completed target-based norm events found.</p>';
+        } else {
+          html += '<div class="table-wrap"><table><thead><tr>'
+            + '<th>Period</th><th>Event</th><th>Date</th><th>Achieved</th><th>Target</th><th>Progress</th><th>Status</th>'
+            + '</tr></thead><tbody>'
+            + norms.map(norm => {
+              const color = norm.completed ? '#8bc34a' : (norm.percent >= 70 ? '#ff9800' : '#ef5350');
+              const status = norm.completed ? 'Completed' : 'Not completed';
+              const category = norm.category ? ' <span style="color:#888;font-size:11px;">(' + escapeHtml(norm.category) + ')</span>' : '';
+              return '<tr>'
+                + '<td>' + escapeHtml(norm.periodName || '-') + '</td>'
+                + '<td>' + escapeHtml(norm.eventName || '-') + category + '</td>'
+                + '<td>' + escapeHtml(norm.startDate || '-') + ' → ' + escapeHtml(norm.endDate || '-') + '</td>'
+                + '<td>' + fmtInt(norm.achieved) + '</td>'
+                + '<td>' + fmtInt(norm.target) + '</td>'
+                + '<td style="color:' + color + ';font-weight:600;">' + norm.percent + '%</td>'
+                + '<td style="color:' + color + ';font-weight:600;">' + status + '</td>'
+                + '</tr>';
+            }).join('')
+            + '</tbody></table></div>';
+        }
+      }
+
       const penalties = (data.pointTargets || []).filter(p => Number(p.penaltyPoints) > 0);
       html += '<h2>Point Penalties</h2>';
       if (penalties.length === 0) {
