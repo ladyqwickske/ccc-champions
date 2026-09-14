@@ -1580,6 +1580,10 @@ function sortPlayerTable(key, dir) {
     return 0;
   });
   rows.forEach(row => table.appendChild(row));
+  rows.forEach((row, index) => {
+    const rankCell = row.querySelector('.cell.rank-col');
+    if (rankCell) rankCell.textContent = index + 1;
+  });
 }
 
 // Filter player table rows by member name
