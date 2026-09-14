@@ -336,14 +336,21 @@
       loadProfile();
     }
 
-    function renderAccountPicker(names, current) {
+    function renderAccountPicker(names, current, linkedNames) {
       const picker = document.getElementById('accountPicker');
       const select = document.getElementById('accountSelect');
       const label = document.getElementById('accountPickerLabel');
       if (!picker || !select) return;
       if (!names || names.length < 2) { picker.style.display = 'none'; return; }
-      if (label) label.textContent = getPortalRole() === 'admin' ? 'Active members' : 'Linked accounts';
-      select.innerHTML = names.map(n => `<option value="${escapeHtml(n)}"${n === current ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
+      const linked = Array.isArray(linkedNames) ? linkedNames : [];
+      const linkedKeys = new Set(linked.map(name => String(name).toLowerCase()));
+      const otherNames = names.filter(name => !linkedKeys.has(String(name).toLowerCase()));
+      const option = n => `<option value="${escapeHtml(n)}"${n === current ? ' selected' : ''}>${escapeHtml(n)}</option>`;
+      if (label) label.textContent = linked.length > 0 ? 'Profiles' : 'Linked accounts';
+      select.innerHTML = linked.length > 0 && otherNames.length > 0
+        ? '<optgroup label="My linked accounts">' + linked.map(option).join('') + '</optgroup>'
+          + '<optgroup label="Other active members">' + otherNames.map(option).join('') + '</optgroup>'
+        : names.map(option).join('');
       picker.style.display = 'block';
     }
 
@@ -362,12 +369,12 @@
         });
         const data = await res.json();
         if (!data || !data.success) {
-          renderAccountPicker(data && data.memberNames, selectedMember);
+          renderAccountPicker(data && data.memberNames, selectedMember, data && data.linkedMemberNames);
           container.innerHTML = '<div class="empty-state"><p>' + escapeHtml(data && data.message ? data.message : 'Could not load your profile.') + '</p></div>';
           return;
         }
         selectedMember = data.memberName;
-        renderAccountPicker(data.memberNames, data.memberName);
+        renderAccountPicker(data.memberNames, data.memberName, data.linkedMemberNames);
         renderProfile(data);
       } catch (error) {
         container.innerHTML = '<div class="empty-state"><p>Error: ' + escapeHtml(error.message) + '</p></div>';
