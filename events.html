@@ -714,7 +714,7 @@
         <div id="chestEventActions" style="display:none; margin-bottom:12px;">
           <p id="chestEventInfo" style="color:#e0e0e0; font-size:13px; margin-bottom:12px;"></p>
           <button class="btn" onclick="EventsTab.calculateChestParticipation()">🔄 Calculate Participation</button>
-          <button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Recalculate Penalties</button>
+          <button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Apply Penalties</button>
           <div id="chestCalcStatus" class="status"></div>
         </div>
         <div id="chestParticipationData" style="display:none; margin-top:12px;">
@@ -733,7 +733,7 @@
           <div><label for="manualMember">Member</label><select id="manualMember"><option value="">-- Select Member --</option></select></div>
           <div><label for="manualPoints">Points</label><input type="number" id="manualPoints" placeholder="Enter points" onkeypress="if(event.key==='Enter'){var bp=document.getElementById('manualBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToManualBatch();}else{EventsTab.submitManualEntry();}}"></div>
         </div>
-        <div style="margin-bottom:12px;"><button class="btn" onclick="var bp=document.getElementById('manualBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToManualBatch();}else{EventsTab.submitManualEntry();}">💾 Save Entry</button><button class="btn btn-secondary" onclick="EventsTab.calculateManualNonParticipants()">🙅‍♂️ Fill Non-Participants</button><button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Recalculate Penalties</button><button class="btn" style="background:#7c3aed;margin-left:8px;" onclick="EventsTab.toggleManualBatchEntry()">📋 Batch Entry</button><div id="manualEntryStatus" class="status"></div><div id="manualNonPartStatus" class="status"></div></div>
+        <div style="margin-bottom:12px;"><button class="btn" onclick="var bp=document.getElementById('manualBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToManualBatch();}else{EventsTab.submitManualEntry();}">💾 Save Entry</button><button class="btn btn-secondary" onclick="EventsTab.calculateManualNonParticipants()">🙅‍♂️ Fill Non-Participants</button><button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Apply Penalties</button><button class="btn" style="background:#7c3aed;margin-left:8px;" onclick="EventsTab.toggleManualBatchEntry()">📋 Batch Entry</button><div id="manualEntryStatus" class="status"></div><div id="manualNonPartStatus" class="status"></div></div>
         <!-- Manual Batch entry panel -->
         <div id="manualBatchPanel" style="display:none;border:1px solid #555;border-radius:8px;padding:14px;background:#232526;margin-bottom:14px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -763,7 +763,7 @@
             <div><label for="troopMember">Member</label><select id="troopMember"><option value="">-- Select Member --</option></select></div>
             <div><label for="troopPoints">Points Achieved</label><input type="number" id="troopPoints" placeholder="Enter points" onkeypress="if(event.key==='Enter'){var bp=document.getElementById('troopBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToBatchEntry();}else{EventsTab.submitTroopEntry();}}"></div>
           </div>
-          <div style="margin-bottom:12px;"><button class="btn" onclick="var bp=document.getElementById('troopBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToBatchEntry();}else{EventsTab.submitTroopEntry();}">💾 Save Points</button><button class="btn btn-secondary" onclick="EventsTab.calculateTroopNonParticipants()">🙅‍♂️ Fill Non-Participants</button><button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Recalculate Penalties</button><button class="btn" style="background:#7c3aed;margin-left:8px;" onclick="EventsTab.toggleBatchTroopEntry()">📋 Batch Entry</button><div id="troopEntryStatus" class="status"></div><div id="troopNonPartStatus" class="status"></div></div>
+          <div style="margin-bottom:12px;"><button class="btn" onclick="var bp=document.getElementById('troopBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToBatchEntry();}else{EventsTab.submitTroopEntry();}">💾 Save Points</button><button class="btn btn-secondary" onclick="EventsTab.calculateTroopNonParticipants()">🙅‍♂️ Fill Non-Participants</button><button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Apply Penalties</button><button class="btn" style="background:#7c3aed;margin-left:8px;" onclick="EventsTab.toggleBatchTroopEntry()">📋 Batch Entry</button><div id="troopEntryStatus" class="status"></div><div id="troopNonPartStatus" class="status"></div></div>
           <!-- Batch entry panel -->
           <div id="troopBatchPanel" style="display:none;border:1px solid #555;border-radius:8px;padding:14px;background:#232526;margin-bottom:14px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -796,7 +796,7 @@
           <p id="resourceEventInfo" style="color:#e0e0e0; font-size:13px; margin-bottom:12px;"></p>
           <div style="margin-bottom:12px;">
             <button class="btn" onclick="EventsTab.calculateResourceEvent()">📊 Calculate from Resources</button>
-            <button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Recalculate Penalties</button>
+            <button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Apply Penalties</button>
             <div id="resourceCalcStatus" class="status"></div>
           </div>
         </div>
@@ -823,7 +823,7 @@
         </div>
         <div id="eventPenaltySection" style="margin:12px 0; padding:12px; border:1px solid #444; border-radius:6px; background:#232526;">
           <label style="display:block; margin-bottom:8px;">⚖️ Target Miss Penalty</label>
-          <p style="color:#b0b0b0; font-size:12px; margin-bottom:12px;">Applied automatically to every member who does not reach this event's target. When the event has a numeric target, the penalty is pro-rated to the share of the target that was missed (e.g. 40% short of 4,000 points &rarr; 40% of the penalty). Silver penalties are rounded up to the nearest million. Individual amounts can be adjusted or waived after calculating the event.</p>
+          <p style="color:#b0b0b0; font-size:12px; margin-bottom:12px;">After calculating participation, review or adjust individual amounts, then use Apply Penalties to commit them. When the event has a numeric target, automatic penalties are pro-rated to the share of the target that was missed (e.g. 40% short of 4,000 points &rarr; 40% of the penalty). Silver penalties are rounded up to the nearest million.</p>
           <label style="font-size:12px; color:#ccc; text-transform:none; letter-spacing:0; cursor:pointer;">
             <input type="checkbox" id="eventPenaltyEnabled" onchange="EventsTab.onPenaltyEnabledChange()" style="width:auto; margin-right:6px;"> Enable penalty for this event
           </label>
@@ -2001,13 +2001,13 @@
         const statusEl = penaltyStatusEl();
         const setStatus = (text, cls) => { if (statusEl) { statusEl.textContent = text; statusEl.className = 'status' + (cls ? ' ' + cls : ''); } };
         if (!selectedEvent) { setStatus('Please select an event.', 'err'); return; }
-        setStatus('Recalculating penalties...');
+        setStatus('Applying penalties...');
         fetch(window.GAS_WEB_APP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'applyEventPenalties', eventName: selectedEvent.eventName })
         }).then(res => res.json()).then(result => {
-          setStatus(result?.message || 'Penalties recalculated.', result?.success ? 'ok' : 'err');
+          setStatus(result?.message || 'Penalties applied.', result?.success ? 'ok' : 'err');
           if (result?.success) reloadParticipationForSelectedEvent();
         }).catch(error => setStatus('Error: ' + error.message, 'err'));
       }
