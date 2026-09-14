@@ -291,7 +291,7 @@
     <h1><img src="member_profile.png" alt="" style="height: 48px; vertical-align: middle; margin-right: 8px;"> My Profile</h1>
     <p style="font-size:13px;color:#b0b0b0;margin-bottom:16px;">Your personal bank position, point targets and chest progress.</p>
     <div id="accountPicker" style="display:none; margin-bottom:16px;">
-      <label for="accountSelect" style="display:block; font-size:12px; font-weight:600; color:#ffb300; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Linked accounts</label>
+      <label id="accountPickerLabel" for="accountSelect" style="display:block; font-size:12px; font-weight:600; color:#ffb300; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Linked accounts</label>
       <select id="accountSelect" onchange="onAccountChange()" style="width:100%; max-width:320px; padding:10px 12px; border:1px solid #444; border-radius:6px; font-size:14px; background:#232526; color:#e0e0e0;"></select>
     </div>
     <div id="profileContent">
@@ -339,8 +339,10 @@
     function renderAccountPicker(names, current) {
       const picker = document.getElementById('accountPicker');
       const select = document.getElementById('accountSelect');
+      const label = document.getElementById('accountPickerLabel');
       if (!picker || !select) return;
       if (!names || names.length < 2) { picker.style.display = 'none'; return; }
+      if (label) label.textContent = getPortalRole() === 'admin' ? 'Active members' : 'Linked accounts';
       select.innerHTML = names.map(n => `<option value="${escapeHtml(n)}"${n === current ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
       picker.style.display = 'block';
     }
