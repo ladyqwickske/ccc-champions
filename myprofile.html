@@ -490,8 +490,21 @@
 
       const penalties = (data.pointTargets || []).filter(p => Number(p.penaltyPoints) > 0);
       html += '<h2>Point Penalties</h2>';
+      const pointPenaltyHistory = data.pointPenaltyHistory || [];
+      if (pointPenaltyHistory.length > 0) {
+        html += '<div class="table-wrap"><table><thead><tr>'
+          + '<th>Event</th><th>Event Date</th><th>Penalty Points</th><th>Status</th>'
+          + '</tr></thead><tbody>'
+          + pointPenaltyHistory.map(penalty => '<tr>'
+            + '<td>' + escapeHtml(penalty.eventName || '-') + '</td>'
+            + '<td>' + escapeHtml(formatDateOnly(penalty.startDate)) + ' → ' + escapeHtml(formatDateOnly(penalty.endDate)) + '</td>'
+            + '<td style="color:#ef5350;font-weight:600;">+' + fmtInt(penalty.penaltyPoints) + '</td>'
+            + '<td>' + escapeHtml(penalty.penaltyStatus || 'Auto') + '</td>'
+            + '</tr>').join('')
+          + '</tbody></table></div>';
+      }
       if (penalties.length === 0) {
-        html += '<p class="note">No extra chest points are owed. Nice work!</p>';
+        html += pointPenaltyHistory.length === 0 ? '<p class="note">No extra chest points are owed. Nice work!</p>' : '';
       } else {
         html += '<div class="table-wrap"><table><thead><tr>'
           + '<th>Period</th><th>Base Target</th><th>Penalty Points</th><th>Total Target</th>'
