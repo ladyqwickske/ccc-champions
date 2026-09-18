@@ -45,6 +45,30 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 			banner.style.visibility = 'hidden';
 			banner.style.height = '0';
 		}
+		fixMenuFramePosition();
+	};
+
+	// The Google Translate language dropdown (.goog-te-menu-frame) computes its own
+	// position/height assuming a normally-flowed anchor. Our widget uses position:fixed,
+	// so on some browsers the frame ends up clipped/off-screen with no way to scroll to
+	// the remaining languages. Force it to a viewport-anchored, capped, scrollable box.
+	const fixMenuFramePosition = function () {
+		const frame = document.querySelector('iframe.goog-te-menu-frame');
+		const anchor = document.getElementById('google_translate_element');
+		if (!frame || !anchor) return;
+		const rect = anchor.getBoundingClientRect();
+		const margin = 8;
+		const maxHeight = Math.max(120, rect.top - margin * 2);
+		const maxWidth = Math.min(320, window.innerWidth - margin * 2);
+		frame.style.setProperty('position', 'fixed', 'important');
+		frame.style.setProperty('top', 'auto', 'important');
+		frame.style.setProperty('bottom', (window.innerHeight - rect.top + margin) + 'px', 'important');
+		frame.style.setProperty('left', 'auto', 'important');
+		frame.style.setProperty('right', margin + 'px', 'important');
+		frame.style.setProperty('max-height', maxHeight + 'px', 'important');
+		frame.style.setProperty('max-width', maxWidth + 'px', 'important');
+		frame.style.setProperty('overflow-y', 'auto', 'important');
+		frame.style.setProperty('overflow-x', 'hidden', 'important');
 	};
 
 	const startObserver = function () {
