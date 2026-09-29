@@ -693,6 +693,7 @@
         <button class="tab" data-group="admin" data-tab="heroTab" onclick="MembersTab.switchTab('heroTab', event)">🦸 Hero Level</button>
         <button class="tab" data-group="admin" data-tab="troopTab" onclick="MembersTab.switchTab('troopTab', event)">⚔️ Track Troops</button>
         <button class="tab" data-group="admin" data-tab="accountsTab" onclick="MembersTab.switchTab('accountsTab', event)">🔐 Member Login Accounts</button>
+        <button class="tab" data-group="admin" data-tab="superiorsTab" id="superiorsTabBtn" style="display:none" onclick="MembersTab.switchTab('superiorsTab', event)">👑 Superiors</button>
         <button class="tab" data-group="config" data-tab="chestPointsTab" hidden onclick="MembersTab.switchTab('chestPointsTab', event)">📦 Chest Points</button>
         <button class="tab" data-group="config" data-tab="chestNameFixTab" hidden onclick="MembersTab.switchTab('chestNameFixTab', event)">🔧 Fix Chest Names</button>
         <button class="tab" data-group="config" data-tab="exemptTab" hidden onclick="MembersTab.switchTab('exemptTab', event)">🛡️ Penalty Exemptions</button>
@@ -700,7 +701,7 @@
       </div>
       <div id="accountsTab" class="tab-content">
         <h3 style="margin:0 0 12px 0;">Linked Google Accounts</h3>
-        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Link a member to a Google account so they can sign in and see their own bank balance and point penalties. The same address can be linked to several members — handy for alt accounts — and the profile page then offers a dropdown to switch between them. Members only get the public pages plus their profile; management pages stay officer-only, controlled by the list in the script.</p>
+        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Link a member to a Google account so they can sign in and see their own bank balance and point penalties. The same address can be linked to several members — handy for alt accounts — and the profile page then offers a dropdown to switch between them. Members only get the public pages plus their profile; management pages are for superiors only (the Superiors list).</p>
         <div class="controls" style="margin-bottom:10px;">
           <div class="search-box"><input type="text" id="accountsSearchInput" placeholder="🔍 Filter members..."></div>
           <button class="btn" onclick="MembersTab.saveMemberAccounts()">💾 Save Accounts</button>
@@ -709,6 +710,22 @@
         <div id="accountsStatus" class="status"></div>
         <div id="accountsSummary" style="font-size:12px; color:#b0b0b0; margin-bottom:8px; text-align:left;"></div>
         <div id="accountsList" style="max-height:50vh; overflow-y:auto; border:1px solid #444; border-radius:8px; padding:10px; background:#232526; text-align:left;"></div>
+      </div>
+      <div id="superiorsTab" class="tab-content">
+        <h3 style="margin:0 0 12px 0;">Superiors</h3>
+        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Superiors can use the management pages (Events, Members, Warnings, Bank, Profiling, …) and make changes. Tick a member to make them a superior: the Google account(s) linked to them on <b>Member Login Accounts</b> get the rights, and lose them when the member leaves the clan. Logins that aren't clan members go under <b>Extra e-mails</b>. Only you can see this list; you are always a superior yourself.</p>
+        <div class="controls" style="margin-bottom:10px;">
+          <div class="search-box"><input type="text" id="superiorsSearchInput" placeholder="🔍 Filter members..."></div>
+          <button class="btn" onclick="MembersTab.saveSuperiors()">💾 Save Superiors</button>
+          <button class="btn btn-secondary" onclick="MembersTab.loadSuperiors(true)">🔄 Reload</button>
+        </div>
+        <div id="superiorsStatus" class="status"></div>
+        <div id="superiorsSummary" style="font-size:12px; color:#b0b0b0; margin-bottom:8px; text-align:left;"></div>
+        <div id="superiorsList" style="max-height:40vh; overflow-y:auto; border:1px solid #444; border-radius:8px; padding:10px; background:#232526; text-align:left;"></div>
+        <h4 style="margin:16px 0 6px 0; text-align:left;">Extra e-mails</h4>
+        <p style="color:#b0b0b0; font-size:12px; margin:0 0 8px 0; text-align:left;">Google logins with superior rights that aren't linked to a clan member. The note is just for you (e.g. who it is).</p>
+        <div id="superiorEmailsList" style="border:1px solid #444; border-radius:8px; padding:10px; background:#232526; text-align:left;"></div>
+        <button class="btn btn-secondary" style="margin-top:8px;" onclick="MembersTab.addSuperiorEmail()">➕ Add e-mail</button>
       </div>
       <div id="exemptTab" class="tab-content">
         <h3 style="margin:0 0 12px 0;">Penalty Exemptions</h3>
@@ -929,6 +946,8 @@
         document.getElementById('memberSearchInput').addEventListener('input', (e) => filterMembers(e.target.value));
         document.getElementById('exemptSearchInput')?.addEventListener('input', () => renderExemptList());
         document.getElementById('accountsSearchInput')?.addEventListener('input', () => renderMemberAccounts());
+        document.getElementById('superiorsSearchInput')?.addEventListener('input', () => renderSuperiors());
+        checkSuperiorsAccess();
         document.querySelectorAll('#members th.sortable').forEach(th => {
           th.addEventListener('click', () => sortTable(th.dataset.column));
         });
@@ -2106,6 +2125,131 @@
           });
       }
 
+      // ── Superiors (owner only; the Worker refuses anyone else) ────
+      let superiors = null;   // { members: [{ name, email, superior, notMember }], emails: [{ email, note }] }
+
+      async function fetchSuperiors() {
+        const res = await fetch(window.GAS_WEB_APP_URL, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'getSuperiors' })
+        });
+        const data = await res.json();
+        if (!res.ok || !data || !data.success) throw new Error((data && (data.message || data.error)) || ('HTTP ' + res.status));
+        return data;
+      }
+
+      // Show the tab only to the owner: the list answers only for her.
+      function checkSuperiorsAccess() {
+        let email = '';
+        try { email = localStorage.getItem('ccc_portal_google_email') || ''; } catch (e) {}
+        const btn = document.getElementById('superiorsTabBtn');
+        if (!email || !btn) return;
+        fetchSuperiors()
+          .then(data => { superiors = data; btn.style.display = ''; })
+          .catch(() => { btn.style.display = 'none'; });
+      }
+
+      function loadSuperiors(force, keepStatus) {
+        const status = document.getElementById('superiorsStatus');
+        if (superiors && !force) { renderSuperiors(); return; }
+        if (status && !keepStatus) { status.textContent = 'Loading superiors...'; status.className = 'status'; }
+        fetchSuperiors()
+          .then(data => {
+            superiors = data;
+            if (status && !keepStatus) { status.textContent = ''; status.className = 'status'; }
+            renderSuperiors();
+          })
+          .catch(error => {
+            if (status) { status.textContent = 'Error: ' + error.message; status.className = 'status err'; }
+          });
+      }
+
+      function renderSuperiors() {
+        const container = document.getElementById('superiorsList');
+        if (!container || !superiors) return;
+        const term = (document.getElementById('superiorsSearchInput')?.value || '').toLowerCase().trim();
+        const rows = superiors.members.filter(m => !term || m.name.toLowerCase().includes(term));
+        updateSuperiorsSummary();
+        container.innerHTML = rows.length ? rows.map(m => `<div style="display:grid; grid-template-columns:24px minmax(120px,1fr) 2fr; gap:10px; align-items:center; padding:5px 4px;">
+          <input type="checkbox" ${m.superior ? 'checked' : ''} data-superior="${escapeHtml(m.name)}" onchange="MembersTab.toggleSuperior(this)" style="width:auto; margin:0; cursor:pointer;">
+          <span style="color:#e0e0e0; font-size:13px; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(m.name)}</span>
+          <span style="font-size:12px; color:${m.notMember ? '#e57373' : (m.email ? '#b0b0b0' : '#888')};">${m.notMember ? 'no longer a member (untick and save)' : (m.email ? escapeHtml(m.email) : 'no Google account linked')}</span>
+        </div>`).join('') : '<p style="color:#888; font-size:13px;">No members match this filter.</p>';
+        renderSuperiorEmails();
+      }
+
+      function updateSuperiorsSummary() {
+        const summary = document.getElementById('superiorsSummary');
+        if (!summary || !superiors) return;
+        const ticked = superiors.members.filter(m => m.superior);
+        const noAccount = ticked.filter(m => !m.email && !m.notMember).length;
+        summary.textContent = `${ticked.length} superior member(s), ${superiors.emails.filter(e => e.email).length} extra e-mail(s).`
+          + (noAccount ? ` ${noAccount} ticked member(s) have no Google account linked yet, so they can't sign in as superior.` : '');
+      }
+
+      function renderSuperiorEmails() {
+        const box = document.getElementById('superiorEmailsList');
+        if (!box || !superiors) return;
+        box.innerHTML = superiors.emails.length ? superiors.emails.map((e, i) => `<div style="display:grid; grid-template-columns:2fr 1fr 32px; gap:8px; align-items:center; padding:4px 0;">
+          <input type="email" value="${escapeHtml(e.email)}" placeholder="name@gmail.com" data-idx="${i}" data-field="email" onchange="MembersTab.updateSuperiorEmail(this)" style="padding:6px 8px; font-size:13px;">
+          <input type="text" value="${escapeHtml(e.note || '')}" placeholder="note (who is it?)" data-idx="${i}" data-field="note" onchange="MembersTab.updateSuperiorEmail(this)" style="padding:6px 8px; font-size:13px;">
+          <button class="btn btn-secondary" title="Remove" style="padding:4px 8px;" onclick="MembersTab.removeSuperiorEmail(${i})">✕</button>
+        </div>`).join('') : '<p style="color:#888; font-size:13px; margin:0;">No extra e-mails.</p>';
+      }
+
+      function toggleSuperior(input) {
+        const name = input.getAttribute('data-superior') || '';
+        const m = superiors && superiors.members.find(x => x.name === name);
+        if (m) m.superior = input.checked;
+        updateSuperiorsSummary();
+      }
+
+      function addSuperiorEmail() {
+        if (!superiors) return;
+        superiors.emails.push({ email: '', note: '' });
+        renderSuperiorEmails();
+        const inputs = document.querySelectorAll('#superiorEmailsList input[data-field="email"]');
+        if (inputs.length) inputs[inputs.length - 1].focus();
+      }
+
+      function updateSuperiorEmail(input) {
+        const i = Number(input.getAttribute('data-idx'));
+        const field = input.getAttribute('data-field');
+        if (superiors && superiors.emails[i]) superiors.emails[i][field] = field === 'email' ? input.value.trim().toLowerCase() : input.value;
+      }
+
+      function removeSuperiorEmail(i) {
+        if (!superiors) return;
+        superiors.emails.splice(i, 1);
+        renderSuperiorEmails();
+      }
+
+      function saveSuperiors() {
+        const status = document.getElementById('superiorsStatus');
+        if (!superiors) return;
+        if (status) { status.textContent = 'Saving...'; status.className = 'status'; }
+        fetch(window.GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'setSuperiors',
+            members: superiors.members.filter(m => m.superior).map(m => m.name),
+            emails: superiors.emails.filter(e => e.email)
+          })
+        })
+          .then(res => res.json())
+          .then(result => {
+            if (status) {
+              status.textContent = result?.message || 'Saved.';
+              status.className = 'status ' + (result?.success ? 'ok' : 'err');
+            }
+            if (result?.success) loadSuperiors(true, true);
+          })
+          .catch(error => {
+            if (status) { status.textContent = 'Error: ' + error.message; status.className = 'status err'; }
+          });
+      }
+
       // Last tab opened in each group, so switching back returns there
       const lastTabInGroup = { admin: 'addMemberTab', config: 'chestPointsTab' };
 
@@ -2127,7 +2271,7 @@
 
         const memberTableSection = document.getElementById('memberTableSection');
         if (memberTableSection) {
-          memberTableSection.style.display = (tabId === 'chestPointsTab' || tabId === 'exemptTab' || tabId === 'accountsTab') ? 'none' : '';
+          memberTableSection.style.display = (tabId === 'chestPointsTab' || tabId === 'exemptTab' || tabId === 'accountsTab' || tabId === 'superiorsTab') ? 'none' : '';
         }
 
         if (tabId === 'chestPointsTab') {
@@ -2145,6 +2289,9 @@
         }
         if (tabId === 'accountsTab') {
           loadMemberAccounts();
+        }
+        if (tabId === 'superiorsTab') {
+          loadSuperiors();
         }
       }
 
@@ -2185,7 +2332,7 @@
         document.getElementById('memberEmpty').style.display = 'block';
       }
 
-      return { init, loadAllData, switchTab, switchGroup, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, togglePointTargetsPanel, savePtDefault, addPtOverride, updatePtOverride, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts };
+      return { init, loadAllData, switchTab, switchGroup, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, togglePointTargetsPanel, savePtDefault, addPtOverride, updatePtOverride, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts, loadSuperiors, toggleSuperior, addSuperiorEmail, updateSuperiorEmail, removeSuperiorEmail, saveSuperiors };
     })();
   </script>
   <script>
