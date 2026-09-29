@@ -1,5 +1,9 @@
-// Cloudflare Worker (public, CORS-friendly)
-window.CLOUDFLARE_WORKER_URL = 'https://ccc-l1.lady-qwickske.workers.dev/';
+// DATABASE VERSION OF THE SITE (new pages, UTC dates) — live since the switch (2026-09-29).
+// The database Worker: https://champions-db.ccc-hq.com
+// IS_STAGING_SITE = true shows a STAGING label on every page (for a test copy only).
+// Before the switch the live site used the Google Sheet through https://ccc-l1.lady-qwickske.workers.dev/
+window.CLOUDFLARE_WORKER_URL = 'https://champions-db.ccc-hq.com/';
+window.IS_STAGING_SITE = false;
 
 // Frontend should call the worker to avoid GAS CORS restrictions.
 window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
@@ -90,4 +94,26 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 		startObserver();
 		window.addEventListener('resize', normalizeTopOffset);
 	}
+})();
+
+// Staging marker: a small fixed label on every page, so the staging copy is
+// never mistaken for the live site. Bottom-left, clear of the translate widget.
+(function stagingBadge() {
+	if (!window.IS_STAGING_SITE) return;
+	const add = function () {
+		if (document.getElementById('staging-site-badge')) return;
+		const badge = document.createElement('div');
+		badge.id = 'staging-site-badge';
+		badge.textContent = 'STAGING \u2014 test copy';
+		badge.title = 'Test copy of the site on the staging database. Changes made here only go to the staging database, not to the live site.';
+		badge.style.cssText = [
+			'position:fixed', 'left:8px', 'bottom:8px', 'z-index:2147483647',
+			'background:#c62828', 'color:#fff', 'font:700 12px/1.2 Arial,sans-serif',
+			'padding:6px 10px', 'border-radius:6px', 'box-shadow:0 2px 6px rgba(0,0,0,.35)',
+			'letter-spacing:.5px', 'pointer-events:auto', 'opacity:.92'
+		].join(';');
+		document.body.appendChild(badge);
+	};
+	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add);
+	else add();
 })();

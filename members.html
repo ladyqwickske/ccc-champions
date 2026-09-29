@@ -8,38 +8,13 @@
   <link rel="icon" href="favicon.png" type="image/png">
   <script src="perf-debug.js"></script>
   <script src="config.js"></script>
+  <script src="ccc-dates.js"></script>
   <script src="portal-shim.js"></script>
   <script src="portal-auth.js"></script>
   <script>
-  // Helper: Parse date string as UTC with proper timezone handling
+  // Dates are read and shown in UTC with the shared helpers (ccc-dates.js).
   function parseDateUTC(str) {
-    if (!str) return null;
-    if (str instanceof Date) return str;
-    const strTrim = String(str).trim();
-    if (!strTrim) return null;
-    // ISO 8601 with Z (with or without milliseconds)
-    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(strTrim)) {
-      const d = new Date(strTrim);
-      return isNaN(d.getTime()) ? null : d;
-    }
-    // YYYY-MM-DD (treat as UTC start of day)
-    if (/^\d{4}-\d{2}-\d{2}$/.test(strTrim)) {
-      const d = new Date(strTrim + 'T00:00:00Z');
-      return isNaN(d.getTime()) ? null : d;
-    }
-    // M/D/YYYY or MM/DD/YYYY (treat as UTC)
-    const mdy = strTrim.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-    if (mdy) {
-      const month = parseInt(mdy[1], 10) - 1;
-      const day = parseInt(mdy[2], 10);
-      const year = parseInt(mdy[3], 10);
-      const d = new Date(Date.UTC(year, month, day, 0, 0, 0));
-      return isNaN(d.getTime()) ? null : d;
-    }
-    // Fallback: try direct parsing (append Z only if not already present)
-    const fallback = strTrim.endsWith('Z') ? strTrim : strTrim + 'Z';
-    const d = new Date(fallback);
-    return isNaN(d.getTime()) ? null : d;
+    return cccParse(str);
   }
 
   // Helper: Get today's date at midnight UTC (YYYY-MM-DD format)
@@ -165,6 +140,15 @@
     }
     .tab:hover { color: #ffb300; }
     .tab.active { color: #ffb300; border-bottom-color: #ffb300; }
+    .tab[hidden] { display: none; }
+    /* the two groups above the tabs */
+    .tab-groups { display: flex; gap: 8px; width: 100%; margin-bottom: 8px; flex-wrap: wrap; }
+    .tab-group {
+      flex: 1; min-width: 200px; padding: 10px 14px; border-radius: 8px; cursor: pointer;
+      background: #2a2c30; border: 1px solid #444; color: #e0e0e0; font-size: 15px; font-weight: 600; transition: all 0.2s;
+    }
+    .tab-group:hover { border-color: #ffb300; color: #ffb300; }
+    .tab-group.active { background: #ffb300; border-color: #ffb300; color: #232526; }
     
     .tab-content { display: none; margin-top: 12px; }
     .tab-content.active { display: block; }
@@ -698,14 +682,21 @@
 
     <div class="tabs-container">
       <div class="tabs">
-        <button class="tab active" onclick="MembersTab.switchTab('addMemberTab', event)">➕ Add Member</button>
-        <button class="tab" onclick="MembersTab.switchTab('nameTab', event)">✏️ Change Name</button>
-        <button class="tab" onclick="MembersTab.switchTab('removeMemberTab', event)">🚪 Remove Member</button>
-        <button class="tab" onclick="MembersTab.switchTab('chestPointsTab', event)">📦 Chest Points</button>
-        <button class="tab" onclick="MembersTab.switchTab('troopTab', event)">⚔️ Track Troops</button>
-        <button class="tab" onclick="MembersTab.switchTab('heroTab', event)">🦸 Hero Level</button>
-        <button class="tab" onclick="MembersTab.switchTab('exemptTab', event)">🛡️ Penalty Exemptions</button>
-        <button class="tab" onclick="MembersTab.switchTab('accountsTab', event)">🔐 Member Login Accounts</button>
+        <!-- Two groups; each shows its own tabs (MembersTab.switchGroup / switchTab) -->
+        <div class="tab-groups">
+          <button class="tab-group active" data-group="admin" onclick="MembersTab.switchGroup('admin')">👥 Member Administration</button>
+          <button class="tab-group" data-group="config" onclick="MembersTab.switchGroup('config')">⚙️ Member Configuration</button>
+        </div>
+        <button class="tab active" data-group="admin" data-tab="addMemberTab" onclick="MembersTab.switchTab('addMemberTab', event)">➕ Add Member</button>
+        <button class="tab" data-group="admin" data-tab="removeMemberTab" onclick="MembersTab.switchTab('removeMemberTab', event)">🚪 Remove Member</button>
+        <button class="tab" data-group="admin" data-tab="nameTab" onclick="MembersTab.switchTab('nameTab', event)">✏️ Change Name</button>
+        <button class="tab" data-group="admin" data-tab="heroTab" onclick="MembersTab.switchTab('heroTab', event)">🦸 Hero Level</button>
+        <button class="tab" data-group="admin" data-tab="troopTab" onclick="MembersTab.switchTab('troopTab', event)">⚔️ Track Troops</button>
+        <button class="tab" data-group="admin" data-tab="accountsTab" onclick="MembersTab.switchTab('accountsTab', event)">🔐 Member Login Accounts</button>
+        <button class="tab" data-group="config" data-tab="chestPointsTab" hidden onclick="MembersTab.switchTab('chestPointsTab', event)">📦 Chest Points</button>
+        <button class="tab" data-group="config" data-tab="chestNameFixTab" hidden onclick="MembersTab.switchTab('chestNameFixTab', event)">🔧 Fix Chest Names</button>
+        <button class="tab" data-group="config" data-tab="exemptTab" hidden onclick="MembersTab.switchTab('exemptTab', event)">🛡️ Penalty Exemptions</button>
+        <button class="tab" data-group="config" data-tab="ocrTab" hidden onclick="MembersTab.switchTab('ocrTab', event)">🔤 OCR Corrections</button>
       </div>
       <div id="accountsTab" class="tab-content">
         <h3 style="margin:0 0 12px 0;">Linked Google Accounts</h3>
@@ -792,6 +783,35 @@
         <h3 style="margin:0 0 12px 0;">Change Member Name</h3>
         <div class="form-grid"><div><label for="oldMemberSelect">Current Member</label><select id="oldMemberSelect"></select></div><div><label for="newMemberName">New Name</label><input type="text" id="newMemberName" placeholder="Enter new member name"></div></div>
         <button class="btn" onclick="MembersTab.submitNameChange()">✏️ Update Name</button><div id="nameChangeStatus" class="status"></div>
+      </div>
+      <div id="chestNameFixTab" class="tab-content">
+        <h3 style="margin:0 0 6px 0;">Fix Chest Names</h3>
+        <div class="note" style="margin-bottom:12px;">A player name the chest reader got wrong: move those chests to the right member. Only the chests of the chosen period change (for a real name change in the game, use ✏️ Change Name).</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+          <label for="cnfPeriod" style="margin:0;">Period</label>
+          <select id="cnfPeriod" style="width:auto;" onchange="ChestNameFix.load()"><option value="active">Active period</option><option value="previous">Previous period</option></select>
+          <label style="margin:0 0 0 8px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="cnfShowAll" onchange="ChestNameFix.render()"> show all names</label>
+          <button class="btn btn-secondary" style="margin:0;" onclick="ChestNameFix.load()">🔄 Reload</button>
+        </div>
+        <div id="cnfPeriodInfo" class="note" style="margin-bottom:8px;"></div>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr><th style="text-align:left;padding:6px 8px;">Name in the chests</th><th style="text-align:center;padding:6px 8px;width:70px;">Chests</th><th style="text-align:left;padding:6px 8px;">Correct member</th><th style="width:90px;"></th></tr></thead>
+          <tbody id="cnfBody"><tr><td colspan="4" style="padding:8px;color:#999;">Loading…</td></tr></tbody>
+        </table></div>
+        <div id="cnfStatus" class="status" style="display:none;"></div>
+      </div>
+      <div id="ocrTab" class="tab-content">
+        <h3 style="margin:0 0 6px 0;">OCR Corrections</h3>
+        <div class="note" style="margin-bottom:12px;">The chesttracker's list of words it reads wrong (player and chest names) and what they should be. Changes here reach the chesttracker at its next run; words it learns show up here after that run.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <input type="text" id="ocrSearch" placeholder="🔍 Search words or misreadings…" style="flex:1;min-width:200px;" oninput="OcrCorrections.render()">
+          <input type="text" id="ocrNewWord" placeholder="New correct word" style="width:200px;" onkeydown="if(event.key==='Enter')OcrCorrections.addWord()">
+          <button class="btn" style="margin:0;" onclick="OcrCorrections.addWord()">➕ Add word</button>
+          <button class="btn btn-secondary" style="margin:0;" onclick="OcrCorrections.load()">🔄 Reload</button>
+        </div>
+        <div id="ocrInfo" class="note" style="margin-bottom:8px;"></div>
+        <div id="ocrStatus" class="status" style="display:none;"></div>
+        <div id="ocrList"></div>
       </div>
       <div id="removeMemberTab" class="tab-content">
         <h3 style="margin:0 0 12px 0;">Remove Member</h3>
@@ -1561,7 +1581,7 @@
           const hero = heroData[key];
           const row = document.createElement('tr');
           const heroHtml = hero && hero.level != null
-            ? `<span style="display:inline-block;padding:1px 5px;border-radius:8px;font-size:10px;font-weight:700;background:${getHeroBg(hero.level)};color:${getHeroFg(hero.level)};" title="Updated: ${hero.timestamp || '?'}">${hero.level}</span>`
+            ? `<span style="display:inline-block;padding:1px 5px;border-radius:8px;font-size:10px;font-weight:700;background:${getHeroBg(hero.level)};color:${getHeroFg(hero.level)};" title="Updated: ${hero.timestamp ? cccDateTime(hero.timestamp) : '?'}">${hero.level}</span>`
             : '<span style="color:#666">—</span>';
           const cat = determineTroopCategory(troops.G, troops.M, troops.S);
           row.innerHTML = `<td class="member-name">${escapeHtml(member.name)}</td><td style="text-align:center;">${heroHtml}</td><td class="date-value">${formatDate(member.joinDate)}</td><td style="text-align:center">${categoryBadge(cat)}</td><td style="text-align:center;white-space:nowrap;">${troopCell(troops)}</td>`;
@@ -2086,11 +2106,24 @@
           });
       }
 
+      // Last tab opened in each group, so switching back returns there
+      const lastTabInGroup = { admin: 'addMemberTab', config: 'chestPointsTab' };
+
+      function switchGroup(group) {
+        switchTab(lastTabInGroup[group] || (group === 'config' ? 'chestPointsTab' : 'addMemberTab'));
+      }
+
       function switchTab(tabId, evt) {
         document.querySelectorAll('#members .tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('#members .tab').forEach(t => t.classList.remove('active'));
         document.getElementById(tabId)?.classList.add('active');
-        if (evt && evt.target) evt.target.classList.add('active');
+        const btn = document.querySelector(`#members .tab[data-tab="${tabId}"]`) || (evt && evt.target);
+        if (btn) btn.classList.add('active');
+        // show the tabs of the button's group only
+        const group = (btn && btn.getAttribute('data-group')) || 'admin';
+        lastTabInGroup[group] = tabId;
+        document.querySelectorAll('#members .tab[data-group]').forEach(t => { t.hidden = t.getAttribute('data-group') !== group; });
+        document.querySelectorAll('#members .tab-group').forEach(g => g.classList.toggle('active', g.getAttribute('data-group') === group));
 
         const memberTableSection = document.getElementById('memberTableSection');
         if (memberTableSection) {
@@ -2100,6 +2133,13 @@
         if (tabId === 'chestPointsTab') {
           loadChestPointsTabData();
         }
+        if (tabId === 'chestNameFixTab' && window.ChestNameFix) {
+          window.ChestNameFix.load();
+        }
+        if (tabId === 'ocrTab' && window.OcrCorrections) {
+          window.OcrCorrections.load();
+        }
+        if (memberTableSection && (tabId === 'ocrTab' || tabId === 'chestNameFixTab')) memberTableSection.style.display = 'none';
         if (tabId === 'exemptTab') {
           loadExemptMembers();
         }
@@ -2115,17 +2155,7 @@
 
       function formatDate(dateStr) {
         if (!dateStr) return '-';
-        try {
-          const date = parseDateUTC(dateStr);
-          if (!date) return dateStr;
-          // Format as ISO UTC date string
-          const year = date.getUTCFullYear();
-          const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-          const day = String(date.getUTCDate()).padStart(2, '0');
-          return `${year}-${month}-${day}`;
-        } catch (e) {
-          return dateStr;
-        }
+        return cccDate(dateStr); // shared UTC format (ccc-dates.js)
       }
 
       function escapeHtml(text) {
@@ -2155,7 +2185,161 @@
         document.getElementById('memberEmpty').style.display = 'block';
       }
 
-      return { init, loadAllData, switchTab, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, togglePointTargetsPanel, savePtDefault, addPtOverride, updatePtOverride, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts };
+      return { init, loadAllData, switchTab, switchGroup, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, togglePointTargetsPanel, savePtDefault, addPtOverride, updatePtOverride, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts };
+    })();
+  </script>
+  <script>
+    // 🔧 Fix Chest Names: move chests read under a wrong name (OCR) to the right member,
+    // in the active or previous period (database site only: getChestNamesForFix / fixChestPlayerName).
+    window.ChestNameFix = (function () {
+      let state = { names: [], members: [], period: null };
+      const esc = (t) => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+      const post = async (body) => {
+        const res = await fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return res.json();
+      };
+      const status = (msg, ok) => {
+        const el = document.getElementById('cnfStatus');
+        el.style.display = msg ? '' : 'none';
+        el.className = 'status ' + (ok ? 'ok' : 'err');
+        el.textContent = msg || '';
+      };
+      async function load() {
+        status('');
+        document.getElementById('cnfBody').innerHTML = '<tr><td colspan="4" style="padding:8px;color:#999;">Loading…</td></tr>';
+        try {
+          const r = await post({ action: 'getChestNamesForFix', period: document.getElementById('cnfPeriod').value });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Could not load the names');
+          state = r;
+          document.getElementById('cnfPeriodInfo').textContent = 'Period ' + r.period.start + ' – ' + (r.period.end || '…');
+          render();
+        } catch (e) {
+          document.getElementById('cnfBody').innerHTML = '';
+          status(e.message, false);
+        }
+      }
+      function render() {
+        const showAll = document.getElementById('cnfShowAll').checked;
+        const rows = (state.names || []).filter(n => showAll || n.status === 'unknown');
+        const options = (sel) => '<option value="">— choose —</option>' + (state.members || []).map(m =>
+          '<option value="' + esc(m) + '"' + (m === sel ? ' selected' : '') + '>' + esc(m) + '</option>').join('');
+        const body = document.getElementById('cnfBody');
+        if (!rows.length) {
+          body.innerHTML = '<tr><td colspan="4" style="padding:8px;color:#81c784;">' +
+            (showAll ? 'No chests in this period yet.' : '✓ Every name in this period is a member. Tick "show all names" to fix a chest given to the wrong member.') + '</td></tr>';
+          return;
+        }
+        body.innerHTML = rows.map((n, i) => {
+          const tag = n.status === 'unknown' ? ' <span style="font-size:11px;color:#ff9800;">not a member</span>'
+            : (n.status === 'former' ? ' <span style="font-size:11px;color:#999;">former member</span>' : '');
+          return '<tr style="border-top:1px solid #444;"><td style="padding:6px 8px;">' + esc(n.name) + tag + '</td>' +
+            '<td style="text-align:center;padding:6px 8px;">' + n.chests + '</td>' +
+            '<td style="padding:6px 8px;"><select data-cnf="' + i + '" style="width:100%;">' + options(n.suggestion) + '</select></td>' +
+            '<td style="padding:6px 8px;"><button class="btn" style="margin:0;padding:6px 12px;" data-cnf-apply="' + i + '">Fix</button></td></tr>';
+        }).join('');
+        body.querySelectorAll('[data-cnf-apply]').forEach(btn => btn.addEventListener('click', () => apply(rows[+btn.dataset.cnfApply], body.querySelector('[data-cnf="' + btn.dataset.cnfApply + '"]').value, btn)));
+      }
+      async function apply(row, target, btn) {
+        if (!target) { status('Choose the correct member for "' + row.name + '" first.', false); return; }
+        if (!confirm('Move ' + row.chests + ' chest(s) from "' + row.name + '" to "' + target + '" in this period?')) return;
+        btn.disabled = true;
+        try {
+          const r = await post({ action: 'fixChestPlayerName', wrongName: row.name, correctName: target, period: document.getElementById('cnfPeriod').value });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'The change failed');
+          await load();
+          status(r.message + ' Recalculate events of this period that were already calculated.', true);
+        } catch (e) {
+          btn.disabled = false;
+          status(e.message, false);
+        }
+      }
+      return { load, render };
+    })();
+
+    // 🔤 OCR Corrections: the chesttracker's OcrCorrectionList, shared through the database
+    // (getOcrCorrections / updateOcrCorrections).
+    window.OcrCorrections = (function () {
+      let list = [];
+      const esc = (t) => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+      const attr = (t) => esc(t).replace(/"/g, '&quot;');
+      const post = async (body) => {
+        const res = await fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return res.json();
+      };
+      const status = (msg, ok) => {
+        const el = document.getElementById('ocrStatus');
+        el.style.display = msg ? '' : 'none';
+        el.className = 'status ' + (ok ? 'ok' : 'err');
+        el.textContent = msg || '';
+      };
+      const show = (r) => {
+        list = r.corrections || [];
+        const n = list.reduce((s, c) => s + c.variants.length, 0);
+        document.getElementById('ocrInfo').textContent = list.length + ' words, ' + n + ' misreadings' +
+          (r.lastChange ? ' · last change ' + (window.cccDateTime ? cccDateTime(r.lastChange.at) : r.lastChange.at) + ' by ' + (r.lastChange.by || '?') : '');
+        render();
+      };
+      async function load() {
+        status('');
+        try {
+          const r = await post({ action: 'getOcrCorrections' });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Could not load the list');
+          show(r);
+        } catch (e) { status(e.message, false); }
+      }
+      async function change(changes, okMsg) {
+        status('');
+        try {
+          let email = '';
+          try { email = localStorage.getItem('ccc_portal_google_email') || ''; } catch (e) {}
+          const r = await post({ action: 'updateOcrCorrections', changes: changes, userEmail: email });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'The change failed');
+          show(r);
+          status(okMsg || r.message, true);
+        } catch (e) { status(e.message, false); }
+      }
+      function render() {
+        const q = (document.getElementById('ocrSearch').value || '').toLowerCase().trim();
+        const rows = list.filter(c => !q || c.word.toLowerCase().includes(q) || c.variants.some(v => v.toLowerCase().includes(q)));
+        const box = document.getElementById('ocrList');
+        if (!rows.length) { box.innerHTML = '<div class="note" style="padding:8px;">' + (list.length ? 'Nothing matches.' : 'The list is empty until the chesttracker has synced it once.') + '</div>'; return; }
+        box.innerHTML = rows.map(c =>
+          '<div class="ocr-word" data-word="' + attr(c.word) + '" style="border-top:1px solid #444;padding:8px 4px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">' +
+            '<strong style="color:#ffb300;min-width:160px;">' + esc(c.word) + '</strong>' +
+            c.variants.map(v => '<span style="background:#33343a;border:1px solid #444;border-radius:12px;padding:2px 4px 2px 10px;font-size:12px;">' + esc(v) +
+              ' <button title="Remove this misreading" data-ocr-rmv="' + attr(v) + '" style="background:none;border:none;color:#ef5350;cursor:pointer;font-size:13px;">×</button></span>').join('') +
+            '<input type="text" placeholder="+ misreading" data-ocr-add style="width:140px;padding:4px 8px;font-size:12px;">' +
+            '<span style="margin-left:auto;display:flex;gap:4px;">' +
+              '<button class="btn btn-secondary" data-ocr-rename style="margin:0;padding:4px 8px;font-size:12px;" title="Change the correct word">✏️</button>' +
+              '<button class="btn btn-secondary" data-ocr-del style="margin:0;padding:4px 8px;font-size:12px;" title="Remove the word and its misreadings">🗑</button></span>' +
+          '</div>').join('');
+        box.querySelectorAll('.ocr-word').forEach(row => {
+          const word = row.getAttribute('data-word');
+          row.querySelectorAll('[data-ocr-rmv]').forEach(b => b.addEventListener('click', () =>
+            change([{ op: 'removeVariant', word: word, incorrect: b.getAttribute('data-ocr-rmv') }], '"' + b.getAttribute('data-ocr-rmv') + '" removed.')));
+          const input = row.querySelector('[data-ocr-add]');
+          input.addEventListener('keydown', (ev) => {
+            if (ev.key !== 'Enter' || !input.value.trim()) return;
+            change([{ op: 'addVariant', word: word, incorrect: input.value.trim() }], '"' + input.value.trim() + '" now reads as "' + word + '".');
+          });
+          row.querySelector('[data-ocr-rename]').addEventListener('click', () => {
+            const nw = prompt('Correct word "' + word + '" becomes:', word);
+            if (nw && nw.trim() && nw.trim() !== word) change([{ op: 'renameWord', word: word, newWord: nw.trim() }], '"' + word + '" is now "' + nw.trim() + '".');
+          });
+          row.querySelector('[data-ocr-del]').addEventListener('click', () => {
+            if (confirm('Remove "' + word + '" and its ' + (list.find(c => c.word === word) || { variants: [] }).variants.length + ' misreading(s)?'))
+              change([{ op: 'removeWord', word: word }], '"' + word + '" removed.');
+          });
+        });
+      }
+      function addWord() {
+        const el = document.getElementById('ocrNewWord');
+        const w = (el.value || '').trim();
+        if (!w) return;
+        el.value = '';
+        change([{ op: 'addWord', word: w }], '"' + w + '" added. Add its misreadings on its line.');
+      }
+      return { load, render, addWord };
     })();
   </script>
 </body>
