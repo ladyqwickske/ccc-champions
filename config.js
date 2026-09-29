@@ -40,6 +40,12 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 		else if (!pageEmail && get(SESSION_KEY)) clearPass();
 	})();
 
+	// "Log out" on a page removes its e-mail key: once it was there during this
+	// visit and is gone, the pass is dropped too. (While signing in the page asks
+	// the Worker first and only then stores its e-mail, so a missing key alone
+	// must not drop the pass.)
+	var seenPageEmail = !!get(PAGE_EMAIL_KEY);
+
 	var workerBase = String(window.CLOUDFLARE_WORKER_URL || '').replace(/\/+$/, '');
 	if (!workerBase || typeof window.fetch !== 'function') return;
 	var nativeFetch = window.fetch.bind(window);
@@ -75,9 +81,9 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 			var body = typeof init.body === 'string' ? JSON.parse(init.body) : null;
 			isLogin = !!(body && body.idToken && !body.action);
 		} catch (e) {}
-		// Only while the page shows someone signed in (so "Log out" really signs out).
-		if (!isLogin && get(PAGE_EMAIL_KEY) && passValid()) headers.set('X-CCC-Session', get(SESSION_KEY));
-		else if (!get(PAGE_EMAIL_KEY) && get(SESSION_KEY) && !isLogin) clearPass();
+		if (get(PAGE_EMAIL_KEY)) seenPageEmail = true;
+		else if (seenPageEmail && !isLogin) { clearPass(); seenPageEmail = false; }   // the page logged out
+		if (!isLogin && passValid()) headers.set('X-CCC-Session', get(SESSION_KEY));
 		init.headers = headers;
 
 		return nativeFetch(input, init).then(function (res) {
