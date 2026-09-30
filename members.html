@@ -695,8 +695,8 @@
         <button class="tab" data-group="admin" data-tab="accountsTab" onclick="MembersTab.switchTab('accountsTab', event)">🔐 Member Login Accounts</button>
         <button class="tab" data-group="admin" data-tab="superiorsTab" id="superiorsTabBtn" style="display:none" onclick="MembersTab.switchTab('superiorsTab', event)">👑 Superiors</button>
         <button class="tab" data-group="config" data-tab="chestPointsTab" hidden onclick="MembersTab.switchTab('chestPointsTab', event)">📦 Chest Points</button>
-        <button class="tab" data-group="config" data-tab="chestNameFixTab" hidden onclick="MembersTab.switchTab('chestNameFixTab', event)">🔧 Fix Chest Names</button>
         <button class="tab" data-group="config" data-tab="chestValuesTab" hidden onclick="MembersTab.switchTab('chestValuesTab', event)">🏷️ Chest Point Values</button>
+        <button class="tab" data-group="config" data-tab="chestNameFixTab" hidden onclick="MembersTab.switchTab('chestNameFixTab', event)">🔧 Fix Chest Names</button>
         <button class="tab" data-group="config" data-tab="exemptTab" hidden onclick="MembersTab.switchTab('exemptTab', event)">🛡️ Penalty Exemptions</button>
         <button class="tab" data-group="config" data-tab="ocrTab" hidden onclick="MembersTab.switchTab('ocrTab', event)">🔤 OCR Corrections</button>
       </div>
@@ -844,7 +844,7 @@
         </div>
         <div id="cpvUnmatched"></div>
         <div style="overflow-x:auto;max-height:55vh;overflow-y:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead><tr><th style="text-align:left;padding:6px 8px;">Chest type</th><th style="text-align:left;padding:6px 8px;">Chest name</th><th style="text-align:left;padding:6px 8px;">Level</th><th style="text-align:right;padding:6px 8px;width:110px;">Points</th><th style="width:80px;"></th></tr></thead>
+          <thead><tr><th data-cpv-sort="type" onclick="ChestPointValues.sortBy('type')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">Chest type <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="name" onclick="ChestPointValues.sortBy('name')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">Chest name <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="crypt" onclick="ChestPointValues.sortBy('crypt')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">Level <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="points" onclick="ChestPointValues.sortBy('points')" title="Sort" style="text-align:right;padding:6px 8px;cursor:pointer;user-select:none;width:110px;">Points <span class="cpv-arrow" style="color:#ffb300;"></span></th><th style="width:80px;"></th></tr></thead>
           <tbody id="cpvBody"><tr><td colspan="5" style="padding:8px;color:#999;">Loading…</td></tr></tbody>
         </table></div>
         <details style="margin-top:12px;text-align:left;"><summary style="cursor:pointer;color:#b0b0b0;font-size:13px;">Recent changes</summary><div id="cpvLog" style="font-size:12px;color:#b0b0b0;padding:6px 4px;"></div></details>
@@ -2530,6 +2530,7 @@
       let state = { rows: [], unmatched: [], log: [], period: null };
       let edits = {};        // row id → new points (not saved yet)
       let editing = null;    // row being edited in the form (null = adding)
+      let sort = { key: null, dir: 1 };  // header click: ascending → descending → list order
       const esc = (t) => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
       const attr = (t) => esc(t).replace(/"/g, '&quot;');
       const fmt = (n) => Number(n || 0).toLocaleString();
@@ -2594,6 +2595,15 @@
       function render() {
         const q = (document.getElementById('cpvSearch').value || '').toLowerCase().trim();
         const rows = (state.rows || []).filter(r => !q || (r.type + ' ' + r.name + ' ' + r.crypt).toLowerCase().includes(q));
+        if (sort.key) {
+          // saved points, so a row doesn't jump away while its points are being typed
+          const cmp = sort.key === 'points' ? (a, b) => a.points - b.points
+            : (a, b) => String(a[sort.key]).localeCompare(String(b[sort.key]), undefined, { numeric: true, sensitivity: 'base' });
+          rows.sort((a, b) => sort.dir * cmp(a, b) || a.id - b.id);
+        }
+        document.querySelectorAll('#chestValuesTab [data-cpv-sort]').forEach(th => {
+          th.querySelector('.cpv-arrow').textContent = th.dataset.cpvSort === sort.key ? (sort.dir > 0 ? '▲' : '▼') : '';
+        });
         const body = document.getElementById('cpvBody');
         if (!rows.length) {
           body.innerHTML = '<tr><td colspan="5" style="padding:8px;color:#999;">' + ((state.rows || []).length ? 'Nothing matches.' : 'The list is empty.') + '</td></tr>';
@@ -2687,6 +2697,12 @@
         const ok = await change([editing ? { op: 'set', id: editing.id, was: editing, ...row } : { op: 'add', ...row }]);
         if (ok) closeForm();
       }
+      function sortBy(key) {
+        if (sort.key !== key) sort = { key: key, dir: 1 };
+        else if (sort.dir > 0) sort.dir = -1;
+        else sort = { key: null, dir: 1 };
+        render();
+      }
       function save() {
         const changes = Object.keys(edits).map(id => {
           const r = state.rows.find(x => x.id === Number(id));
@@ -2694,7 +2710,7 @@
         });
         if (changes.length) change(changes);
       }
-      return { load, render, save, openForm: () => openForm(null), closeForm, submitForm };
+      return { load, render, save, sortBy, openForm: () => openForm(null), closeForm, submitForm };
     })();
   </script>
 </body>
