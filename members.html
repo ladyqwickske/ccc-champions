@@ -693,13 +693,13 @@
         <button class="tab" data-group="admin" data-tab="heroTab" onclick="MembersTab.switchTab('heroTab', event)">🦸 Hero Level</button>
         <button class="tab" data-group="admin" data-tab="troopTab" onclick="MembersTab.switchTab('troopTab', event)">⚔️ Track Troops</button>
         <button class="tab" data-group="admin" data-tab="accountsTab" onclick="MembersTab.switchTab('accountsTab', event)">🔐 Member Login Accounts</button>
-        <button class="tab" data-group="admin" data-tab="superiorsTab" id="superiorsTabBtn" style="display:none" onclick="MembersTab.switchTab('superiorsTab', event)">👑 Superiors</button>
-        <button class="tab" data-group="config" data-tab="chestPointsTab" hidden onclick="MembersTab.switchTab('chestPointsTab', event)">📦 Chest Points</button>
+        <button class="tab" data-group="admin" data-tab="chestPointsTab" onclick="MembersTab.switchTab('chestPointsTab', event)">📦 Chest Points</button>
         <button class="tab" data-group="config" data-tab="chestValuesTab" hidden onclick="MembersTab.switchTab('chestValuesTab', event)">🏷️ Chest Point Values</button>
         <button class="tab" data-group="config" data-tab="chestNameFixTab" hidden onclick="MembersTab.switchTab('chestNameFixTab', event)">🔧 Fix Chest Names</button>
         <button class="tab" data-group="config" data-tab="manualChestsTab" id="manualChestsTabBtn" hidden style="display:none" onclick="MembersTab.switchTab('manualChestsTab', event)">➕ Manual Chests</button>
         <button class="tab" data-group="config" data-tab="exemptTab" hidden onclick="MembersTab.switchTab('exemptTab', event)">🛡️ Penalty Exemptions</button>
         <button class="tab" data-group="config" data-tab="ocrTab" hidden onclick="MembersTab.switchTab('ocrTab', event)">🔤 OCR Corrections</button>
+        <button class="tab" data-group="config" data-tab="superiorsTab" id="superiorsTabBtn" hidden style="display:none" onclick="MembersTab.switchTab('superiorsTab', event)">👑 Superiors</button>
       </div>
       <div id="accountsTab" class="tab-content">
         <h3 style="margin:0 0 12px 0;">Linked Google Accounts</h3>
@@ -2312,10 +2312,10 @@
       }
 
       // Last tab opened in each group, so switching back returns there
-      const lastTabInGroup = { admin: 'addMemberTab', config: 'chestPointsTab' };
+      const lastTabInGroup = { admin: 'addMemberTab', config: 'chestValuesTab' };
 
       function switchGroup(group) {
-        switchTab(lastTabInGroup[group] || (group === 'config' ? 'chestPointsTab' : 'addMemberTab'));
+        switchTab(lastTabInGroup[group] || (group === 'config' ? 'chestValuesTab' : 'addMemberTab'));
       }
 
       function switchTab(tabId, evt) {
