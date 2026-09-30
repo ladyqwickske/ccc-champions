@@ -697,6 +697,7 @@
         <button class="tab" data-group="config" data-tab="chestPointsTab" hidden onclick="MembersTab.switchTab('chestPointsTab', event)">📦 Chest Points</button>
         <button class="tab" data-group="config" data-tab="chestValuesTab" hidden onclick="MembersTab.switchTab('chestValuesTab', event)">🏷️ Chest Point Values</button>
         <button class="tab" data-group="config" data-tab="chestNameFixTab" hidden onclick="MembersTab.switchTab('chestNameFixTab', event)">🔧 Fix Chest Names</button>
+        <button class="tab" data-group="config" data-tab="manualChestsTab" id="manualChestsTabBtn" hidden style="display:none" onclick="MembersTab.switchTab('manualChestsTab', event)">➕ Manual Chests</button>
         <button class="tab" data-group="config" data-tab="exemptTab" hidden onclick="MembersTab.switchTab('exemptTab', event)">🛡️ Penalty Exemptions</button>
         <button class="tab" data-group="config" data-tab="ocrTab" hidden onclick="MembersTab.switchTab('ocrTab', event)">🔤 OCR Corrections</button>
       </div>
@@ -848,6 +849,34 @@
           <tbody id="cpvBody"><tr><td colspan="5" style="padding:8px;color:#999;">Loading…</td></tr></tbody>
         </table></div>
         <details style="margin-top:12px;text-align:left;"><summary style="cursor:pointer;color:#b0b0b0;font-size:13px;">Recent changes</summary><div id="cpvLog" style="font-size:12px;color:#b0b0b0;padding:6px 4px;"></div></details>
+      </div>
+      <div id="manualChestsTab" class="tab-content">
+        <h3 style="margin:0 0 6px 0;">Manual Chests</h3>
+        <div class="note" style="margin-bottom:12px;">Add chests the chesttracker missed or counted in the wrong period — e.g. crypts opened right after a period change that still went to the previous period. They get the points from 🏷️ Chest Point Values, like imported chests. Only you can see this tab.</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;align-items:end;margin-bottom:8px;">
+          <div><label for="mcPeriod">Period</label><select id="mcPeriod" onchange="ManualChests.load()"><option value="active">Active period</option><option value="previous">Previous period</option></select></div>
+          <div><label for="mcMember">Member</label><select id="mcMember"></select></div>
+          <div style="grid-column:span 2;min-width:0;"><label for="mcKind">Chest</label><select id="mcKind" onchange="ManualChests.pickKind()"></select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;align-items:end;margin-bottom:8px;">
+          <div><label for="mcType">Chest type</label><input type="text" id="mcType" placeholder="e.g. Level 20 Rare Crypt" oninput="ManualChests.preview()"></div>
+          <div><label for="mcName">Chest name</label><input type="text" id="mcName" placeholder="e.g. Rare Chest" oninput="ManualChests.preview()"></div>
+          <div><label for="mcLevel">Level</label><input type="number" id="mcLevel" min="0" step="1" oninput="ManualChests.preview()"></div>
+          <div><label for="mcCount">Number of chests</label><input type="number" id="mcCount" min="1" max="500" step="1" value="1" oninput="ManualChests.preview()"></div>
+        </div>
+        <div style="margin-bottom:8px;"><label for="mcNote">Note (optional)</label><input type="text" id="mcNote" maxlength="200" placeholder="e.g. crypts right after rotation"></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+          <button class="btn" style="margin:0;" id="mcAddBtn" onclick="ManualChests.add()">➕ Add chests</button>
+          <button class="btn btn-secondary" style="margin:0;" onclick="ManualChests.load()">🔄 Reload</button>
+          <span id="mcPreview" class="note" style="margin:0;"></span>
+        </div>
+        <div id="mcPeriodInfo" class="note" style="margin-bottom:8px;"></div>
+        <div id="mcStatus" class="status" style="display:none;"></div>
+        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Added by hand</h4>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
+          <thead><tr><th style="text-align:left;padding:6px 8px;">When</th><th style="text-align:left;padding:6px 8px;">Period</th><th style="text-align:left;padding:6px 8px;">Member</th><th style="text-align:left;padding:6px 8px;">Chest</th><th style="text-align:center;padding:6px 8px;">#</th><th style="text-align:right;padding:6px 8px;">Points</th><th style="text-align:left;padding:6px 8px;">Note</th><th style="width:90px;"></th></tr></thead>
+          <tbody id="mcRecent"><tr><td colspan="8" style="padding:8px;color:#999;">Loading…</td></tr></tbody>
+        </table></div>
       </div>
       <div id="ocrTab" class="tab-content">
         <h3 style="margin:0 0 6px 0;">OCR Corrections</h3>
@@ -2177,7 +2206,7 @@
         const btn = document.getElementById('superiorsTabBtn');
         if (!email || !btn) return;
         fetchSuperiors()
-          .then(data => { superiors = data; btn.style.display = ''; })
+          .then(data => { superiors = data; btn.style.display = ''; const mc = document.getElementById('manualChestsTabBtn'); if (mc) mc.style.display = ''; })
           .catch(() => { btn.style.display = 'none'; });
       }
 
@@ -2318,7 +2347,10 @@
         if (tabId === 'ocrTab' && window.OcrCorrections) {
           window.OcrCorrections.load();
         }
-        if (memberTableSection && (tabId === 'ocrTab' || tabId === 'chestNameFixTab' || tabId === 'chestValuesTab')) memberTableSection.style.display = 'none';
+        if (tabId === 'manualChestsTab' && window.ManualChests) {
+          window.ManualChests.load();
+        }
+        if (memberTableSection && (tabId === 'ocrTab' || tabId === 'chestNameFixTab' || tabId === 'chestValuesTab' || tabId === 'manualChestsTab')) memberTableSection.style.display = 'none';
         if (tabId === 'exemptTab') {
           loadExemptMembers();
         }
@@ -2436,6 +2468,119 @@
         }
       }
       return { load, render };
+    })();
+
+    // ➕ Manual Chests (owner only; the Worker refuses anyone else): add chests by hand to the
+    // active or previous period, and undo an addition (getManualChests / addManualChests / removeManualChests).
+    window.ManualChests = (function () {
+      let state = { members: [], kinds: [], recent: [], period: null };
+      const esc = (t) => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+      const $ = (id) => document.getElementById(id);
+      const post = async (body) => {
+        const res = await fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return res.json();
+      };
+      const status = (msg, ok) => {
+        const el = $('mcStatus');
+        el.style.display = msg ? '' : 'none';
+        el.className = 'status ' + (ok ? 'ok' : 'err');
+        el.textContent = msg || '';
+      };
+      const kindLabel = (k) => k.type + ' — ' + k.name + ' (level ' + k.level + ') · ' + k.points + ' pts';
+      function show(r) {
+        state = r;
+        $('mcPeriodInfo').textContent = 'Adding to: period ' + r.period.start + ' – ' + (r.period.end || '…') + (r.period.status === 'active' ? ' (active)' : ' (closed)');
+        const member = $('mcMember').value;
+        $('mcMember').innerHTML = '<option value="">— choose —</option>' + r.members.map(m =>
+          '<option value="' + esc(m) + '"' + (m === member ? ' selected' : '') + '>' + esc(m) + '</option>').join('');
+        const kind = $('mcKind').value;
+        $('mcKind').innerHTML = '<option value="">— choose, or type it below —</option>' + r.kinds.map((k, i) =>
+          '<option value="' + i + '"' + (String(i) === kind ? ' selected' : '') + '>' + esc(kindLabel(k)) + '</option>').join('');
+        renderRecent();
+        preview();
+      }
+      async function load() {
+        status('');
+        try {
+          const r = await post({ action: 'getManualChests', period: $('mcPeriod').value });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Could not load');
+          show(r);
+        } catch (e) {
+          $('mcRecent').innerHTML = '';
+          status(e.message, false);
+        }
+      }
+      function pickKind() {
+        const k = state.kinds[+$('mcKind').value];
+        if ($('mcKind').value === '' || !k) return preview();
+        $('mcType').value = k.type; $('mcName').value = k.name; $('mcLevel').value = k.level;
+        preview();
+      }
+      // Points preview for a chest kind from the list (anything else is checked when adding).
+      function preview() {
+        const type = $('mcType').value.trim(), name = $('mcName').value.trim(), level = +$('mcLevel').value || 0;
+        const n = Math.max(0, parseInt($('mcCount').value, 10) || 0);
+        const k = state.kinds.find(x => x.type === type && x.name === name && x.level === level);
+        if (k && $('mcKind').value !== String(state.kinds.indexOf(k))) $('mcKind').value = String(state.kinds.indexOf(k));
+        if (!k && $('mcKind').value !== '') $('mcKind').value = '';
+        $('mcPreview').textContent = k ? (n + ' × ' + k.points + ' = ' + (n * k.points) + ' points') : (type && name ? 'Points are looked up when adding' : '');
+      }
+      function renderRecent() {
+        const rows = state.recent || [];
+        if (!rows.length) { $('mcRecent').innerHTML = '<tr><td colspan="8" style="padding:8px;color:#999;">Nothing added by hand yet.</td></tr>'; return; }
+        $('mcRecent').innerHTML = rows.map(r => {
+          const gone = !!r.removedAt;
+          const style = gone ? 'color:#777;text-decoration:line-through;' : '';
+          return '<tr style="border-top:1px solid #444;' + style + '">' +
+            '<td style="padding:6px 8px;white-space:nowrap;" title="' + esc(r.by || '') + '">' + esc(cccDateTime(r.at)) + '</td>' +
+            '<td style="padding:6px 8px;white-space:nowrap;">' + esc(r.period) + '</td>' +
+            '<td style="padding:6px 8px;">' + esc(r.clanmate) + '</td>' +
+            '<td style="padding:6px 8px;">' + esc(r.type + ' — ' + r.name + ' (' + r.level + ')') + '</td>' +
+            '<td style="text-align:center;padding:6px 8px;">' + r.count + '</td>' +
+            '<td style="text-align:right;padding:6px 8px;">' + (r.count * r.points) + '</td>' +
+            '<td style="padding:6px 8px;color:#b0b0b0;">' + esc(r.note || '') + '</td>' +
+            '<td style="padding:6px 8px;">' + (gone ? '<span style="font-size:11px;" title="' + esc('by ' + (r.removedBy || '')) + '">undone</span>'
+              : '<button class="btn btn-secondary" style="margin:0;padding:4px 10px;" data-mc-undo="' + r.id + '">↩️ Undo</button>') + '</td></tr>';
+        }).join('');
+        $('mcRecent').querySelectorAll('[data-mc-undo]').forEach(b => b.addEventListener('click', () => undo(rows.find(r => r.id === +b.dataset.mcUndo), b)));
+      }
+      async function add() {
+        const body = {
+          action: 'addManualChests', period: $('mcPeriod').value, clanmate: $('mcMember').value,
+          chestType: $('mcType').value.trim(), chestName: $('mcName').value.trim(), chestLevel: $('mcLevel').value,
+          count: parseInt($('mcCount').value, 10), note: $('mcNote').value.trim(),
+        };
+        if (!body.clanmate) { status('Choose the member first.', false); return; }
+        if (!body.chestType || !body.chestName) { status('Choose a chest, or fill in its type and name.', false); return; }
+        if (!confirm('Add ' + body.count + ' × ' + body.chestName + ' (' + body.chestType + ', level ' + (body.chestLevel || 0) + ') for ' + body.clanmate + ' to ' + $('mcPeriodInfo').textContent.replace('Adding to: ', '') + '?')) return;
+        $('mcAddBtn').disabled = true;
+        try {
+          const r = await post(body);
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Adding failed');
+          show(r);
+          $('mcCount').value = 1; $('mcNote').value = '';
+          preview();
+          status(r.message, true);
+        } catch (e) {
+          status(e.message, false);
+        } finally {
+          $('mcAddBtn').disabled = false;
+        }
+      }
+      async function undo(row, btn) {
+        if (!row || !confirm('Take out ' + row.count + ' × ' + row.name + ' for ' + row.clanmate + ' (period ' + row.period + ')?')) return;
+        btn.disabled = true;
+        try {
+          const r = await post({ action: 'removeManualChests', id: row.id, period: $('mcPeriod').value });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Undo failed');
+          show(r);
+          status(r.message, true);
+        } catch (e) {
+          btn.disabled = false;
+          status(e.message, false);
+        }
+      }
+      return { load, pickKind, preview, add };
     })();
 
     // 🔤 OCR Corrections: the chesttracker's OcrCorrectionList, shared through the database
