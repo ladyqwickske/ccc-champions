@@ -86,7 +86,7 @@
       + 'background:rgba(30,34,40,0.95);border:1px solid #444;border-radius:16px;text-align:center;'
       + 'font-family:\'Google Sans\',Roboto,Arial,sans-serif;color:#f3f3f3;">'
       + '<h1 style="color:#ffb300;font-size:22px;margin-bottom:12px;">Restricted page</h1>'
-      + '<p style="color:#b0b0b0;font-size:14px;margin-bottom:20px;">This page is only available to clan officers.</p>'
+      + '<p style="color:#b0b0b0;font-size:14px;margin-bottom:20px;">This page is only available to clan superiors.</p>'
       + '<a href="dashboard.html" style="display:inline-block;padding:10px 18px;background:#ffb300;color:#232526;'
       + 'border-radius:6px;font-weight:600;text-decoration:none;">Back to dashboard</a> '
       + '<a href="myprofile.html" style="display:inline-block;margin-left:8px;padding:10px 18px;background:#444;'
