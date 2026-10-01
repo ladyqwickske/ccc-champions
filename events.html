@@ -1980,10 +1980,35 @@
         }).catch(error => setStatus('Error: ' + error.message, 'err'));
       }
 
+      // Penalties already applied (and no preview open): a change takes effect right away for
+      // that member — bank row / point targets included (changeAppliedPenalty) — instead of
+      // waiting for the next Apply Penalties.
+      function penaltiesApplied() {
+        return Object.keys(penaltyPreviewByMember).length === 0
+          && participationRawData.some(row => ['Auto', 'Adjusted', 'Waived', 'Exempt'].includes(row.penaltyStatus));
+      }
+
       function sendPenaltyUpdate(memberName, amount, penaltyStatus) {
         const statusEl = penaltyStatusEl();
         const setStatus = (text, cls) => { if (statusEl) { statusEl.textContent = text; statusEl.className = 'status' + (cls ? ' ' + cls : ''); } };
         if (!selectedEvent) { setStatus('Please select an event.', 'err'); return; }
+        if (penaltiesApplied()) {
+          const what = penaltyStatus === 'Auto' ? 'reset to the calculated amount' : (amount > 0 ? 'changed to ' + amount : 'removed');
+          if (!confirm(`The penalties of this event have been applied. The penalty for ${memberName} will be ${what} right away (bank / point targets included). Continue?`)) {
+            reloadParticipationForSelectedEvent();
+            return;
+          }
+          setStatus('Changing applied penalty...');
+          fetch(window.GAS_WEB_APP_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'changeAppliedPenalty', eventName: selectedEvent.eventName, memberName, penaltyAmount: amount, penaltyStatus })
+          }).then(res => res.json()).then(result => {
+            setStatus(result?.message || 'Penalty changed.', result?.success ? 'ok' : 'err');
+            reloadParticipationForSelectedEvent();
+          }).catch(error => setStatus('Error: ' + error.message, 'err'));
+          return;
+        }
         setStatus('Saving penalty...');
         fetch(window.GAS_WEB_APP_URL, {
           method: 'POST',
