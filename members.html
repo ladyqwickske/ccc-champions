@@ -8,6 +8,7 @@
   <link rel="icon" href="favicon.png" type="image/png">
   <script src="perf-debug.js"></script>
   <script src="config.js"></script>
+  <script src="table-sort.js"></script>
   <script src="ccc-dates.js"></script>
   <script src="portal-shim.js"></script>
   <script src="portal-auth.js"></script>
@@ -776,7 +777,7 @@
           </div>
           <p style="color:#b0b0b0;font-size:12px;margin-bottom:10px;">Use the Member dropdown & Hero Level field above, press Enter to queue each entry. Click Save All when done.</p>
           <div id="heroBatchStatus" class="status" style="margin-bottom:8px;"></div>
-          <div style="max-height:50vh;overflow-y:auto;"><table style="width:100%;">
+          <div style="max-height:50vh;overflow-y:auto;"><table id="heroBatchTable" data-sortable data-sort-col="0" style="width:100%;">
             <thead><tr><th style="text-align:left;padding:6px 8px;">Member</th><th style="text-align:center;padding:6px 8px;width:100px;">Level</th><th style="text-align:center;padding:6px 8px;width:60px;"></th></tr></thead>
             <tbody id="heroBatchBody"></tbody>
           </table></div>
@@ -813,7 +814,7 @@
           <button class="btn btn-secondary" style="margin:0;" onclick="ChestNameFix.load()">🔄 Reload</button>
         </div>
         <div id="cnfPeriodInfo" class="note" style="margin-bottom:8px;"></div>
-        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <div style="overflow-x:auto;"><table id="cnfTable" data-sortable style="width:100%;border-collapse:collapse;font-size:13px;">
           <thead><tr><th style="text-align:left;padding:6px 8px;">Name in the chests</th><th style="text-align:center;padding:6px 8px;width:70px;">Chests</th><th style="text-align:left;padding:6px 8px;">Correct member</th><th style="width:90px;"></th></tr></thead>
           <tbody id="cnfBody"><tr><td colspan="4" style="padding:8px;color:#999;">Loading…</td></tr></tbody>
         </table></div>
@@ -873,7 +874,7 @@
         <div id="mcPeriodInfo" class="note" style="margin-bottom:8px;"></div>
         <div id="mcStatus" class="status" style="display:none;"></div>
         <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Added by hand</h4>
-        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
+        <div style="overflow-x:auto;"><table id="mcRecentTable" data-sortable style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
           <thead><tr><th style="text-align:left;padding:6px 8px;">When</th><th style="text-align:left;padding:6px 8px;">Period</th><th style="text-align:left;padding:6px 8px;">Member</th><th style="text-align:left;padding:6px 8px;">Chest</th><th style="text-align:center;padding:6px 8px;">#</th><th style="text-align:right;padding:6px 8px;">Points</th><th style="text-align:left;padding:6px 8px;">Note</th><th style="width:90px;"></th></tr></thead>
           <tbody id="mcRecent"><tr><td colspan="8" style="padding:8px;color:#999;">Loading…</td></tr></tbody>
         </table></div>
@@ -1117,7 +1118,7 @@
           list.innerHTML = '<p style="font-size:12px;color:#666;margin:0;">No overrides yet. Select a player and period above to add one.</p>';
           return;
         }
-        list.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px;">
+        list.innerHTML = `<table id="ptOverrideTable" data-sortable data-sort-col="0" style="width:100%;border-collapse:collapse;font-size:12px;">
           <thead><tr>
             <th style="text-align:left;padding:4px 8px;color:#ffb300;border-bottom:1px solid #333;">Player</th>
             <th style="text-align:left;padding:4px 8px;color:#ffb300;border-bottom:1px solid #333;">Period</th>
@@ -2052,21 +2053,21 @@
           return;
         }
 
-        container.innerHTML = rows.map(name => {
+        container.innerHTML = `<table id="exemptTable" data-sortable data-sort-col="1" data-name-col="1" style="width:100%; background:transparent;">
+          <thead><tr><th style="text-align:center;padding:6px 8px;width:70px;">Exempt</th><th style="text-align:left;padding:6px 8px;">Member</th><th style="text-align:left;padding:6px 8px;">Reason</th><th style="text-align:left;padding:6px 8px;">Start</th><th style="text-align:left;padding:6px 8px;">End</th></tr></thead>
+          <tbody>${rows.map(name => {
           const key = name.toLowerCase();
           const checked = exemptSelection.has(key) ? ' checked' : '';
           const unknown = !knownKeys.has(key) ? ' <span style="color:#888;font-size:11px;">(not an active member)</span>' : '';
           const meta = exemptMeta[key] || {};
-          return `<div style="display:grid; grid-template-columns: minmax(170px,1.4fr) minmax(150px,1fr) 125px 125px; gap:8px; align-items:center; padding:5px 4px; color:#e0e0e0; font-size:13px;">
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; text-transform:none; letter-spacing:0; font-weight:400; margin:0;">
-              <input type="checkbox" style="width:auto;" data-exempt="${escapeHtml(name)}"${checked} onchange="MembersTab.toggleExemptMember(this)">
-              <span>${escapeHtml(name)}${unknown}</span>
-            </label>
-            <input type="text" placeholder="Reason" value="${escapeHtml(meta.reason || '')}" data-exempt="${escapeHtml(name)}" data-field="reason" onchange="MembersTab.updateExemptField(this)" style="width:100%; padding:6px; font-size:12px;">
-            <input type="date" value="${escapeHtml(meta.startDate || '')}" data-exempt="${escapeHtml(name)}" data-field="startDate" onchange="MembersTab.updateExemptField(this)" title="Start date (blank = always)" style="width:100%; padding:6px; font-size:12px;">
-            <input type="date" value="${escapeHtml(meta.endDate || '')}" data-exempt="${escapeHtml(name)}" data-field="endDate" onchange="MembersTab.updateExemptField(this)" title="End date (blank = always)" style="width:100%; padding:6px; font-size:12px;">
-          </div>`;
-        }).join('');
+          return `<tr style="color:#e0e0e0; font-size:13px;">
+            <td style="padding:4px 8px; text-align:center;"><input type="checkbox" style="width:auto; margin:0; cursor:pointer;" data-exempt="${escapeHtml(name)}"${checked} onchange="MembersTab.toggleExemptMember(this)"></td>
+            <td style="padding:4px 8px; text-align:left;" data-sort="${escapeHtml(name).replace(/"/g, '&quot;')}">${escapeHtml(name)}${unknown}</td>
+            <td style="padding:4px 8px;"><input type="text" placeholder="Reason" value="${escapeHtml(meta.reason || '')}" data-exempt="${escapeHtml(name)}" data-field="reason" onchange="MembersTab.updateExemptField(this)" style="width:100%; padding:6px; font-size:12px;"></td>
+            <td style="padding:4px 8px; width:135px;"><input type="date" value="${escapeHtml(meta.startDate || '')}" data-exempt="${escapeHtml(name)}" data-field="startDate" onchange="MembersTab.updateExemptField(this)" title="Start date (blank = always)" style="width:100%; padding:6px; font-size:12px;"></td>
+            <td style="padding:4px 8px; width:135px;"><input type="date" value="${escapeHtml(meta.endDate || '')}" data-exempt="${escapeHtml(name)}" data-field="endDate" onchange="MembersTab.updateExemptField(this)" title="End date (blank = always)" style="width:100%; padding:6px; font-size:12px;"></td>
+          </tr>`;
+        }).join('')}</tbody></table>`;
       }
 
       function toggleExemptMember(input) {
@@ -2142,7 +2143,8 @@
         if (!container || !memberAccounts) return;
 
         const term = (document.getElementById('accountsSearchInput')?.value || '').toLowerCase().trim();
-        const rows = memberAccounts.filter(m => !term || m.name.toLowerCase().includes(term));
+        const rows = memberAccounts.filter(m => !term || m.name.toLowerCase().includes(term) || (m.email || '').toLowerCase().includes(term))
+          .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         const linked = memberAccounts.filter(m => m.email).length;
         if (summary) summary.textContent = `${linked} of ${memberAccounts.length} member(s) have a Google account linked.`;
 
@@ -2151,11 +2153,13 @@
           return;
         }
 
-        container.innerHTML = rows.map(m => `<div style="display:grid; grid-template-columns:minmax(120px,1fr) 2fr; gap:10px; align-items:center; padding:5px 4px;">
-          <span style="color:#e0e0e0; font-size:13px; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(m.name)}</span>
-          <input type="email" value="${escapeHtml(m.email || '')}" placeholder="name@gmail.com" data-account="${escapeHtml(m.name)}"
-            onchange="MembersTab.updateMemberAccount(this)" style="padding:6px 8px; font-size:13px;">
-        </div>`).join('');
+        container.innerHTML = `<table id="accountsTable" data-sortable data-sort-col="0" data-name-col="0" style="width:100%; background:transparent;">
+          <thead><tr><th style="text-align:left;padding:6px 8px;">Member</th><th style="text-align:left;padding:6px 8px;">Google account</th></tr></thead>
+          <tbody>${rows.map(m => `<tr>
+          <td style="padding:4px 8px; text-align:left; color:#e0e0e0; font-size:13px;">${escapeHtml(m.name)}</td>
+          <td style="padding:4px 8px;"><input type="email" value="${escapeHtml(m.email || '')}" placeholder="name@gmail.com" data-account="${escapeHtml(m.name)}"
+            onchange="MembersTab.updateMemberAccount(this)" style="width:100%; padding:6px 8px; font-size:13px;"></td>
+        </tr>`).join('')}</tbody></table>`;
       }
 
       function updateMemberAccount(input) {
@@ -2229,13 +2233,16 @@
         const container = document.getElementById('superiorsList');
         if (!container || !superiors) return;
         const term = (document.getElementById('superiorsSearchInput')?.value || '').toLowerCase().trim();
-        const rows = superiors.members.filter(m => !term || m.name.toLowerCase().includes(term));
+        const rows = superiors.members.filter(m => !term || m.name.toLowerCase().includes(term))
+          .sort((a, b) => a.name.localeCompare(b.name));
         updateSuperiorsSummary();
-        container.innerHTML = rows.length ? rows.map(m => `<div style="display:grid; grid-template-columns:24px minmax(120px,1fr) 2fr; gap:10px; align-items:center; padding:5px 4px;">
-          <input type="checkbox" ${m.superior ? 'checked' : ''} data-superior="${escapeHtml(m.name)}" onchange="MembersTab.toggleSuperior(this)" style="width:auto; margin:0; cursor:pointer;">
-          <span style="color:#e0e0e0; font-size:13px; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(m.name)}</span>
-          <span style="font-size:12px; color:${m.notMember ? '#e57373' : (m.email ? '#b0b0b0' : '#888')};">${m.notMember ? 'no longer a member (untick and save)' : (m.email ? escapeHtml(m.email) : 'no Google account linked')}</span>
-        </div>`).join('') : '<p style="color:#888; font-size:13px;">No members match this filter.</p>';
+        container.innerHTML = rows.length ? `<table id="superiorsTable" data-sortable data-sort-col="1" data-name-col="1" style="width:100%; background:transparent;">
+          <thead><tr><th style="text-align:center;padding:6px 8px;width:80px;">Superior</th><th style="text-align:left;padding:6px 8px;">Member</th><th style="text-align:left;padding:6px 8px;">Google account</th></tr></thead>
+          <tbody>${rows.map(m => `<tr>
+          <td style="padding:4px 8px; text-align:center;"><input type="checkbox" ${m.superior ? 'checked' : ''} data-superior="${escapeHtml(m.name)}" onchange="MembersTab.toggleSuperior(this)" style="width:auto; margin:0; cursor:pointer;"></td>
+          <td style="padding:4px 8px; text-align:left; color:#e0e0e0; font-size:13px;">${escapeHtml(m.name)}</td>
+          <td style="padding:4px 8px; text-align:left; font-size:12px; color:${m.notMember ? '#e57373' : (m.email ? '#b0b0b0' : '#888')};"${m.email || m.notMember ? '' : ' data-sort=""'}>${m.notMember ? 'no longer a member (untick and save)' : (m.email ? escapeHtml(m.email) : 'no Google account linked')}</td>
+        </tr>`).join('')}</tbody></table>` : '<p style="color:#888; font-size:13px;">No members match this filter.</p>';
         renderSuperiorEmails();
       }
 
@@ -2435,7 +2442,7 @@
       function render() {
         const showAll = document.getElementById('cnfShowAll').checked;
         const rows = (state.names || []).filter(n => showAll || n.status === 'unknown');
-        const options = (sel) => '<option value="">— choose —</option>' + (state.members || []).map(m =>
+        const options = (sel) => '<option value="">— choose —</option>' + (state.members || []).slice().sort((a, b) => a.localeCompare(b)).map(m =>
           '<option value="' + esc(m) + '"' + (m === sel ? ' selected' : '') + '>' + esc(m) + '</option>').join('');
         const body = document.getElementById('cnfBody');
         if (!rows.length) {
@@ -2446,7 +2453,7 @@
         body.innerHTML = rows.map((n, i) => {
           const tag = n.status === 'unknown' ? ' <span style="font-size:11px;color:#ff9800;">not a member</span>'
             : (n.status === 'former' ? ' <span style="font-size:11px;color:#999;">former member</span>' : '');
-          return '<tr style="border-top:1px solid #444;"><td style="padding:6px 8px;">' + esc(n.name) + tag + '</td>' +
+          return '<tr style="border-top:1px solid #444;"><td style="padding:6px 8px;" data-sort="' + esc(n.name).replace(/"/g, '&quot;') + '">' + esc(n.name) + tag + '</td>' +
             '<td style="text-align:center;padding:6px 8px;">' + n.chests + '</td>' +
             '<td style="padding:6px 8px;"><select data-cnf="' + i + '" style="width:100%;">' + options(n.suggestion) + '</select></td>' +
             '<td style="padding:6px 8px;"><button class="btn" style="margin:0;padding:6px 12px;" data-cnf-apply="' + i + '">Fix</button></td></tr>';
@@ -2491,7 +2498,7 @@
         state = r;
         $('mcPeriodInfo').textContent = 'Adding to: period ' + r.period.start + ' – ' + (r.period.end || '…') + (r.period.status === 'active' ? ' (active)' : ' (closed)');
         const member = $('mcMember').value;
-        $('mcMember').innerHTML = '<option value="">— choose —</option>' + r.members.map(m =>
+        $('mcMember').innerHTML = '<option value="">— choose —</option>' + r.members.slice().sort((a, b) => a.localeCompare(b)).map(m =>
           '<option value="' + esc(m) + '"' + (m === member ? ' selected' : '') + '>' + esc(m) + '</option>').join('');
         const kind = $('mcKind').value;
         $('mcKind').innerHTML = '<option value="">— choose, or type it below —</option>' + r.kinds.map((k, i) =>
@@ -2532,7 +2539,7 @@
           const gone = !!r.removedAt;
           const style = gone ? 'color:#777;text-decoration:line-through;' : '';
           return '<tr style="border-top:1px solid #444;' + style + '">' +
-            '<td style="padding:6px 8px;white-space:nowrap;" title="' + esc(r.by || '') + '">' + esc(cccDateTime(r.at)) + '</td>' +
+            '<td style="padding:6px 8px;white-space:nowrap;" title="' + esc(r.by || '') + '" data-sort="' + esc(r.at || '') + '">' + esc(cccDateTime(r.at)) + '</td>' +
             '<td style="padding:6px 8px;white-space:nowrap;">' + esc(r.period) + '</td>' +
             '<td style="padding:6px 8px;">' + esc(r.clanmate) + '</td>' +
             '<td style="padding:6px 8px;">' + esc(r.type + ' — ' + r.name + ' (' + r.level + ')') + '</td>' +
