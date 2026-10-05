@@ -1946,6 +1946,10 @@
               filteredData = [...membersData];
               populateMemberSelect();
               renderTable();
+              // the server renamed them everywhere: reload the lists already shown with the old name
+              if (memberAccounts) loadMemberAccounts(true);
+              if (exemptSelection) loadExemptMembers(true);
+              if (superiors) loadSuperiors(true, true);
             } else {
               status.textContent = result?.message || 'Failed to update.';
               status.classList.add('err');
