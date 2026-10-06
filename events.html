@@ -553,7 +553,7 @@
       } else {
         emailEl.style.display = 'none'; loginBtn.style.display = 'inline'; logoutBtn.style.display = 'none';
       }
-      const restricted = ['events.html', 'members.html', 'warnings.html', 'profiling.html', 'resources.html'];
+      const restricted = ['events.html', 'members.html', 'warnings.html', 'profiling.html'];
       restricted.forEach(href => {
         document.querySelectorAll(`.tab-buttons .tab-btn[href="${href}"]`).forEach(el => { el.style.display = isLoggedIn ? '' : 'none'; });
       });
@@ -604,10 +604,6 @@
           <img src="warning.png" alt="Warnings" class="tab-icon desktop-only">
           <span class="tab-label mobile-only">Warnings</span>
         </a>
-        <a href="resources.html" class="tab-btn" title="Resources">
-          <img src="resources.png" alt="Resources" class="tab-icon desktop-only">
-          <span class="tab-label mobile-only">Resources</span>
-        </a>
         <a href="competition.html" class="tab-btn" title="Competition">
           <img src="competition.png" alt="Competition" class="tab-icon desktop-only">
           <span class="tab-label mobile-only">Competition</span>
@@ -637,7 +633,6 @@
         <button class="tab" onclick="EventsTab.switchTab('chestEventsTab', event)">📊 Chest Events</button>
         <button class="tab" onclick="EventsTab.switchTab('manualEventsTab', event)">✏️ Manual Events</button>
         <button class="tab" onclick="EventsTab.switchTab('troopEventsTab', event)">🎖️ Troop Events</button>
-        <button class="tab" onclick="EventsTab.switchTab('resourceEventsTab', event)">📦 Resource Events</button>
         <button class="tab" onclick="EventsTab.switchTab('createTab', event)">➕ Create Event</button>
         <button class="tab" onclick="EventsTab.switchTab('eventTypesTab', event)">⚙️ Event Types</button>
       </div>
@@ -747,28 +742,6 @@
         </div>
       </div>
 
-      <!-- RESOURCE EVENTS TAB -->
-      <div id="resourceEventsTab" class="tab-content">
-        <h3 style="margin:0 0 12px 0;">Resource Events</h3>
-        <p style="margin-bottom:12px; color:#e0e0e0;">Automatically calculate participation from the Resource Contributions sheet.</p>
-        <div class="form-grid" style="margin-bottom:12px;">
-          <div><label for="resourceEventSelect">Event</label><select id="resourceEventSelect" onchange="EventsTab.onResourceEventSelected()"><option value="">-- Select Resource Event --</option></select></div>
-        </div>
-        <div id="resourceEventActions" style="display:none; margin-bottom:12px;">
-          <p id="resourceEventInfo" style="color:#e0e0e0; font-size:13px; margin-bottom:12px;"></p>
-          <div style="margin-bottom:12px;">
-            <button class="btn" onclick="EventsTab.calculateResourceEvent()">📊 Calculate from Resources</button>
-            <button class="btn btn-secondary" onclick="EventsTab.calculatePenalties()">🧮 Calculate Penalties</button>
-            <button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Apply Penalties</button>
-            <div id="resourceCalcStatus" class="status"></div>
-          </div>
-        </div>
-        <div id="resourceParticipationData" style="display:none; margin-top:12px;">
-          <h4 id="resourceParticipationHeading" style="margin:0 0 12px 0;">Resource Participation Results</h4>
-          <div id="resourceLoadingIndicator" class="loading">Loading participation data...</div>
-          <div class="table-container"><table><thead id="resourceParticipationTableHead"></thead><tbody id="resourceParticipationTableBody"></tbody></table></div>
-        </div>
-      </div>
 
       <!-- CREATE EVENT TAB -->
       <div id="createTab" class="tab-content">
@@ -2676,12 +2649,7 @@
           populateTroopEventSelect();
           document.getElementById('troopEventSelect').value = eventName;
           EventsTab.onTroopEventSelected();
-        } else if (evt.participationMethod === 'resource-troop' || evt.participationMethod === 'resource-manual') {
-          switchTab('resourceEventsTab');
-          populateResourceEventSelect();
-          document.getElementById('resourceEventSelect').value = eventName;
-          EventsTab.onResourceEventSelected();
-        } else {
+        } else {  // manual entry (and old resource-based events: the Resource Events tab was removed)
           switchTab('manualEventsTab');
           populateManualEventSelect();
           document.getElementById('manualEventSelect').value = eventName;
@@ -2694,6 +2662,7 @@
       // ===========================
       function populateResourceEventSelect() {
         const select = document.getElementById('resourceEventSelect');
+        if (!select) return; // the Resource Events tab was removed
         if (!eventsData || eventsData.length === 0) { select.innerHTML = '<option value="">-- No events available --</option>'; return; }
         const resourceEvents = eventsData.filter(e => e.participationMethod === 'resource-troop' || e.participationMethod === 'resource-manual');
         if (resourceEvents.length === 0) { select.innerHTML = '<option value="">-- No resource-based events --</option>'; return; }

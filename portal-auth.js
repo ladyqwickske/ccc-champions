@@ -20,7 +20,6 @@
     'members.html',
     'warnings.html',
     'profiling.html',
-    'resources.html',
     'bank.html'
   ];
 

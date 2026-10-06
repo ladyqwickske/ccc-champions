@@ -218,7 +218,7 @@
       } else {
         emailEl.style.display = 'none'; loginBtn.style.display = 'inline'; logoutBtn.style.display = 'none';
       }
-      const restricted = ['events.html', 'members.html', 'warnings.html', 'profiling.html', 'resources.html'];
+      const restricted = ['events.html', 'members.html', 'warnings.html', 'profiling.html'];
       restricted.forEach(href => {
         document.querySelectorAll(`.tab-buttons .tab-btn[href="${href}"]`).forEach(el => { el.style.display = isLoggedIn ? '' : 'none'; });
       });
@@ -264,10 +264,6 @@
         <a href="warnings.html" class="tab-btn" title="Warnings">
           <img src="warning.png" alt="Warnings" class="tab-icon desktop-only">
           <span class="tab-label mobile-only">Warnings</span>
-        </a>
-        <a href="resources.html" class="tab-btn" title="Resources">
-          <img src="resources.png" alt="Resources" class="tab-icon desktop-only">
-          <span class="tab-label mobile-only">Resources</span>
         </a>
         <a href="competition.html" class="tab-btn" title="Competition">
           <img src="competition.png" alt="Competition" class="tab-icon desktop-only">
@@ -617,6 +613,10 @@
       return metric.counted ? metric.counted + ' event' + (metric.counted > 1 ? 's' : '') + ' in the last 60 days' : 'No events in the last 60 days (left out)';
     }
     function eventLine(ev) {
+      if (ev.kind === 'target') {
+        var icT = ev.achieved >= ev.target ? '🎯' : ev.achieved > 0 ? '⚠️' : '❌';
+        return icT + ' ' + escapeHtml(ev.name) + ' <span style="color:#666;">— ' + formatNumber(ev.achieved) + ' of ' + formatNumber(ev.target) + (ev.chest ? ' chests' : ' pts') + ' target → ' + ev.score + '%</span>';
+      }
       if (ev.kind === 'ranking') {
         var icon = ev.points > 0 ? '🏅' : '❌';
         return icon + ' ' + escapeHtml(ev.name) + ' <span style="color:#666;">— ' + (ev.points > 0 ? '#' + ev.rank + ' of ' + ev.of + ', ' + formatNumber(ev.points) + ' pts' : 'no points') + ' → ' + ev.score + '%</span>';

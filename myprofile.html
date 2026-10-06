@@ -263,10 +263,6 @@
           <img src="warning.png" alt="Warnings" class="tab-icon desktop-only">
           <span class="tab-label mobile-only">Warnings</span>
         </a>
-        <a href="resources.html" class="tab-btn" title="Resources">
-          <img src="resources.png" alt="Resources" class="tab-icon desktop-only">
-          <span class="tab-label mobile-only">Resources</span>
-        </a>
         <a href="competition.html" class="tab-btn" title="Competition">
           <img src="competition.png" alt="Competition" class="tab-icon desktop-only">
           <span class="tab-label mobile-only">Competition</span>
@@ -595,7 +591,9 @@
         else {
           detail = m.counted ? m.counted + ' event' + (m.counted > 1 ? 's' : '') + ' in the last 60 days' : 'No events in the last 60 days (left out)';
           (m.events || []).forEach(function(ev) {
-            var line = ev.kind === 'ranking'
+            var line = ev.kind === 'target'
+            ? (ev.achieved >= ev.target ? '🎯 ' : ev.achieved > 0 ? '⚠️ ' : '❌ ') + escapeHtml(ev.name) + ' — ' + Number(ev.achieved).toLocaleString() + ' of ' + Number(ev.target).toLocaleString() + (ev.chest ? ' chests' : ' pts') + ' target → ' + ev.score + '%'
+            : ev.kind === 'ranking'
               ? (ev.points > 0 ? '🏅 ' : '❌ ') + escapeHtml(ev.name) + ' — ' + (ev.points > 0 ? '#' + ev.rank + ' of ' + ev.of + ', ' + Number(ev.points).toLocaleString() + ' pts' : 'no points') + ' → ' + ev.score + '%'
               : (ev.status === 'Yes' ? '✅ ' : ev.status === 'Partial' ? '⚠️ ' : '❌ ') + escapeHtml(ev.name) + ' — ' + (ev.status === 'Yes' ? 'took part' : ev.status === 'Partial' ? 'partly' : 'did not take part') + ' → ' + ev.score + '%';
             detail += '<div style="font-size:12px;opacity:0.8;padding-top:2px;">' + line + '</div>';
@@ -605,7 +603,7 @@
       }).join('');
       h += '<details style="margin:8px 0 4px 0;"><summary style="cursor:pointer;font-weight:600;">How your score is calculated</summary>'
         + '<p class="note" style="margin:8px 0;">Calculated live from your chest points against your targets, the events of the last 60 days '
-        + '(tournaments by your place in the clan’s points, chest events by taking part), how consistently you collect chests, and warnings. '
+        + '(an event with a target for your troop level counts 100% when you reach it; otherwise points events by your place in the clan’s points), how consistently you collect chests, and warnings. '
         + 'A part with nothing to score yet is left out and the others count for more.</p>'
         + '<div class="table-wrap"><table><thead><tr><th>Part</th><th>Score</th><th>Weight</th><th>Based on</th></tr></thead><tbody>' + rows + '</tbody></table></div></details>';
       return h;

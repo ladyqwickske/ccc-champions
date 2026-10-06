@@ -37,7 +37,6 @@ const SITE_CONFIG = {
     { name: 'Events', file: 'events.html', icon: 'events.png' },
     { name: 'Members', file: 'members.html', icon: 'members.png' },
     { name: 'Warnings', file: 'warnings.html', icon: 'warning.png' },
-    { name: 'Resources', file: 'resources.html', icon: 'resources.png' },
     { name: 'Calendar', file: 'calendar.html', icon: 'calendar.png' }
   ]
 };
