@@ -692,6 +692,7 @@
         <button class="tab" data-group="admin" data-tab="troopTab" onclick="MembersTab.switchTab('troopTab', event)">⚔️ Track Troops</button>
         <button class="tab" data-group="admin" data-tab="accountsTab" onclick="MembersTab.switchTab('accountsTab', event)">🔐 Member Login Accounts</button>
         <button class="tab" data-group="admin" data-tab="chestPointsTab" onclick="MembersTab.switchTab('chestPointsTab', event)">📦 Chest Points</button>
+        <button class="tab" data-group="admin" data-tab="linkFormerTab" onclick="MembersTab.switchTab('linkFormerTab', event)">🔗 Link Former Members</button>
         <button class="tab" data-group="admin" data-tab="transfersTab" id="transfersTabBtn" onclick="MembersTab.switchTab('transfersTab', event)">🔁 Member Transfers</button>
         <button class="tab" data-group="config" data-tab="chestValuesTab" hidden onclick="MembersTab.switchTab('chestValuesTab', event)">🏷️ Chest Point Values</button>
         <button class="tab" data-group="config" data-tab="chestNameFixTab" hidden onclick="MembersTab.switchTab('chestNameFixTab', event)">🔧 Fix Chest Names</button>
@@ -899,6 +900,11 @@
         <div id="ocrStatus" class="status" style="display:none;"></div>
         <div id="ocrList"></div>
       </div>
+      <div id="linkFormerTab" class="tab-content">
+        <h3 style="margin:0 0 12px 0;">🔗 Link Former Members</h3>
+        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Someone who left and came back (maybe more than once) and was added as a new member? Pick them as the current member and tick their entries on the Former Members list. Their history (chests, troops, heroes, events, warnings, …) then counts for the current member, their old login comes along if they don't have one, and each earlier membership is kept on their profile. Entries under another name are renamed to the current member's name.</p>
+        <div id="linkFormerPanel"></div>
+      </div>
       <div id="transfersTab" class="tab-content">
         <h3 style="margin:0 0 12px 0;">🔁 Member Transfers</h3>
         <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Players who move between the cCc clans: ask the clan they came from for their profile (memberships, troop and hero levels, chest points, events, warnings), and answer the other clans' requests. Nothing is shared until a superior of that clan approves.</p>
@@ -1034,6 +1040,18 @@
           window.ReturningMember.init({
             container: 'returningMemberForm', newForm: 'newMemberForm', hint: 'returningMemberHint',
             nameInput: 'newMemberNameInput', modeName: 'addMemberMode',
+            currentMembers: () => membersData.map(m => m.name),
+            onDone: () => {
+              loadAllData();
+              if (memberAccounts) loadMemberAccounts(true);
+              if (exemptSelection) loadExemptMembers(true);
+              if (superiors) loadSuperiors(true, true);
+            },
+          });
+        }
+        if (window.LinkFormer) {
+          window.LinkFormer.init({
+            container: 'linkFormerPanel',
             currentMembers: () => membersData.map(m => m.name),
             onDone: () => {
               loadAllData();
@@ -2377,7 +2395,7 @@
 
         const memberTableSection = document.getElementById('memberTableSection');
         if (memberTableSection) {
-          memberTableSection.style.display = (tabId === 'chestPointsTab' || tabId === 'exemptTab' || tabId === 'accountsTab' || tabId === 'superiorsTab' || tabId === 'transfersTab') ? 'none' : '';
+          memberTableSection.style.display = (tabId === 'chestPointsTab' || tabId === 'exemptTab' || tabId === 'accountsTab' || tabId === 'superiorsTab' || tabId === 'transfersTab' || tabId === 'linkFormerTab') ? 'none' : '';
         }
 
         if (tabId === 'chestPointsTab') {
@@ -2397,6 +2415,9 @@
         }
         if (tabId === 'transfersTab' && window.MemberTransfers) {
           window.MemberTransfers.load();
+        }
+        if (tabId === 'linkFormerTab' && window.LinkFormer) {
+          window.LinkFormer.load();
         }
         if (memberTableSection && (tabId === 'ocrTab' || tabId === 'chestNameFixTab' || tabId === 'chestValuesTab' || tabId === 'manualChestsTab')) memberTableSection.style.display = 'none';
         if (tabId === 'exemptTab') {
