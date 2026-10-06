@@ -403,6 +403,8 @@
         + card('Transactions', fmtInt(bank.transactionCount), bank.lastTimestamp ? 'Last: ' + formatTimestamp(bank.lastTimestamp) : '')
         + '</div>';
 
+      html += profileScoreHtml(data.profiling);
+
       const active = data.activePeriod;
       if (active) {
         const pct = active.percentComplete;
@@ -554,6 +556,59 @@
       }
 
       document.getElementById('profileContent').innerHTML = html;
+    }
+
+    // ─── Profile score (the same score officers see on the Profiling page) ───
+    function profileScoreHtml(p) {
+      if (!p) return '';
+      var h = '<h2>🏅 Your Profile Score</h2>';
+      if (p.exempt || p.overallScore == null) {
+        return h + '<p class="note">You are on the exempt list right now, so you are not ranked.</p>';
+      }
+      var s = p.overallScore;
+      var col = s >= 90 ? '#8bc34a' : s >= 75 ? '#4caf50' : s >= 60 ? '#42a5f5' : s >= 40 ? '#ff9800' : s >= 20 ? '#ff5722' : '#ef5350';
+      h += '<div class="cards">'
+        + card('Score', '<span style="color:' + col + '">' + s + '</span> / 100', escapeHtml(p.rating || ''))
+        + (p.rank ? card('Rank', '#' + p.rank + ' of ' + p.of, 'in the clan') : '')
+        + '</div>';
+      var parts = p.parts || [], b = p.breakdown || {};
+      h += '<div style="margin:8px 0 4px 0;">';
+      parts.forEach(function(part) {
+        var m = b[part.key] || {};
+        var sc = m.score;
+        var c = part.kind === 'warnings' ? (sc != null && sc < 100 ? '#ef5350' : '#4caf50') : part.color;
+        h += '<div style="display:flex;align-items:center;gap:10px;margin:6px 0;font-size:13px;">'
+          + '<span style="flex:0 0 190px;">' + escapeHtml(part.label) + ' (' + part.weight + '%)</span>'
+          + '<span style="flex:1;height:10px;background:rgba(128,128,128,0.25);border-radius:5px;overflow:hidden;">'
+          + '<span style="display:block;height:100%;width:' + (sc != null ? sc : 0) + '%;background:' + c + ';"></span></span>'
+          + '<span style="flex:0 0 36px;text-align:right;font-weight:600;">' + (sc != null ? sc : '—') + '</span></div>';
+      });
+      h += '</div>';
+      // What each part is based on
+      var rows = parts.map(function(part) {
+        var m = b[part.key];
+        if (!m) return '';
+        var detail;
+        if (part.kind === 'target') detail = m.total ? m.met + ' of ' + m.total + ' period targets met' : 'No finished periods yet (left out)';
+        else if (part.kind === 'consistency') detail = m.checkedPeriods ? 'Chest points in ' + m.activePeriods + ' of the last ' + m.checkedPeriods + ' periods' : 'No finished periods yet (left out)';
+        else if (part.kind === 'warnings') detail = m.count === 0 ? 'No warnings' : m.count + ' warning' + (m.count > 1 ? 's' : '') + ' (−25% each)';
+        else {
+          detail = m.counted ? m.counted + ' event' + (m.counted > 1 ? 's' : '') + ' in the last 60 days' : 'No events in the last 60 days (left out)';
+          (m.events || []).forEach(function(ev) {
+            var line = ev.kind === 'ranking'
+              ? (ev.points > 0 ? '🏅 ' : '❌ ') + escapeHtml(ev.name) + ' — ' + (ev.points > 0 ? '#' + ev.rank + ' of ' + ev.of + ', ' + Number(ev.points).toLocaleString() + ' pts' : 'no points') + ' → ' + ev.score + '%'
+              : (ev.status === 'Yes' ? '✅ ' : ev.status === 'Partial' ? '⚠️ ' : '❌ ') + escapeHtml(ev.name) + ' — ' + (ev.status === 'Yes' ? 'took part' : ev.status === 'Partial' ? 'partly' : 'did not take part') + ' → ' + ev.score + '%';
+            detail += '<div style="font-size:12px;opacity:0.8;padding-top:2px;">' + line + '</div>';
+          });
+        }
+        return '<tr><td>' + escapeHtml(part.label) + '</td><td>' + (m.score != null ? m.score : '—') + '</td><td>' + part.weight + '%</td><td>' + detail + '</td></tr>';
+      }).join('');
+      h += '<details style="margin:8px 0 4px 0;"><summary style="cursor:pointer;font-weight:600;">How your score is calculated</summary>'
+        + '<p class="note" style="margin:8px 0;">Calculated live from your chest points against your targets, the events of the last 60 days '
+        + '(tournaments by your place in the clan’s points, chest events by taking part), how consistently you collect chests, and warnings. '
+        + 'A part with nothing to score yet is left out and the others count for more.</p>'
+        + '<div class="table-wrap"><table><thead><tr><th>Part</th><th>Score</th><th>Weight</th><th>Based on</th></tr></thead><tbody>' + rows + '</tbody></table></div></details>';
+      return h;
     }
 
     function card(label, value, sub) {

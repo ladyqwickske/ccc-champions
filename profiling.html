@@ -457,21 +457,17 @@
       }
       const sorted = [...rankingsData.rankings];
       const W = rankingsData.weights || {};
+      const eventNote = rankingsData.eventCounts ? '<span style="font-size:11px;color:#666;font-weight:400;display:block;margin-top:4px;">Events counted (last 60 days): '
+        + (rankingsData.parts || []).filter(function(p) { return p.kind === 'events'; }).map(function(p) { return p.label + ' (' + (rankingsData.eventCounts[p.key] || 0) + ')'; }).join(' · ') + '</span>' : '';
       const metaNote = rankingsData.lastUpdated ? '<span style="font-size:11px;color:#666;font-weight:400;margin-left:8px;">' + (rankingsData.live ? 'Calculated live: ' : 'Updated: ') + cccDateTime(rankingsData.lastUpdated) + '</span>' : '';
 
       function rankingCardHtml(m, rank) {
         const rankClass = rank === 1 ? 'top1' : rank === 2 ? 'top2' : rank === 3 ? 'top3' : '';
         const medal = rank <= 3 ? ['🥇','🥈','🥉'][rank - 1] + ' ' : '';
-        const cats = rankingsData.categories || {};
-        const barHtml = [
-          { score: m.targetHitRate, color: '#8bc34a', title: 'Target' },
-          { score: m.ancients, color: cats.ancients ? cats.ancients.color : '#42a5f5', title: 'Ancients' },
-          { score: m.ragnarok, color: cats.ragnarok ? cats.ragnarok.color : '#ef5350', title: 'Ragnarok' },
-          { score: m.olympusDO, color: cats.olympusDO ? cats.olympusDO.color : '#ab47bc', title: 'Olympus/DO' },
-          { score: m.otherEvents, color: cats.other ? cats.other.color : '#78909c', title: 'Other' },
-          { score: m.consistency, color: '#ff9800', title: 'Consistency' },
-          { score: m.warningScore, color: m.warningScore < 100 ? '#ef5350' : '#4caf50', title: 'Warnings' }
-        ].map(function(bar) {
+        const barHtml = (rankingsData.parts || []).map(function(p) {
+          var sc = m.parts ? m.parts[p.key] : null;
+          return { score: sc, color: partColor(p, sc), title: p.label };
+        }).map(function(bar) {
           var w = bar.score != null ? Math.max(2, bar.score * 0.5) : 0;
           return w > 0 ? '<div class="ranking-bar" style="background:' + bar.color + '44;width:' + w + 'px;" title="' + bar.title + ': ' + (bar.score != null ? bar.score : '—') + '"></div>' : '';
         }).join('');
@@ -494,7 +490,7 @@
       const bottom = seasoned.length > HIGHLIGHT ? seasoned.slice(-HIGHLIGHT).reverse() : [];
 
       let html = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">';
-      html += '<div style="flex:1;min-width:280px;"><div class="ranking-section-title">🏆 Top Performers' + metaNote + '</div>';
+      html += '<div style="flex:1;min-width:280px;"><div class="ranking-section-title">🏆 Top Performers' + metaNote + eventNote + '</div>';
       top.forEach(function(m) { html += rankingCardHtml(m, sorted.indexOf(m) + 1); });
       html += '</div>';
       if (bottom.length > 0) {
@@ -548,17 +544,12 @@
       document.getElementById('scoreValue').style.color = scoreColor(m.overallScore);
       document.getElementById('scoreRating').textContent = m.rating;
 
-      // Breakdown bars (7 metrics — event categories split)
-      const cats = m.categories || {};
-      const items = [
-        { label: 'Target Hit Rate (' + W.target + '%)', score: b.targetHitRate ? b.targetHitRate.score : 0, color: '#8bc34a' },
-        { label: (cats.ancients ? cats.ancients.label : 'Ancients') + ' (' + W.ancients + '%)', score: b.ancients ? b.ancients.score : 0, color: cats.ancients ? cats.ancients.color : '#42a5f5' },
-        { label: (cats.ragnarok ? cats.ragnarok.label : 'Ragnarok') + ' (' + W.ragnarok + '%)', score: b.ragnarok ? b.ragnarok.score : 0, color: cats.ragnarok ? cats.ragnarok.color : '#ef5350' },
-        { label: (cats.olympusDO ? cats.olympusDO.label : 'Olympus & DO') + ' (' + W.olympusDO + '%)', score: b.olympusDO ? b.olympusDO.score : 0, color: cats.olympusDO ? cats.olympusDO.color : '#ab47bc' },
-        { label: (cats.other ? cats.other.label : 'Other Events') + ' (' + W.other + '%)', score: b.other ? b.other.score : 0, color: cats.other ? cats.other.color : '#78909c' },
-        { label: 'Consistency (' + W.consistency + '%)', score: b.consistency ? b.consistency.score : 0, color: '#ff9800' },
-        { label: 'No Warnings (' + W.warnings + '%)', score: b.warnings ? b.warnings.score : 0, color: b.warnings && b.warnings.score < 100 ? '#ef5350' : '#4caf50' }
-      ];
+      // Breakdown bars (one per score part; "—" = left out, the rest scaled up)
+      const parts = m.parts || [];
+      const items = parts.map(function(p) {
+        var met = b[p.key];
+        return { label: p.label + ' (' + p.weight + '%)', score: met ? met.score : null, color: partColor(p, met ? met.score : null) };
+      });
       document.getElementById('scoreBreakdown').innerHTML = items.map(function(item) {
         var val = item.score != null ? item.score : 0;
         var display = item.score != null ? item.score : '—';
@@ -611,16 +602,29 @@
       }
 
       // Full Breakdown table
-      document.getElementById('breakdownBody').innerHTML = [
-        metricRow('Target Hit Rate', b.targetHitRate, W.target, b.targetHitRate ? b.targetHitRate.met + '/' + b.targetHitRate.total + ' periods met' : '—'),
-        metricRow(cats.ancients ? cats.ancients.label : 'Ancients', b.ancients, W.ancients, b.ancients ? b.ancients.participated + '/' + b.ancients.applicable + ' events' : '—'),
-        metricRow(cats.ragnarok ? cats.ragnarok.label : 'Ragnarok', b.ragnarok, W.ragnarok, b.ragnarok ? b.ragnarok.participated + '/' + b.ragnarok.applicable + ' events' : '—'),
-        metricRow(cats.olympusDO ? cats.olympusDO.label : 'Olympus & DO', b.olympusDO, W.olympusDO, b.olympusDO ? b.olympusDO.participated + '/' + b.olympusDO.applicable + ' events' : '—'),
-        metricRow(cats.other ? cats.other.label : 'Other Events', b.other, W.other, b.other ? b.other.participated + '/' + b.other.applicable + ' events' : '—'),
-        metricRow('Consistency', b.consistency, W.consistency, b.consistency ? b.consistency.activePeriods + '/' + b.consistency.checkedPeriods + ' recent periods active' : '—'),
-        metricRow('No Warnings', b.warnings, W.warnings, b.warnings ? (b.warnings.count === 0 ? 'Clean record' : b.warnings.count + ' warning' + (b.warnings.count > 1 ? 's' : '') + ' (−25% each)') : '—')
-      ].join('');
+      document.getElementById('breakdownBody').innerHTML = parts.map(function(p) {
+        return metricRow(p.label, b[p.key], p.weight, partDetail(p, b[p.key]));
+      }).join('');
     }
+
+    // ─── Score parts (sent by the server: rankingsData.parts / m.parts) ───
+    function partColor(p, score) { return p.kind === 'warnings' ? (score != null && score < 100 ? '#ef5350' : '#4caf50') : p.color; }
+    function partDetail(p, metric) {
+      if (!metric) return '—';
+      if (p.kind === 'target') return metric.total ? metric.met + '/' + metric.total + ' periods met' : 'No finished periods yet (left out)';
+      if (p.kind === 'consistency') return metric.checkedPeriods ? metric.activePeriods + '/' + metric.checkedPeriods + ' recent periods active' : 'No finished periods yet (left out)';
+      if (p.kind === 'warnings') return metric.count === 0 ? 'Clean record' : metric.count + ' warning' + (metric.count > 1 ? 's' : '') + ' (−25% each)';
+      return metric.counted ? metric.counted + ' event' + (metric.counted > 1 ? 's' : '') + ' in the last 60 days' : 'No events in the last 60 days (left out)';
+    }
+    function eventLine(ev) {
+      if (ev.kind === 'ranking') {
+        var icon = ev.points > 0 ? '🏅' : '❌';
+        return icon + ' ' + escapeHtml(ev.name) + ' <span style="color:#666;">— ' + (ev.points > 0 ? '#' + ev.rank + ' of ' + ev.of + ', ' + formatNumber(ev.points) + ' pts' : 'no points') + ' → ' + ev.score + '%</span>';
+      }
+      var icon2 = ev.status === 'Yes' ? '✅' : ev.status === 'Partial' ? '⚠️' : '❌';
+      return icon2 + ' ' + escapeHtml(ev.name) + ' <span style="color:#666;">— ' + (ev.status === 'Yes' ? 'took part' : ev.status === 'Partial' ? 'partly' : 'did not take part') + ' → ' + ev.score + '%</span>';
+    }
+
 
     function metricRow(label, metric, weight, detail) {
       var score = metric && metric.score != null ? metric.score : '—';
@@ -628,8 +632,7 @@
       var evList = '';
       if (metric && metric.events && metric.events.length > 0) {
         evList = '<div style="margin-top:4px;">' + metric.events.map(function(ev) {
-          var icon = ev.status === 'Yes' ? '✅' : ev.status === 'Partial' ? '⚠️' : '❌';
-          return '<div style="font-size:11px;color:#888;padding:1px 0;">' + icon + ' ' + escapeHtml(ev.name) + ' <span style="color:#666;">(' + escapeHtml(ev.type) + ')</span></div>';
+          return '<div style="font-size:11px;color:#888;padding:1px 0;">' + eventLine(ev) + '</div>';
         }).join('') + '</div>';
       }
       return '<tr><td>' + label + '</td><td><span class="badge ' + badgeClass + '">' + score + '</span></td><td style="text-align:center;">' + weight + '%</td><td style="font-size:12px;color:#888;">' + detail + evList + '</td></tr>';
