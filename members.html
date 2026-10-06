@@ -12,6 +12,7 @@
   <script src="ccc-dates.js"></script>
   <script src="portal-shim.js"></script>
   <script src="portal-auth.js"></script>
+  <script src="member-transfers.js"></script>
   <script>
   // Dates are read and shown in UTC with the shared helpers (ccc-dates.js).
   function parseDateUTC(str) {
@@ -695,6 +696,7 @@
         <button class="tab" data-group="admin" data-tab="troopTab" onclick="MembersTab.switchTab('troopTab', event)">⚔️ Track Troops</button>
         <button class="tab" data-group="admin" data-tab="accountsTab" onclick="MembersTab.switchTab('accountsTab', event)">🔐 Member Login Accounts</button>
         <button class="tab" data-group="admin" data-tab="chestPointsTab" onclick="MembersTab.switchTab('chestPointsTab', event)">📦 Chest Points</button>
+        <button class="tab" data-group="admin" data-tab="transfersTab" id="transfersTabBtn" onclick="MembersTab.switchTab('transfersTab', event)">🔁 Member Transfers</button>
         <button class="tab" data-group="config" data-tab="chestValuesTab" hidden onclick="MembersTab.switchTab('chestValuesTab', event)">🏷️ Chest Point Values</button>
         <button class="tab" data-group="config" data-tab="chestNameFixTab" hidden onclick="MembersTab.switchTab('chestNameFixTab', event)">🔧 Fix Chest Names</button>
         <button class="tab" data-group="config" data-tab="manualChestsTab" id="manualChestsTabBtn" hidden style="display:none" onclick="MembersTab.switchTab('manualChestsTab', event)">➕ Manual Chests</button>
@@ -785,6 +787,13 @@
       </div>
       <div id="addMemberTab" class="tab-content active">
         <h3 style="margin:0 0 12px 0;">Add New Member</h3>
+        <!-- New or returning member (member-transfers.js: ReturningMember) -->
+        <div style="display:flex;gap:18px;margin-bottom:12px;text-align:left;">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="addMemberMode" value="new" checked style="width:auto;"> 🆕 New member</label>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="addMemberMode" value="returning" style="width:auto;"> ↩️ Returning member (was here before)</label>
+        </div>
+        <div id="returningMemberForm" style="display:none;"></div>
+        <div id="newMemberForm">
         <div class="form-grid add-member-form-grid">
           <div>
             <label for="newMemberNameInput">Member Name</label>
@@ -796,8 +805,10 @@
             <div class="note">Date member joined</div>
           </div>
         </div>
+        <div id="returningMemberHint" class="status" style="display:none;text-align:left;margin-bottom:10px;"></div>
         <button class="btn" onclick="MembersTab.submitAddMember()">➕ Add Member</button>
         <div id="addMemberStatus" class="status"></div>
+        </div>
       </div>
       <div id="nameTab" class="tab-content">
         <h3 style="margin:0 0 12px 0;">Change Member Name</h3>
@@ -891,6 +902,11 @@
         <div id="ocrInfo" class="note" style="margin-bottom:8px;"></div>
         <div id="ocrStatus" class="status" style="display:none;"></div>
         <div id="ocrList"></div>
+      </div>
+      <div id="transfersTab" class="tab-content">
+        <h3 style="margin:0 0 12px 0;">🔁 Member Transfers</h3>
+        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Players who move between the cCc clans: ask the clan they came from for their profile (memberships, troop and hero levels, chest points, events, warnings), and answer the other clans' requests. Nothing is shared until a superior of that clan approves.</p>
+        <div id="transfersPanel"></div>
       </div>
       <div id="removeMemberTab" class="tab-content">
         <h3 style="margin:0 0 12px 0;">Remove Member</h3>
@@ -1010,9 +1026,31 @@
         document.getElementById('accountsSearchInput')?.addEventListener('input', () => renderMemberAccounts());
         document.getElementById('superiorsSearchInput')?.addEventListener('input', () => renderSuperiors());
         checkSuperiorsAccess();
+        initReturningAndTransfers();
         document.querySelectorAll('#members th.sortable').forEach(th => {
           th.addEventListener('click', () => sortTable(th.dataset.column));
         });
+      }
+
+      // ➕ Add Member → Returning member, and 🔁 Member Transfers (member-transfers.js)
+      function initReturningAndTransfers() {
+        if (window.ReturningMember) {
+          window.ReturningMember.init({
+            container: 'returningMemberForm', newForm: 'newMemberForm', hint: 'returningMemberHint',
+            nameInput: 'newMemberNameInput', modeName: 'addMemberMode',
+            currentMembers: () => membersData.map(m => m.name),
+            onDone: () => {
+              loadAllData();
+              if (memberAccounts) loadMemberAccounts(true);
+              if (exemptSelection) loadExemptMembers(true);
+              if (superiors) loadSuperiors(true, true);
+            },
+          });
+        }
+        if (window.MemberTransfers) {
+          window.MemberTransfers.init({ container: 'transfersPanel', badge: 'transfersTabBtn', onLevelsCopied: () => loadAllData() });
+          setTimeout(() => window.MemberTransfers.check(), 1500); // waiting requests from other clans → count on the tab
+        }
       }
 
       // ── Point Targets (server-backed with localStorage cache) ─────────
@@ -2343,7 +2381,7 @@
 
         const memberTableSection = document.getElementById('memberTableSection');
         if (memberTableSection) {
-          memberTableSection.style.display = (tabId === 'chestPointsTab' || tabId === 'exemptTab' || tabId === 'accountsTab' || tabId === 'superiorsTab') ? 'none' : '';
+          memberTableSection.style.display = (tabId === 'chestPointsTab' || tabId === 'exemptTab' || tabId === 'accountsTab' || tabId === 'superiorsTab' || tabId === 'transfersTab') ? 'none' : '';
         }
 
         if (tabId === 'chestPointsTab') {
@@ -2360,6 +2398,9 @@
         }
         if (tabId === 'manualChestsTab' && window.ManualChests) {
           window.ManualChests.load();
+        }
+        if (tabId === 'transfersTab' && window.MemberTransfers) {
+          window.MemberTransfers.load();
         }
         if (memberTableSection && (tabId === 'ocrTab' || tabId === 'chestNameFixTab' || tabId === 'chestValuesTab' || tabId === 'manualChestsTab')) memberTableSection.style.display = 'none';
         if (tabId === 'exemptTab') {
