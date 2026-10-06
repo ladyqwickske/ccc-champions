@@ -384,7 +384,8 @@
         const res = await gasCall('getProfilingRankings');
         if (res && res.success) {
           rankingsData = res; populateSelect(); renderRankings();
-          if (isLoggedIn) document.getElementById('recalcBar').style.display = 'block';
+          // Calculated live by the server: no Recalculate needed (unless an old cached answer)
+          if (isLoggedIn && !res.live) document.getElementById('recalcBar').style.display = 'block';
         }
         else if (res && res.empty) {
           let emptyHtml = '<div class="empty-state"><p>' + (res.message || 'Rankings not yet calculated.') + '</p>';
@@ -456,7 +457,7 @@
       }
       const sorted = [...rankingsData.rankings];
       const W = rankingsData.weights || {};
-      const metaNote = rankingsData.lastUpdated ? '<span style="font-size:11px;color:#666;font-weight:400;margin-left:8px;">Updated: ' + cccDateTime(rankingsData.lastUpdated) + '</span>' : '';
+      const metaNote = rankingsData.lastUpdated ? '<span style="font-size:11px;color:#666;font-weight:400;margin-left:8px;">' + (rankingsData.live ? 'Calculated live: ' : 'Updated: ') + cccDateTime(rankingsData.lastUpdated) + '</span>' : '';
 
       function rankingCardHtml(m, rank) {
         const rankClass = rank === 1 ? 'top1' : rank === 2 ? 'top2' : rank === 3 ? 'top3' : '';
@@ -566,6 +567,7 @@
 
       // Chest Statistics
       const cs = m.chestStats || {};
+      document.getElementById('chestStatsNote').textContent = '(current period + the 7 before it)';
       document.getElementById('chestStatsInfo').innerHTML = [
         card('Total Chests', formatNumber(cs.totalChests)),
         card('Total Points', formatNumber(cs.totalPoints)),
