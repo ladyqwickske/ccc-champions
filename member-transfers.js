@@ -9,6 +9,10 @@
  *                   along; under a new name their history is renamed to it).
  *                   In "New member" mode a name that looks like a former
  *                   member's shows a hint.
+ *  LinkFormer       🔗 Link Former Members tab: link one or more Former
+ *                   Members entries to a current member (someone who came
+ *                   back, maybe more than once, and was added as new); their
+ *                   history then counts for that member.
  *  MemberTransfers  🔁 Member Transfers tab: ask another cCc clan for a
  *                   player's profile, answer the other clans' requests, view
  *                   / print a received profile and copy its troop and hero
@@ -92,6 +96,7 @@
       RM.loading = null;
       if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Could not load the Former Members list.');
       RM.former = r.members || [];
+      RM.returns = r.returns || [];
       return RM.former;
     }).catch(function (e) { RM.loading = null; throw e; });
     return RM.loading;
@@ -253,6 +258,122 @@
       }
     },
     reload: function () { RM.former = null; if ($('rmList')) loadFormer(true).then(drawList).catch(function () {}); },
+  };
+
+  // ===========================================================================
+  // Link Former Members
+
+  var LF = { opts: {}, picked: {} };
+
+  function renderLink() {
+    var c = $(LF.opts.container);
+    if (!c) return;
+    var members = currentMembersOf(LF.opts).slice().sort(function (a, b) { return String(a).localeCompare(String(b)); });
+    c.innerHTML = ''
+      + '<div class="form-grid" style="grid-template-columns:1fr 1fr;">'
+      + '<div><label for="lfMember">Current member</label><select id="lfMember"><option value="">— pick —</option>'
+      + members.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('') + '</select></div>'
+      + '<div><label for="lfSearch">Search former members</label><input type="text" id="lfSearch" placeholder="🔍 Name, old name, reason or e-mail…"></div>'
+      + '</div>'
+      + '<div id="lfList" style="' + box + 'max-height:40vh;overflow-y:auto;text-align:left;margin-bottom:12px;"><span style="' + muted + '">Loading…</span></div>'
+      + '<button class="btn" id="lfLink">🔗 Link selected</button>'
+      + '<div id="lfStatus" class="status" style="display:none;"></div>'
+      + '<h4 style="margin:22px 0 6px;text-align:left;">Earlier memberships already linked</h4>'
+      + '<div id="lfDone"></div>';
+    $('lfMember').addEventListener('change', function () { LF.picked = {}; drawLinkList(); });
+    $('lfSearch').addEventListener('input', drawLinkList);
+    $('lfLink').addEventListener('click', link);
+    loadFormer().then(function () { drawLinkList(); drawLinked(); })
+      .catch(function (e) { $('lfList').innerHTML = '<span style="color:#e57373;">' + esc(e.message) + '</span>'; });
+  }
+
+  function currentMembersOf(opts) {
+    try { return (opts.currentMembers && opts.currentMembers()) || []; } catch (e) { return []; }
+  }
+
+  function drawLinkList() {
+    var list = $('lfList');
+    if (!list || !RM.former) return;
+    var member = $('lfMember').value;
+    var q = ($('lfSearch').value || '').trim();
+    var n = Object.keys(LF.picked).length;
+    $('lfLink').textContent = n ? '🔗 Link ' + n + ' selected to ' + (member || '…') : '🔗 Link selected';
+    var rows = RM.former.map(function (m) {
+      var text = [m.name, (m.previousNames || []).join(' '), m.reason, m.googleAccount].join(' ').toLowerCase();
+      var like = member ? likeness(member, m) : 0;
+      return { m: m, like: like, show: !q || likeness(q, m) > 0 || text.indexOf(q.toLowerCase()) !== -1 };
+    }).filter(function (r) { return r.show; });
+    rows.sort(function (a, b) { return b.like - a.like || String(b.m.endDate).localeCompare(String(a.m.endDate)); });
+    if (!RM.former.length) { list.innerHTML = '<span style="' + muted + '">The Former Members list is empty.</span>'; return; }
+    if (!rows.length) { list.innerHTML = '<span style="' + muted + '">No former member matches "' + esc(q) + '".</span>'; return; }
+    list.innerHTML = (member ? '' : '<div style="' + muted + 'padding:4px 4px 8px;">Pick the current member first: likely matches then come to the top.</div>')
+      + rows.slice(0, 300).map(function (r) {
+        var m = r.m, on = !!LF.picked[m.row];
+        return '<label style="display:flex;gap:8px;align-items:flex-start;padding:6px 4px;cursor:pointer;border-bottom:1px solid var(--border, #333);' + (on ? 'background:rgba(127,127,127,0.18);' : '') + '">'
+          + '<input type="checkbox" data-lf-row="' + m.row + '"' + (on ? ' checked' : '') + ' style="margin-top:3px;width:auto;">'
+          + '<span><b>' + esc(m.name) + '</b>' + (r.like >= 50 ? ' <span style="font-size:11px;color:#81c784;">likely match</span>' : '')
+          + (m.previousNames && m.previousNames.length ? ' <span style="font-size:12px;' + muted + '">(before: ' + esc(m.previousNames.join(', ')) + ')</span>' : '')
+          + '<br><span style="font-size:12px;' + muted + '">' + esc(formerLabel(m)) + (m.googleAccount ? ' · 🔐 ' + esc(m.googleAccount) : '') + '</span></span></label>';
+      }).join('') + (rows.length > 300 ? '<div style="' + muted + 'padding:6px;">Showing 300 of ' + rows.length + ' — search to narrow down.</div>' : '');
+    list.querySelectorAll('input[data-lf-row]').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        var row = Number(cb.getAttribute('data-lf-row'));
+        if (cb.checked) LF.picked[row] = RM.former.find(function (m) { return m.row === row; });
+        else delete LF.picked[row];
+        drawLinkList();
+      });
+    });
+  }
+
+  function drawLinked() {
+    var el = $('lfDone');
+    if (!el) return;
+    var rows = RM.returns || [];
+    if (!rows.length) { el.innerHTML = '<p style="' + muted + 'text-align:left;">None yet.</p>'; return; }
+    el.innerHTML = '<div style="overflow-x:auto;max-height:40vh;"><table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>'
+      + ['Member', 'Earlier as', 'Was here', 'Reason', 'How', 'By'].map(function (h) { return '<th style="' + cell + '">' + h + '</th>'; }).join('')
+      + '</tr></thead><tbody>' + rows.map(function (r) {
+        return '<tr><td style="' + cell + '"><b>' + esc(r.member_name) + '</b></td><td style="' + cell + '">' + esc(r.former_name) + '</td>'
+          + '<td style="' + cell + '">' + esc(fmtDate(r.first_join) || '?') + ' → ' + esc(fmtDate(r.left_date) || '?') + '</td>'
+          + '<td style="' + cell + '">' + esc(r.left_reason || '') + '</td>'
+          + '<td style="' + cell + '">' + (Number(r.linked_to_existing) ? '🔗 linked' : '↩️ came back ' + esc(fmtDate(r.rejoined))) + '</td>'
+          + '<td style="' + cell + '">' + esc(r.restored_by || '') + '<br><span style="' + muted + '">' + esc(fmtDate(r.restored_at)) + '</span></td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+
+  function link() {
+    var st = $('lfStatus');
+    var member = $('lfMember').value;
+    var picked = Object.keys(LF.picked).map(function (k) { return LF.picked[k]; }).filter(Boolean);
+    if (!member) { setStatus(st, 'Pick the current member.', false); return; }
+    if (!picked.length) { setStatus(st, 'Tick at least one former member.', false); return; }
+    var names = picked.map(function (m) { return '"' + m.name + '" (' + formerLabel(m) + ')'; }).join('\n');
+    if (!confirm('Link to "' + member + '":\n' + names + '\n\nTheir history (chests, troops, heroes, events, warnings, …) will count for "' + member + '" and they leave the Former Members list. Continue?')) return;
+    setStatus(st, 'Linking…');
+    $('lfLink').disabled = true;
+    post({ action: 'linkFormerMembers', memberName: member, formers: picked.map(function (m) { return { row: m.row, name: m.name }; }) }).then(function (r) {
+      $('lfLink').disabled = false;
+      setStatus(st, (r && (r.message || r.error)) || 'Failed.', !!(r && r.success));
+      LF.picked = {};
+      loadFormer(true).then(function () { drawLinkList(); drawLinked(); }).catch(function () {});
+      if (r && r.linked && LF.opts.onDone) LF.opts.onDone(r);
+    }).catch(function (e) { $('lfLink').disabled = false; setStatus(st, 'Error: ' + e.message, false); });
+  }
+
+  window.LinkFormer = {
+    /** opts: { container, currentMembers(), onDone(result) } */
+    init: function (opts) { LF.opts = opts || {}; },
+    load: function () {
+      var c = $(LF.opts.container);
+      if (!c) return;
+      if (!c.innerHTML) renderLink();
+      else {
+        // the member list may have changed since the tab was drawn
+        var sel = $('lfMember'), keep = sel ? sel.value : '';
+        renderLink();
+        if (keep) { $('lfMember').value = keep; }
+      }
+    },
   };
 
   // ===========================================================================
