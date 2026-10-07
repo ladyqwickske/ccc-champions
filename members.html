@@ -159,6 +159,7 @@
     .stats-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin: 16px 0; }
     .stat-card { background: #232526; border-radius: 8px; padding: 16px; box-shadow: 0 1px 6px rgba(0,0,0,0.25); border: 1px solid #444; text-align: center; }
     .stat-card h3 { font-size: 13px; color: #ffb300; margin-bottom: 8px; }
+    .stat-card[title] { cursor: help; }
     .stat-card .value { font-size: 28px; font-weight: 700; color: #ffb300; }
 
     /* Controls */
@@ -674,10 +675,8 @@
     <div class="header"><h1><img src="members.png" alt="Members" class="tab-icon" style="height: 64px; vertical-align: middle; margin-right: 8px;"> Member Management</h1><p>View and manage clan members</p></div>
     <div class="stats-cards" id="memberStatsCards">
       <div class="stat-card"><h3>Total Members</h3><div class="value" id="memberTotal">-</div></div>
-      <div class="stat-card"><h3>T9</h3><div class="value" id="statT9" style="color:#6a1b9a">-</div></div>
-      <div class="stat-card"><h3>G9</h3><div class="value" id="statG9" style="color:#ab47bc">-</div></div>
-      <div class="stat-card"><h3>T8</h3><div class="value" id="statT8" style="color:#1565c0">-</div></div>
-      <div class="stat-card"><h3>G8</h3><div class="value" id="statG8" style="color:#00838f">-</div></div>
+      <!-- one card per troop level found in the clan, plus the members without troop levels (updateStats) -->
+      <div id="troopStatCards" style="display:contents"></div>
       <div class="stat-card"><h3>Top Hero</h3><div class="value" id="statTopHero" style="font-size:16px">-</div></div>
     </div>
     <div class="controls"><div class="search-box"><input type="text" id="memberSearchInput" placeholder="🔍 Search by member name..."></div><button class="btn" onclick="MembersTab.loadAllData()">🔄 Refresh</button></div>
@@ -1423,17 +1422,23 @@
       function updateStats() {
         document.getElementById('memberTotal').textContent = membersData.length.toLocaleString();
 
-        // Count troop categories
-        const catCounts = { T9: 0, G9: 0, T8: 0, G8: 0 };
+        // One card per troop level present in the clan (highest first), plus the
+        // members without troop levels; hover a card for the members in it.
+        const order = ['T9', 'G9', 'T8', 'G8', 'T7', 'G7', 'G6', 'G5', 'G4', 'G1–3'];
+        const colors = { T9: '#b388ff', G9: '#ce93d8', T8: '#64b5f6', G8: '#4dd0e1', T7: '#e57373', G7: '#ff9800', G6: '#fdd835', G5: '#bdbdbd', G4: '#bdbdbd', 'G1–3': '#bdbdbd' };
+        const groups = {};
+        const missing = [];
         membersData.forEach(m => {
           const t = troopData[(m.name || '').toLowerCase()] || {};
-          const cat = determineTroopCategory(t.G, t.M, t.S);
-          if (cat && catCounts[cat] !== undefined) catCounts[cat]++;
+          const cat = determineTroopCategory(t.G, t.M, t.S) || (Number(t.G) > 0 ? 'G1–3' : null);
+          if (cat) (groups[cat] = groups[cat] || []).push(m.name);
+          else missing.push(m.name);
         });
-        document.getElementById('statT9').textContent = catCounts.T9;
-        document.getElementById('statG9').textContent = catCounts.G9;
-        document.getElementById('statT8').textContent = catCounts.T8;
-        document.getElementById('statG8').textContent = catCounts.G8;
+        const titleText = (x) => String(x).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const card = (label, names, color, note) => `<div class="stat-card" title="${titleText(note + ':\n' + names.slice().sort((a, b) => a.localeCompare(b)).join(', '))}"><h3>${escapeHtml(label)}</h3><div class="value" style="color:${color}">${names.length}</div></div>`;
+        const box = document.getElementById('troopStatCards');
+        if (box) box.innerHTML = order.filter(c => groups[c]).map(c => card(c, groups[c], colors[c], c)).join('')
+          + (missing.length ? card('No troop levels', missing, '#ff5252', 'No troop levels entered') : '');
 
         // Top hero
         let topHeroName = '';
