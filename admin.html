@@ -29,8 +29,6 @@
   }
   </script>
   <style>
-    /* Admin page: the member list is loaded (the tabs need the names) but not shown */
-    #memberStatsCards, #members > .controls, #memberTableSection { display: none !important; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
@@ -674,34 +672,25 @@
 
   <div id="members" class="tab-content active">
     <div class="header"><h1><img src="admin.png" alt="Admin" class="tab-icon" style="height: 64px; vertical-align: middle; margin-right: 8px;"> Admin</h1><p>Chest data, rules, transfers between the clans and access</p></div>
-    <div class="stats-cards" id="memberStatsCards">
-      <div class="stat-card"><h3>Total Members</h3><div class="value" id="memberTotal">-</div></div>
-      <div class="stat-card"><h3>T9</h3><div class="value" id="statT9" style="color:#6a1b9a">-</div></div>
-      <div class="stat-card"><h3>G9</h3><div class="value" id="statG9" style="color:#ab47bc">-</div></div>
-      <div class="stat-card"><h3>T8</h3><div class="value" id="statT8" style="color:#1565c0">-</div></div>
-      <div class="stat-card"><h3>G8</h3><div class="value" id="statG8" style="color:#00838f">-</div></div>
-      <div class="stat-card"><h3>Top Hero</h3><div class="value" id="statTopHero" style="font-size:16px">-</div></div>
-    </div>
-    <div class="controls"><div class="search-box"><input type="text" id="memberSearchInput" placeholder="🔍 Search by member name..."></div><button class="btn" onclick="MembersTab.loadAllData()">🔄 Refresh</button></div>
 
     <div class="tabs-container">
       <div class="tabs">
-          <!-- Groups; each shows its own tabs (MembersTab.switchGroup / switchTab) -->
+          <!-- Groups; each shows its own tabs (AdminTab.switchGroup / switchTab) -->
         <div class="tab-groups">
-          <button class="tab-group active" data-group="chestdata" onclick="MembersTab.switchGroup('chestdata')">📥 Chest data</button>
-          <button class="tab-group" data-group="rules" onclick="MembersTab.switchGroup('rules')">🏷️ Rules</button>
-          <button class="tab-group" data-group="clans" onclick="MembersTab.switchGroup('clans')">🔁 Between clans</button>
-          <button class="tab-group" data-group="access" onclick="MembersTab.switchGroup('access')">🔐 Access</button>
+          <button class="tab-group active" data-group="chestdata" onclick="AdminTab.switchGroup('chestdata')">📥 Chest data</button>
+          <button class="tab-group" data-group="rules" onclick="AdminTab.switchGroup('rules')">🏷️ Rules</button>
+          <button class="tab-group" data-group="clans" onclick="AdminTab.switchGroup('clans')">🔁 Between clans</button>
+          <button class="tab-group" data-group="access" onclick="AdminTab.switchGroup('access')">🔐 Access</button>
         </div>
-        <button class="tab" data-group="chestdata" data-tab="manualChestsTab" id="manualChestsTabBtn" style="display:none" onclick="MembersTab.switchTab('manualChestsTab', event)">➕ Manual Chests</button>
-        <button class="tab active" data-group="chestdata" data-tab="chestNameFixTab" onclick="MembersTab.switchTab('chestNameFixTab', event)">🔧 Fix Chest Names</button>
-        <button class="tab" data-group="chestdata" data-tab="ocrTab" onclick="MembersTab.switchTab('ocrTab', event)">🔤 OCR Corrections</button>
-        <button class="tab" data-group="rules" hidden data-tab="chestValuesTab" onclick="MembersTab.switchTab('chestValuesTab', event)">🏷️ Chest Point Values</button>
-        <button class="tab" data-group="rules" hidden data-tab="exemptTab" onclick="MembersTab.switchTab('exemptTab', event)">🛡️ Penalty Exemptions</button>
-        <button class="tab" data-group="clans" hidden data-tab="linkFormerTab" onclick="MembersTab.switchTab('linkFormerTab', event)">🔗 Link Former Members</button>
-        <button class="tab" data-group="clans" hidden data-tab="transfersTab" id="transfersTabBtn" onclick="MembersTab.switchTab('transfersTab', event)">🔁 Member Transfers</button>
-        <button class="tab" data-group="access" hidden data-tab="accountsTab" onclick="MembersTab.switchTab('accountsTab', event)">🔐 Member Login Accounts</button>
-        <button class="tab" data-group="access" hidden data-tab="superiorsTab" id="superiorsTabBtn" style="display:none" onclick="MembersTab.switchTab('superiorsTab', event)">👑 Superiors</button>
+        <button class="tab" data-group="chestdata" data-tab="manualChestsTab" id="manualChestsTabBtn" style="display:none" onclick="AdminTab.switchTab('manualChestsTab', event)">➕ Manual Chests</button>
+        <button class="tab active" data-group="chestdata" data-tab="chestNameFixTab" onclick="AdminTab.switchTab('chestNameFixTab', event)">🔧 Fix Chest Names</button>
+        <button class="tab" data-group="chestdata" data-tab="ocrTab" onclick="AdminTab.switchTab('ocrTab', event)">🔤 OCR Corrections</button>
+        <button class="tab" data-group="rules" hidden data-tab="chestValuesTab" onclick="AdminTab.switchTab('chestValuesTab', event)">🏷️ Chest Point Values</button>
+        <button class="tab" data-group="rules" hidden data-tab="exemptTab" onclick="AdminTab.switchTab('exemptTab', event)">🛡️ Penalty Exemptions</button>
+        <button class="tab" data-group="clans" hidden data-tab="linkFormerTab" onclick="AdminTab.switchTab('linkFormerTab', event)">🔗 Link Former Members</button>
+        <button class="tab" data-group="clans" hidden data-tab="transfersTab" id="transfersTabBtn" onclick="AdminTab.switchTab('transfersTab', event)">🔁 Member Transfers</button>
+        <button class="tab" data-group="access" hidden data-tab="accountsTab" onclick="AdminTab.switchTab('accountsTab', event)">🔐 Member Login Accounts</button>
+        <button class="tab" data-group="access" hidden data-tab="superiorsTab" id="superiorsTabBtn" style="display:none" onclick="AdminTab.switchTab('superiorsTab', event)">👑 Superiors</button>
     </div>
       <div id="manualChestsTab" class="tab-content">
         <h3 style="margin:0 0 6px 0;">Manual Chests</h3>
@@ -796,8 +785,8 @@
         <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Members ticked here never receive an event penalty and are left out of the period-end underperformer report (crypting norm). Use this for utility accounts and leadership alts.</p>
         <div class="controls" style="margin-bottom:10px;">
           <div class="search-box"><input type="text" id="exemptSearchInput" placeholder="🔍 Filter members..."></div>
-          <button class="btn" onclick="MembersTab.saveExemptMembers()">💾 Save Exemptions</button>
-          <button class="btn btn-secondary" onclick="MembersTab.loadExemptMembers(true)">🔄 Reload</button>
+          <button class="btn" onclick="AdminTab.saveExemptMembers()">💾 Save Exemptions</button>
+          <button class="btn btn-secondary" onclick="AdminTab.loadExemptMembers(true)">🔄 Reload</button>
         </div>
         <div id="exemptStatus" class="status"></div>
         <div id="exemptSummary" style="font-size:12px; color:#b0b0b0; margin-bottom:8px; text-align:left;"></div>
@@ -818,8 +807,8 @@
         <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Link a member to a Google account so they can sign in and see their own bank balance and point penalties. The same address can be linked to several members — handy for alt accounts — and the profile page then offers a dropdown to switch between them. Members only get the public pages plus their profile; management pages are for superiors only (the Superiors list).</p>
         <div class="controls" style="margin-bottom:10px;">
           <div class="search-box"><input type="text" id="accountsSearchInput" placeholder="🔍 Filter members..."></div>
-          <button class="btn" onclick="MembersTab.saveMemberAccounts()">💾 Save Accounts</button>
-          <button class="btn btn-secondary" onclick="MembersTab.loadMemberAccounts(true)">🔄 Reload</button>
+          <button class="btn" onclick="AdminTab.saveMemberAccounts()">💾 Save Accounts</button>
+          <button class="btn btn-secondary" onclick="AdminTab.loadMemberAccounts(true)">🔄 Reload</button>
         </div>
         <div id="accountsStatus" class="status"></div>
         <div id="accountsSummary" style="font-size:12px; color:#b0b0b0; margin-bottom:8px; text-align:left;"></div>
@@ -830,8 +819,8 @@
         <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Superiors can use the management pages (Events, Members, Warnings, Bank, Profiling, …) and make changes. Tick a member to make them a superior: the Google account(s) linked to them on <b>Member Login Accounts</b> get the rights, and lose them when the member leaves the clan. Logins that aren't clan members go under <b>Extra e-mails</b>. Only you can see this list; you are always a superior yourself.</p>
         <div class="controls" style="margin-bottom:10px;">
           <div class="search-box"><input type="text" id="superiorsSearchInput" placeholder="🔍 Filter members..."></div>
-          <button class="btn" onclick="MembersTab.saveSuperiors()">💾 Save Superiors</button>
-          <button class="btn btn-secondary" onclick="MembersTab.loadSuperiors(true)">🔄 Reload</button>
+          <button class="btn" onclick="AdminTab.saveSuperiors()">💾 Save Superiors</button>
+          <button class="btn btn-secondary" onclick="AdminTab.loadSuperiors(true)">🔄 Reload</button>
         </div>
         <div id="superiorsStatus" class="status"></div>
         <div id="superiorsSummary" style="font-size:12px; color:#b0b0b0; margin-bottom:8px; text-align:left;"></div>
@@ -839,26 +828,10 @@
         <h4 style="margin:16px 0 6px 0; text-align:left;">Extra e-mails</h4>
         <p style="color:#b0b0b0; font-size:12px; margin:0 0 8px 0; text-align:left;">Google logins with superior rights that aren't linked to a clan member. The note is just for you (e.g. who it is).</p>
         <div id="superiorEmailsList" style="border:1px solid #444; border-radius:8px; padding:10px; background:#232526; text-align:left;"></div>
-        <button class="btn btn-secondary" style="margin-top:8px;" onclick="MembersTab.addSuperiorEmail()">➕ Add e-mail</button>
+        <button class="btn btn-secondary" style="margin-top:8px;" onclick="AdminTab.addSuperiorEmail()">➕ Add e-mail</button>
       </div>
     </div>
-    <div id="memberTableSection" class="table-container">
-      <div id="memberLoading" class="loading" style="display:none;"><div class="spinner"></div>Loading members...</div>
-      <div id="memberError" class="error" style="display:none;"></div>
-      <table id="membersTable" style="display:none;">
-        <thead>
-          <tr>
-            <th class="sortable" data-column="name">Name</th>
-            <th class="sortable" data-column="heroLevel" title="Latest recorded hero level">Hero</th>
-            <th class="sortable" data-column="joinDate">Joined</th>
-            <th class="sortable" data-column="category" title="Troop Category">Cat</th>
-            <th class="sortable" data-column="troops" title="Guardsmen / Monsters / Specialists / Eng. Corps / Crypt">G/M/S/E/C</th>
-          </tr>
-        </thead>
-        <tbody id="membersTableBody"></tbody>
-      </table>
-      <div id="memberEmpty" style="display:none; text-align:center; padding:40px; color:#b0b0b0;">No members found</div>
-    </div>
+
   </div>
 
 
@@ -888,1055 +861,55 @@
       }
     }
 
-    // Admin page: setup and corrections that used to be on the Members page. The
-    // member list's elements stay (hidden): the shared code loads the members
-    // the tabs need (exemptions, accounts, superiors, transfers) into them.
+    // Admin page: setup and corrections that used to be on the Members page.
     window.addEventListener('DOMContentLoaded', () => {
-      MembersTab.init();
+      AdminTab.init();
       const tab = (location.hash || '').slice(1);
-      MembersTab.switchTab(tab && document.querySelector(`#members .tab[data-tab="${tab}"]`) ? tab : 'chestNameFixTab');
+      AdminTab.switchTab(tab && document.querySelector(`#members .tab[data-tab="${tab}"]`) ? tab : 'chestNameFixTab');
     });
 
-    const MembersTab = (() => {
+    // The Admin page's tabs (Penalty Exemptions, Member Login Accounts, Superiors,
+    // Link Former Members, Member Transfers) — the same code as on the Members page
+    // before; this page only loads the members' names, which those tabs need.
+    const AdminTab = (() => {
       let membersData = [];
-      let troopData = {};    // { lowerName: { G, M, S, E, C } }
-      let heroData = {};     // { lowerName: { level, timestamp } }
-      let loadedTroopLevels = {};
-      let filteredData = [];
-      let currentSort = { column: null, direction: 'asc' };
-      let chestPointsData = null;
-      let chestPointsLoadedAt = 0;
-      let chestPointsSortByName = null;
 
       function init() {
-        loadAllData();
-        setTodayDefault();
-        document.getElementById('memberSearchInput').addEventListener('input', (e) => filterMembers(e.target.value));
+        loadMembers();
         document.getElementById('exemptSearchInput')?.addEventListener('input', () => renderExemptList());
         document.getElementById('accountsSearchInput')?.addEventListener('input', () => renderMemberAccounts());
         document.getElementById('superiorsSearchInput')?.addEventListener('input', () => renderSuperiors());
         checkSuperiorsAccess();
-        initReturningAndTransfers();
-        document.querySelectorAll('#members th.sortable').forEach(th => {
-          th.addEventListener('click', () => sortTable(th.dataset.column));
-        });
+        initTransfers();
       }
 
-      // ➕ Add Member → Returning member, and 🔁 Member Transfers (member-transfers.js)
-      function initReturningAndTransfers() {
-        // (each only where its tab is: Add Member on members.html, the others on admin.html)
-        if (window.ReturningMember && document.getElementById('returningMemberForm')) {
-          window.ReturningMember.init({
-            container: 'returningMemberForm', newForm: 'newMemberForm', hint: 'returningMemberHint',
-            nameInput: 'newMemberNameInput', modeName: 'addMemberMode',
-            currentMembers: () => membersData.map(m => m.name),
-            onDone: () => {
-              loadAllData();
-              if (memberAccounts) loadMemberAccounts(true);
-              if (exemptSelection) loadExemptMembers(true);
-              if (superiors) loadSuperiors(true, true);
-            },
-          });
+      // The clan's members (names), from the Members page bundle
+      async function loadMembers() {
+        try {
+          const bundle = await postAction({ action: 'getMembersPageBundle' });
+          if (!bundle || bundle.success === false) throw new Error(bundle?.error || bundle?.message || 'Failed to load members');
+          membersData = bundle.members || [];
+          if (exemptSelection) renderExemptList();
+        } catch (error) {
+          console.error('Error loading members:', error);
         }
+      }
+
+      // 🔗 Link Former Members and 🔁 Member Transfers (member-transfers.js)
+      function initTransfers() {
+        const refresh = () => {
+          loadMembers();
+          if (memberAccounts) loadMemberAccounts(true);
+          if (exemptSelection) loadExemptMembers(true);
+          if (superiors) loadSuperiors(true, true);
+        };
         if (window.LinkFormer) {
-          window.LinkFormer.init({
-            container: 'linkFormerPanel',
-            currentMembers: () => membersData.map(m => m.name),
-            onDone: () => {
-              loadAllData();
-              if (memberAccounts) loadMemberAccounts(true);
-              if (exemptSelection) loadExemptMembers(true);
-              if (superiors) loadSuperiors(true, true);
-            },
-          });
+          window.LinkFormer.init({ container: 'linkFormerPanel', currentMembers: () => membersData.map(m => m.name), onDone: refresh });
         }
         if (window.MemberTransfers) {
-          window.MemberTransfers.init({ container: 'transfersPanel', badge: 'transfersTabBtn', onLevelsCopied: () => loadAllData() });
+          window.MemberTransfers.init({ container: 'transfersPanel', badge: 'transfersTabBtn', onLevelsCopied: refresh });
           setTimeout(() => window.MemberTransfers.check(), 1500); // waiting requests from other clans → count on the tab
         }
-      }
-
-      // ── Point Targets (server-backed with localStorage cache) ─────────
-      // Schema: { default: 7500, overrides: [ { player, period, points } ] }
-      const PT_KEY = 'ccc_point_targets';
-      let pointTargetsCache = null; // in-memory cache
-
-      function loadPointTargets() {
-        if (pointTargetsCache) return pointTargetsCache;
-        try {
-          const raw = JSON.parse(localStorage.getItem(PT_KEY) || '{"default":7500,"overrides":[]}');
-          if (!Array.isArray(raw.overrides)) raw.overrides = [];
-          pointTargetsCache = raw;
-          return raw;
-        } catch(e) { return { default: 7500, overrides: [] }; }
-      }
-      function savePointTargets(obj) {
-        pointTargetsCache = obj;
-        try { localStorage.setItem(PT_KEY, JSON.stringify(obj)); } catch(e) {}
-        // Persist to server (fire-and-forget)
-        fetch(window.GAS_WEB_APP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'savePointTargets', targets: obj })
-        }).catch(() => {});
-      }
-      function loadPointTargetsFromServer() {
-        return fetch(window.GAS_WEB_APP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'getPointTargets' })
-        })
-          .then(res => res.json())
-          .then(result => {
-            if (result && result.success !== false) {
-              const obj = { default: result.default || 7500, overrides: Array.isArray(result.overrides) ? result.overrides : [] };
-              pointTargetsCache = obj;
-              try { localStorage.setItem(PT_KEY, JSON.stringify(obj)); } catch(e) {}
-            }
-          })
-          .catch(() => {}); // fall back to localStorage cache
-      }
-      // Resolve target for a specific player+period; falls back to period-level target, then global default.
-      // periodTargetPoints: optional number from the period event's own target (from API response)
-      function getEffectiveTarget(playerName, periodName, periodTargetPoints) {
-        const pt = loadPointTargets();
-        const pkey = (playerName || '').toLowerCase().trim();
-        const perkey = (periodName || '').trim();
-        const match = (pt.overrides || []).find(o =>
-          o.player.toLowerCase() === pkey && o.period === perkey
-        );
-        if (match) return match.points;
-        // Use period-level target if set, otherwise global default
-        if (periodTargetPoints !== null && periodTargetPoints !== undefined && !isNaN(Number(periodTargetPoints)) && Number(periodTargetPoints) > 0) {
-          return Number(periodTargetPoints);
-        }
-        return pt.default || 7500;
-      }
-      // getPeriodTarget: returns the target for a specific period (period-level if set, else global default)
-      function getPeriodTarget(periodTargetPoints) {
-        if (periodTargetPoints !== null && periodTargetPoints !== undefined && !isNaN(Number(periodTargetPoints)) && Number(periodTargetPoints) > 0) {
-          return Number(periodTargetPoints);
-        }
-        return loadPointTargets().default || 7500;
-      }
-      function escapeHtmlMem(text) {
-        const d = document.createElement('div'); d.textContent = text; return d.innerHTML;
-      }
-      function togglePointTargetsPanel() {
-        const panel = document.getElementById('pointTargetsPanel');
-        if (!panel) return;
-        const open = panel.style.display !== 'none';
-        panel.style.display = open ? 'none' : 'block';
-        if (!open) renderPointTargetsPanel();
-      }
-      function populatePtSelects() {
-        const playerSel = document.getElementById('ptPlayerSelect');
-        if (playerSel) {
-          const current = playerSel.value;
-          playerSel.innerHTML = '<option value="">— select player —</option>';
-          const names = [...new Set(membersData.map(m => m.name || m.player || '').filter(Boolean))].sort();
-          names.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; playerSel.appendChild(o); });
-          if (current) playerSel.value = current;
-        }
-        const periodSel = document.getElementById('ptPeriodSelect');
-        if (periodSel) {
-          const current = periodSel.value;
-          periodSel.innerHTML = '<option value="">— select period —</option>';
-          const periods = Array.isArray(chestPointsData?.periods) ? chestPointsData.periods : [];
-          periods.forEach(p => { const o = document.createElement('option'); o.value = p.periodName; o.textContent = `${p.periodName} (${p.startDate} – ${p.endDate})`; periodSel.appendChild(o); });
-          if (current) periodSel.value = current;
-        }
-      }
-      function renderPointTargetsPanel() {
-        const pt = loadPointTargets();
-        const defInput = document.getElementById('ptDefaultInput');
-        if (defInput) defInput.value = pt.default || 7500;
-        populatePtSelects();
-        const list = document.getElementById('ptOverrideList');
-        if (!list) return;
-        const overrides = pt.overrides || [];
-        if (overrides.length === 0) {
-          list.innerHTML = '<p style="font-size:12px;color:#666;margin:0;">No overrides yet. Select a player and period above to add one.</p>';
-          return;
-        }
-        list.innerHTML = `<table id="ptOverrideTable" data-sortable data-sort-col="0" style="width:100%;border-collapse:collapse;font-size:12px;">
-          <thead><tr>
-            <th style="text-align:left;padding:4px 8px;color:#ffb300;border-bottom:1px solid #333;">Player</th>
-            <th style="text-align:left;padding:4px 8px;color:#ffb300;border-bottom:1px solid #333;">Period</th>
-            <th style="text-align:right;padding:4px 8px;color:#ffb300;border-bottom:1px solid #333;">Penalty pts</th>
-            <th style="text-align:right;padding:4px 8px;color:#ffb300;border-bottom:1px solid #333;">Target pts</th>
-            <th style="padding:4px 8px;border-bottom:1px solid #333;"></th>
-          </tr></thead>
-          <tbody>${overrides.map((o, i) =>
-            `<tr>
-              <td style="padding:4px 8px;color:#e0e0e0;border-bottom:1px solid #2a2a2a;">${escapeHtmlMem(o.player)}</td>
-              <td style="padding:4px 8px;color:#b0b0b0;border-bottom:1px solid #2a2a2a;">${escapeHtmlMem(o.period)}</td>
-              <td style="padding:4px 8px;text-align:right;border-bottom:1px solid #2a2a2a;color:${Number(o.penaltyPoints) > 0 ? '#ef5350' : '#666'};">${Number(o.penaltyPoints) > 0 ? '+' + Number(o.penaltyPoints).toLocaleString() : '—'}</td>
-              <td style="padding:4px 8px;text-align:right;border-bottom:1px solid #2a2a2a;">
-                <input type="number" value="${o.points}" min="0" step="100" data-idx="${i}"
-                  onchange="MembersTab.updatePtOverride(this)"
-                  style="width:80px;padding:2px 5px;border:1px solid #444;border-radius:4px;background:#1a1c1e;color:#e0e0e0;font-size:12px;">
-              </td>
-              <td style="padding:4px 8px;border-bottom:1px solid #2a2a2a;">
-                <button data-remove-idx="${i}" style="background:#c62828;color:#fff;border:none;border-radius:4px;padding:2px 7px;font-size:11px;cursor:pointer;">✕</button>
-              </td>
-            </tr>`
-          ).join('')}</tbody></table>`;
-        list.querySelectorAll('button[data-remove-idx]').forEach(btn => {
-          btn.addEventListener('click', function() { removePtOverride(parseInt(this.getAttribute('data-remove-idx'), 10)); });
-        });
-      }
-      function savePtDefault() {
-        const val = parseInt(document.getElementById('ptDefaultInput').value, 10);
-        if (isNaN(val) || val < 0) return;
-        const pt = loadPointTargets();
-        pt.default = val;
-        savePointTargets(pt);
-        renderChestPointsTable();
-      }
-      function addPtOverride() {
-        const player = (document.getElementById('ptPlayerSelect').value || '').trim();
-        const period = (document.getElementById('ptPeriodSelect').value || '').trim();
-        const pts = parseInt(document.getElementById('ptOverridePoints').value, 10);
-        if (!player || !period || isNaN(pts) || pts < 0) return;
-        const pt = loadPointTargets();
-        const idx = (pt.overrides || []).findIndex(o => o.player.toLowerCase() === player.toLowerCase() && o.period === period);
-        if (idx >= 0) { pt.overrides[idx].points = pts; }
-        else { pt.overrides.push({ player, period, points: pts }); }
-        savePointTargets(pt);
-        document.getElementById('ptOverridePoints').value = '';
-        renderPointTargetsPanel();
-        renderChestPointsTable();
-      }
-      function updatePtOverride(input) {
-        const idx = parseInt(input.getAttribute('data-idx'), 10);
-        const pts = parseInt(input.value, 10);
-        if (isNaN(idx) || isNaN(pts) || pts < 0) return;
-        const pt = loadPointTargets();
-        if (pt.overrides[idx]) { pt.overrides[idx].points = pts; savePointTargets(pt); renderChestPointsTable(); }
-      }
-      function removePtOverride(idx) {
-        const pt = loadPointTargets();
-        pt.overrides.splice(idx, 1);
-        savePointTargets(pt);
-        renderPointTargetsPanel();
-        renderChestPointsTable();
-      }
-      // ──────────────────────────────────────────────────────────────────────
-
-      async function loadChestPointsTabData(forceRefresh = false) {
-        // Load point targets from server (updates localStorage cache)
-        await loadPointTargetsFromServer();
-
-        const loading = document.getElementById('chestPointsLoading');
-        const error = document.getElementById('chestPointsError');
-        const table = document.getElementById('chestPointsTable');
-        const empty = document.getElementById('chestPointsEmpty');
-        if (!loading || !error || !table || !empty) return;
-
-        const cacheAgeMs = Date.now() - chestPointsLoadedAt;
-        if (!forceRefresh && chestPointsData && cacheAgeMs < 21600000) {
-          error.style.display = 'none';
-          renderChestPointsTable();
-          return;
-        }
-
-        loading.style.display = 'block';
-        error.style.display = 'none';
-        table.style.display = 'none';
-        empty.style.display = 'none';
-
-        try {
-          const res = await fetch(window.GAS_WEB_APP_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'getRecentActivePeriodChestPoints', limitPeriods: 5, targetPoints: loadPointTargets().default || 7500 })
-          });
-          const result = await res.json();
-
-          if (!result || !result.success) {
-            throw new Error(result?.message || 'Failed to load chest points');
-          }
-
-          chestPointsData = result;
-          chestPointsLoadedAt = Date.now();
-          renderChestPointsTable();
-        } catch (e) {
-          error.textContent = `Error: ${e.message || e}`;
-          error.style.display = 'block';
-        } finally {
-          loading.style.display = 'none';
-        }
-      }
-
-      function renderChestPointsTable() {
-        const header = document.getElementById('chestPointsHeader');
-        const body = document.getElementById('chestPointsBody');
-        const table = document.getElementById('chestPointsTable');
-        const empty = document.getElementById('chestPointsEmpty');
-        const meta = document.getElementById('chestPointsMeta');
-        if (!header || !body || !table || !empty || !meta) return;
-
-        const periods = Array.isArray(chestPointsData?.periods) ? chestPointsData.periods : [];
-        const membersRaw = Array.isArray(chestPointsData?.members) ? chestPointsData.members : [];
-
-        const defaultTgt = loadPointTargets().default || 7500;
-        meta.textContent = `Default target: ${defaultTgt} points (green ≥ target, orange ≥ 90%, red below). Per-period or per-player overrides may apply. '-' = not a member in that period, '*' = joined during that period.`;
-
-        if (periods.length === 0 || membersRaw.length === 0) {
-          table.style.display = 'none';
-          empty.style.display = 'block';
-          empty.textContent = 'No active period data available';
-          return;
-        }
-
-        const toYmd = (value) => {
-          if (!value) return '';
-          const str = String(value).trim();
-          if (!str) return '';
-
-          const normalizeYmd = (rawYmd) => {
-            const match = String(rawYmd || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-            if (!match) return '';
-
-            const year = parseInt(match[1], 10);
-            const first = parseInt(match[2], 10);
-            const second = parseInt(match[3], 10);
-
-            const isValidDate = (y, m, d) => {
-              const dt = new Date(Date.UTC(y, m - 1, d));
-              return dt.getUTCFullYear() === y && dt.getUTCMonth() === (m - 1) && dt.getUTCDate() === d;
-            };
-
-            if (isValidDate(year, first, second)) {
-              return `${year}-${String(first).padStart(2, '0')}-${String(second).padStart(2, '0')}`;
-            }
-            if (isValidDate(year, second, first)) {
-              return `${year}-${String(second).padStart(2, '0')}-${String(first).padStart(2, '0')}`;
-            }
-            return '';
-          };
-
-          const ymdDirect = normalizeYmd(str);
-          if (ymdDirect) return ymdDirect;
-
-          const isoMatch = str.match(/^(\d{4}-\d{2}-\d{2})/);
-          if (isoMatch) {
-            const normalizedIso = normalizeYmd(isoMatch[1]);
-            if (normalizedIso) return normalizedIso;
-          }
-
-          const date = parseDateUTC(str);
-          if (!date || Number.isNaN(date.getTime())) return '';
-          const y = date.getUTCFullYear();
-          const m = String(date.getUTCMonth() + 1).padStart(2, '0');
-          const d = String(date.getUTCDate()).padStart(2, '0');
-          return `${y}-${m}-${d}`;
-        };
-
-
-
-        const toYmdMemberJoinDate = (value) => {
-          if (!value) return '';
-          const str = String(value).trim();
-          if (!str) return '';
-          const ymdMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-          if (ymdMatch) {
-            const year = parseInt(ymdMatch[1], 10);
-            const first = parseInt(ymdMatch[2], 10);
-            const second = parseInt(ymdMatch[3], 10);
-            const isValidDate = (y, m, d) => {
-              const dt = new Date(Date.UTC(y, m - 1, d));
-              return dt.getUTCFullYear() === y && dt.getUTCMonth() === (m - 1) && dt.getUTCDate() === d;
-            };
-            if (isValidDate(year, first, second)) {
-              return `${year}-${String(first).padStart(2, '0')}-${String(second).padStart(2, '0')}`;
-            }
-            if (isValidDate(year, second, first)) {
-              return `${year}-${String(second).padStart(2, '0')}-${String(first).padStart(2, '0')}`;
-            }
-          }
-          return toYmd(str);
-        };
-
-        const members = [...membersRaw].sort((a, b) => {
-          if (chestPointsSortByName) {
-            const cmp = String(a.member || '').localeCompare(String(b.member || ''));
-            return chestPointsSortByName === 'desc' ? -cmp : cmp;
-          }
-          const aResults = Array.isArray(a.periodResults) ? a.periodResults : [];
-          const bResults = Array.isArray(b.periodResults) ? b.periodResults : [];
-          const aJoinDate = toYmdMemberJoinDate(a.joinDate);
-          const bJoinDate = toYmdMemberJoinDate(b.joinDate);
-
-          const aMissedCount = aResults.reduce((count, r, idx) => {
-            const period = periods[idx] || {};
-            const periodEnd = toYmd(period.endDate);
-            const isMemberDuringPeriod = !aJoinDate || !periodEnd || aJoinDate <= periodEnd;
-            if (!isMemberDuringPeriod) return count;
-            const tgt = getEffectiveTarget(a.member, period.periodName, period.targetPoints);
-            return count + (Number(r?.points || 0) < tgt ? 1 : 0);
-          }, 0);
-          const bMissedCount = bResults.reduce((count, r, idx) => {
-            const period = periods[idx] || {};
-            const periodEnd = toYmd(period.endDate);
-            const isMemberDuringPeriod = !bJoinDate || !periodEnd || bJoinDate <= periodEnd;
-            if (!isMemberDuringPeriod) return count;
-            const tgt = getEffectiveTarget(b.member, period.periodName, period.targetPoints);
-            return count + (Number(r?.points || 0) < tgt ? 1 : 0);
-          }, 0);
-
-          if (aMissedCount !== bMissedCount) return bMissedCount - aMissedCount;
-
-          const aTotal = aResults.reduce((sum, r, idx) => {
-            const period = periods[idx] || {};
-            const periodEnd = toYmd(period.endDate);
-            const isMemberDuringPeriod = !aJoinDate || !periodEnd || aJoinDate <= periodEnd;
-            return isMemberDuringPeriod ? (sum + Number(r?.points || 0)) : sum;
-          }, 0);
-          const bTotal = bResults.reduce((sum, r, idx) => {
-            const period = periods[idx] || {};
-            const periodEnd = toYmd(period.endDate);
-            const isMemberDuringPeriod = !bJoinDate || !periodEnd || bJoinDate <= periodEnd;
-            return isMemberDuringPeriod ? (sum + Number(r?.points || 0)) : sum;
-          }, 0);
-          if (aTotal !== bTotal) return aTotal - bTotal;
-
-          return String(a.member || '').localeCompare(String(b.member || ''));
-        });
-
-        header.innerHTML = '';
-        const memberTh = document.createElement('th');
-        memberTh.textContent = 'Member';
-        memberTh.className = 'sortable' + (chestPointsSortByName ? ' sorted-' + chestPointsSortByName : '');
-        memberTh.addEventListener('click', () => {
-          if (!chestPointsSortByName) chestPointsSortByName = 'asc';
-          else if (chestPointsSortByName === 'asc') chestPointsSortByName = 'desc';
-          else chestPointsSortByName = null;
-          renderChestPointsTable();
-        });
-        header.appendChild(memberTh);
-        periods.forEach(period => {
-          const th = document.createElement('th');
-          const periodTgt = getPeriodTarget(period.targetPoints);
-          th.textContent = `${period.periodName} (${period.startDate} - ${period.endDate}) · ${periodTgt.toLocaleString()} pts`;
-          header.appendChild(th);
-        });
-
-        body.innerHTML = '';
-        members.forEach(memberRow => {
-          const row = document.createElement('tr');
-          const firstCell = document.createElement('td');
-          const periodResults = Array.isArray(memberRow.periodResults) ? memberRow.periodResults : [];
-          const joinDate = toYmdMemberJoinDate(memberRow.joinDate);
-          const firstPeriodStart = toYmd(periods[0]?.startDate);
-          const joinedAfterPeriodStart = !!joinDate && !!firstPeriodStart && joinDate > firstPeriodStart;
-          let eligibleCount = 0;
-          let allMissed = true;
-          periodResults.forEach((result, idx) => {
-            const period = periods[idx] || {};
-            const periodEnd = toYmd(period.endDate);
-            const isEligible = !joinDate || !periodEnd || joinDate <= periodEnd;
-            if (!isEligible) return;
-            eligibleCount++;
-            if (Number(result?.points || 0) >= getEffectiveTarget(memberRow.member, period.periodName, period.targetPoints)) {
-              allMissed = false;
-            }
-          });
-          const missedAllGoals = eligibleCount > 0 && allMissed;
-
-          firstCell.className = `member-name${missedAllGoals ? ' missed-all-goals' : ''}`;
-          firstCell.textContent = joinedAfterPeriodStart
-            ? `${memberRow.member || ''} (Joined ${joinDate})`
-            : (memberRow.member || '');
-          row.appendChild(firstCell);
-
-          periods.forEach((period, idx) => {
-            const data = periodResults[idx] || { points: 0, status: 'red' };
-            const td = document.createElement('td');
-            const periodStart = toYmd(period?.startDate);
-            const periodEnd = toYmd(period?.endDate);
-            const isMemberDuringPeriod = !joinDate || !periodEnd || joinDate <= periodEnd;
-            const joinedDuringPeriod = !!joinDate && !!periodStart && !!periodEnd && joinDate >= periodStart && joinDate <= periodEnd;
-
-            if (!isMemberDuringPeriod) {
-              td.className = 'points-cell points-na';
-              td.textContent = '-';
-            } else {
-              const cellPts = Number(data.points || 0);
-              const cellTgt = getEffectiveTarget(memberRow.member, period.periodName, period.targetPoints);
-              const cellStatus = cellPts >= cellTgt ? 'green' : (cellPts >= cellTgt * 0.9 ? 'orange' : 'red');
-              td.className = `points-cell points-${cellStatus}`;
-              const pointsText = cellPts.toLocaleString();
-              td.textContent = joinedDuringPeriod ? `${pointsText}*` : pointsText;
-            }
-            row.appendChild(td);
-          });
-
-          body.appendChild(row);
-        });
-
-        empty.style.display = 'none';
-        table.style.display = 'table';
-      }
-
-      async function loadAllData() {
-        showLoading();
-        try {
-          const t0 = performance.now();
-          const res = await fetch(window.GAS_WEB_APP_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'getMembersPageBundle' })
-          });
-          const bundle = await res.json();
-          console.log('[PERF] Members page bundle: %dms | Edge cache: %s',
-            Math.round(performance.now() - t0),
-            res.headers.get('X-Cache') || 'N/A');
-
-          if (!bundle || bundle.success === false) {
-            onError({ message: bundle?.error || bundle?.message || 'Failed to load members' });
-            return;
-          }
-          membersData = bundle.members || [];
-
-          // Process troop data
-          troopData = {};
-          (bundle.troops || []).forEach(entry => {
-            const name = (entry.playerName || '').trim();
-            if (name) {
-              troopData[name.toLowerCase()] = {
-                G: entry.G_currentLevel ?? null,
-                M: entry.M_currentLevel ?? null,
-                S: entry.S_currentLevel ?? null,
-                E: entry.E_currentLevel ?? null,
-                C: entry.C_currentLevel ?? null
-              };
-            }
-          });
-
-          // Process hero data
-          heroData = {};
-          (bundle.heroes || []).forEach(entry => {
-            const name = (entry.playerName || '').trim();
-            if (name) heroData[name.toLowerCase()] = { level: entry.level, timestamp: entry.timestamp };
-          });
-
-          filteredData = [...membersData];
-          filteredData.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-          currentSort = { column: 'name', direction: 'asc' };
-          populateMemberSelect();
-          if (membersData.length === 0) { showEmpty(); return; }
-          updateStats();
-          renderTable();
-          const nameHeader = document.querySelector('#members th[data-column="name"]');
-          if (nameHeader) nameHeader.classList.add('sorted-asc');
-          showTable();
-        } catch (error) { onError(error); }
-      }
-
-      function onError(error) {
-        console.error('Error loading members:', error);
-        document.getElementById('memberError').textContent = 'Error: ' + error.message;
-        document.getElementById('memberError').style.display = 'block';
-        document.getElementById('memberLoading').style.display = 'none';
-      }
-
-      function updateStats() {
-        document.getElementById('memberTotal').textContent = membersData.length.toLocaleString();
-
-        // Count troop categories
-        const catCounts = { T9: 0, G9: 0, T8: 0, G8: 0 };
-        membersData.forEach(m => {
-          const t = troopData[(m.name || '').toLowerCase()] || {};
-          const cat = determineTroopCategory(t.G, t.M, t.S);
-          if (cat && catCounts[cat] !== undefined) catCounts[cat]++;
-        });
-        document.getElementById('statT9').textContent = catCounts.T9;
-        document.getElementById('statG9').textContent = catCounts.G9;
-        document.getElementById('statT8').textContent = catCounts.T8;
-        document.getElementById('statG8').textContent = catCounts.G8;
-
-        // Top hero
-        let topHeroName = '';
-        let topHeroLevel = 0;
-        membersData.forEach(m => {
-          const h = heroData[(m.name || '').toLowerCase()];
-          if (h && h.level != null && h.level > topHeroLevel) {
-            topHeroLevel = h.level;
-            topHeroName = m.name;
-          }
-        });
-        const topEl = document.getElementById('statTopHero');
-        topEl.textContent = topHeroName ? `${topHeroName} (${topHeroLevel})` : '-';
-        topEl.title = topHeroName ? `${topHeroName}: Hero Level ${topHeroLevel}` : '';
-      }
-
-      function filterMembers(searchTerm) {
-        const term = searchTerm.toLowerCase().trim();
-        filteredData = term ? membersData.filter(m => m.name.toLowerCase().includes(term)) : [...membersData];
-        renderTable();
-        if (filteredData.length === 0) showEmpty();
-        else showTable();
-      }
-
-      // Troop category order for sorting (low → high)
-      const CATEGORY_ORDER = [null, 'G4', 'G5', 'G6', 'G7', 'T7', 'G8', 'T8', 'G9', 'T9'];
-
-      function determineTroopCategory(gLevel, mLevel, sLevel) {
-        const g = Number(gLevel); const m = Number(mLevel); const s = Number(sLevel);
-        const hasG = !isNaN(g) && g > 0; const hasM = !isNaN(m) && m > 0; const hasS = !isNaN(s) && s > 0;
-        if (!hasG) return null;
-        if (g >= 9 && hasM && m >= 9 && hasS && s >= 9) return 'T9';
-        if (g >= 9) return 'G9';
-        if (g >= 8 && hasM && m >= 8 && hasS && s >= 8) return 'T8';
-        if (g >= 8) return 'G8';
-        if (g >= 7 && hasM && m >= 7 && hasS && s >= 7) return 'T7';
-        if (g >= 7) return 'G7';
-        if (g >= 6) return 'G6';
-        if (g >= 5) return 'G5';
-        if (g >= 4) return 'G4';
-        return null;
-      }
-
-      function categoryBadge(cat) {
-        if (!cat) return '<span style="color:#666">—</span>';
-        const colors = {
-          G4: { bg: '#616161', fg: '#e0e0e0' }, G5: { bg: '#616161', fg: '#e0e0e0' },
-          G6: { bg: '#f9a825', fg: '#1a1a1a' }, G7: { bg: '#e65100', fg: '#ffffff' },
-          T7: { bg: '#c62828', fg: '#ffffff' }, G8: { bg: '#00838f', fg: '#ffffff' },
-          T8: { bg: '#1565c0', fg: '#ffffff' }, G9: { bg: '#ab47bc', fg: '#ffffff' },
-          T9: { bg: '#6a1b9a', fg: '#ffffff' }
-        };
-        const c = colors[cat] || { bg: '#424242', fg: '#e0e0e0' };
-        return `<span class="troop-category" style="background:${c.bg};color:${c.fg}">${cat}</span>`;
-      }
-
-      function troopBadge(type, level) {
-        if (!level && level !== 0) return '<span style="color:#666">—</span>';
-        const n = Number(level) || 0;
-        let cls;
-        if (type === 'c') {
-          // Crypt: 1-15 red, 16-20 orange, 21-25 yellow, 26-30 green, 31-35 purple, 36+ pink
-          if (n >= 36) cls = 'lvl-pink';
-          else if (n >= 31) cls = 'lvl-purple';
-          else if (n >= 26) cls = 'lvl-green';
-          else if (n >= 21) cls = 'lvl-yellow';
-          else if (n >= 16) cls = 'lvl-orange';
-          else cls = 'lvl-red';
-        } else {
-          // G/M/S/E: 1-5 red, 6 orange, 7 yellow, 8 green, 9 purple, 10+ pink
-          if (n >= 10) cls = 'lvl-pink';
-          else if (n >= 9) cls = 'lvl-purple';
-          else if (n >= 8) cls = 'lvl-green';
-          else if (n >= 7) cls = 'lvl-yellow';
-          else if (n >= 6) cls = 'lvl-orange';
-          else cls = 'lvl-red';
-        }
-        return `<span class="troop-badge ${cls}">${level}</span>`;
-      }
-
-      function troopCell(troops) {
-        const vals = [troops.G, troops.M, troops.S, troops.E, troops.C];
-        if (vals.every(v => v == null)) return '<span style="color:#666">—</span>';
-        const sep = '<span style="color:#555;font-size:0.7em">/</span>';
-        return troopBadge('g', troops.G) + sep + troopBadge('m', troops.M) + sep + troopBadge('s', troops.S) + sep + troopBadge('e', troops.E) + sep + troopBadge('c', troops.C);
-      }
-
-      function getHeroBg(lvl) {
-        if (lvl > 500) return '#4a148c'; if (lvl > 400) return '#0d47a1';
-        if (lvl > 300) return '#1b5e20'; if (lvl > 200) return '#fbc02d';
-        if (lvl > 100) return '#37474f'; return '#4e342e';
-      }
-      function getHeroFg(lvl) {
-        if (lvl > 500) return '#e1bee7'; if (lvl > 400) return '#bbdefb';
-        if (lvl > 300) return '#c8e6c9'; if (lvl > 200) return '#3e2723';
-        if (lvl > 100) return '#eceff1'; return '#d7ccc8';
-      }
-
-      function sortTable(column) {
-        if (currentSort.column === column) {
-          currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-        } else {
-          currentSort.column = column;
-          currentSort.direction = 'asc';
-        }
-        filteredData.sort((a, b) => {
-          let aVal, bVal;
-          const keyA = (a.name || '').toLowerCase();
-          const keyB = (b.name || '').toLowerCase();
-          const tA = troopData[keyA] || {};
-          const tB = troopData[keyB] || {};
-          const hA = heroData[keyA];
-          const hB = heroData[keyB];
-          switch (column) {
-            case 'name': aVal = keyA; bVal = keyB; break;
-            case 'joinDate': aVal = parseDateUTC(a.joinDate); bVal = parseDateUTC(b.joinDate); break;
-            case 'heroLevel':
-              aVal = hA ? hA.level : -1; bVal = hB ? hB.level : -1; break;
-            case 'category':
-              aVal = CATEGORY_ORDER.indexOf(determineTroopCategory(tA.G, tA.M, tA.S));
-              bVal = CATEGORY_ORDER.indexOf(determineTroopCategory(tB.G, tB.M, tB.S));
-              break;
-            case 'troops':
-              aVal = (tA.G || 0) + (tA.M || 0) + (tA.S || 0) + (tA.E || 0) + (tA.C || 0);
-              bVal = (tB.G || 0) + (tB.M || 0) + (tB.S || 0) + (tB.E || 0) + (tB.C || 0);
-              break;
-            default: aVal = 0; bVal = 0;
-          }
-          if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
-          if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
-          return 0;
-        });
-        document.querySelectorAll('#members th.sortable').forEach(th => th.classList.remove('sorted-asc', 'sorted-desc'));
-        const currentTh = document.querySelector(`#members th[data-column="${column}"]`);
-        if (currentTh) currentTh.classList.add(`sorted-${currentSort.direction}`);
-        renderTable();
-      }
-
-      function renderTable() {
-        const tbody = document.getElementById('membersTableBody');
-        tbody.innerHTML = '';
-        filteredData.forEach(member => {
-          const key = (member.name || '').toLowerCase();
-          const troops = troopData[key] || {};
-          const hero = heroData[key];
-          const row = document.createElement('tr');
-          const heroHtml = hero && hero.level != null
-            ? `<span style="display:inline-block;padding:1px 5px;border-radius:8px;font-size:10px;font-weight:700;background:${getHeroBg(hero.level)};color:${getHeroFg(hero.level)};" title="Updated: ${hero.timestamp ? cccDateTime(hero.timestamp) : '?'}">${hero.level}</span>`
-            : '<span style="color:#666">—</span>';
-          const cat = determineTroopCategory(troops.G, troops.M, troops.S);
-          row.innerHTML = `<td class="member-name">${escapeHtml(member.name)}</td><td style="text-align:center;">${heroHtml}</td><td class="date-value">${formatDate(member.joinDate)}</td><td style="text-align:center">${categoryBadge(cat)}</td><td style="text-align:center;white-space:nowrap;">${troopCell(troops)}</td>`;
-          tbody.appendChild(row);
-        });
-      }
-
-      function populateMemberSelect() {
-        const heroSelect = document.getElementById('heroMemberSelect');
-        const troopSelect = document.getElementById('troopMemberSelect');
-        const oldSelect = document.getElementById('oldMemberSelect');
-        const removeSelect = document.getElementById('removeMemberSelect');
-        if (!membersData || membersData.length === 0) {
-          const empty = '<option value="">-- No members --</option>';
-          [heroSelect, troopSelect, oldSelect, removeSelect].forEach(sel => { if (sel) sel.innerHTML = empty; });
-          return;
-        }
-        const sorted = [...membersData].sort((a, b) => a.name.localeCompare(b.name));
-        const options = ['<option value="">-- Select member --</option>'].concat(sorted.map(m => `<option value="${escapeHtml(m.name)}">${escapeHtml(m.name)}</option>`)).join('');
-        [heroSelect, troopSelect, oldSelect, removeSelect].forEach(sel => { if (sel) sel.innerHTML = options; });
-      }
-
-      function setTodayDefault() {
-        const today = getTodayUTCString();
-        ['troopDateInput', 'heroLevelDate', 'joinDate', 'endDate'].forEach(id => {
-          const el = document.getElementById(id);
-          if (el) el.value = today;
-        });
-      }
-
-      function loadMemberTroops() {
-        const name = document.getElementById('troopMemberSelect').value;
-        const key = name ? name.toLowerCase() : '';
-        const troops = troopData[key] || {};
-        loadedTroopLevels = { ...troops };
-        ['G', 'S', 'M', 'E', 'C'].forEach(t => {
-          document.getElementById('troop' + t).value = troops[t] || '';
-        });
-      }
-
-      async function submitAllTroops() {
-        const playerName = document.getElementById('troopMemberSelect').value;
-        const date = document.getElementById('troopDateInput').value;
-        const notes = document.getElementById('troopNotesInput').value.trim();
-        const status = document.getElementById('troopStatus');
-        status.textContent = ''; status.className = 'status';
-        if (!playerName) { status.textContent = 'Please select a member.'; status.className = 'status err'; return; }
-        const customTimestamp = date ? date + 'T12:00:00Z' : null;
-        const types = ['G', 'S', 'M', 'E', 'C'];
-        const changes = [];
-        for (const t of types) {
-          const raw = document.getElementById('troop' + t).value;
-          if (raw === '') continue;
-          const level = parseInt(raw, 10);
-          const isC = t === 'C';
-          if (isNaN(level) || (isC ? (level < 1 || level > 500) : (level < 3 || level > 9))) {
-            status.textContent = `${t}: ${isC ? 'must be 1-500' : 'must be 3-9'}.`;
-            status.className = 'status err'; return;
-          }
-          if (level !== (loadedTroopLevels[t] || 0)) changes.push({ type: t, level });
-        }
-        if (changes.length === 0) { status.textContent = 'No changes detected.'; status.className = 'status err'; return; }
-        status.textContent = `Saving ${changes.length} change(s)...`;
-        try {
-          const results = await Promise.all(
-            changes.map(c =>
-              fetch(window.GAS_WEB_APP_URL, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'addTroopEntry', playerName, troopType: c.type, troopLevel: c.level, notes, customTimestamp })
-              }).then(r => r.json())
-            )
-          );
-          const ok = results.filter(r => r && r.success).length;
-          const fail = results.length - ok;
-          // Optimistic update
-          const key = playerName.toLowerCase();
-          if (!troopData[key]) troopData[key] = {};
-          changes.forEach(c => { troopData[key][c.type] = c.level; });
-          loadedTroopLevels = { ...troopData[key] };
-          renderTable();
-          status.textContent = fail ? `${ok} saved, ${fail} failed.` : `${ok} troop level(s) updated for ${playerName}.`;
-          status.className = fail ? 'status err' : 'status ok';
-          document.getElementById('troopNotesInput').value = '';
-        } catch (err) {
-          status.textContent = 'Error: ' + err.message;
-          status.className = 'status err';
-        }
-      }
-
-      function submitHeroLevelEntry() {
-        const playerName = document.getElementById('heroMemberSelect').value;
-        const levelRaw = document.getElementById('heroLevelValue').value;
-        const date = document.getElementById('heroLevelDate').value;
-        const status = document.getElementById('heroLevelStatus');
-        status.textContent = '';
-        status.className = 'status';
-        if (!playerName) { status.textContent = 'Please select a member.'; status.classList.add('err'); return; }
-        const level = parseInt(levelRaw, 10);
-        if (isNaN(level) || level < 0) { status.textContent = 'Enter a valid hero level (0 or higher).'; status.classList.add('err'); return; }
-        status.textContent = 'Saving...';
-        const customTimestamp = date ? date + 'T12:00:00Z' : null;
-        fetch(window.GAS_WEB_APP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'recordHeroLevel', playerName, level, customTimestamp })
-        })
-          .then(res => res.json())
-          .then(result => {
-            if (result && result.success) {
-              status.textContent = result.message || `Hero level ${level} saved for ${playerName}.`;
-              status.classList.add('ok');
-              document.getElementById('heroLevelValue').value = '';
-              document.getElementById('heroMemberSelect').focus();
-              // Optimistic update in local data
-              heroData[playerName.toLowerCase()] = { level, timestamp: date || new Date().toISOString() };
-              renderTable();
-            } else {
-              status.textContent = result?.message || 'Failed to save.';
-              status.classList.add('err');
-            }
-          })
-          .catch(error => { status.textContent = `Error: ${error.message}`; status.classList.add('err'); });
-      }
-
-      // ── Hero Level Batch Entry ──
-      let heroBatchQueue = {};
-
-      const escapeAttr = (str) => String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-
-      function toggleHeroBatch() {
-        const panel = document.getElementById('heroBatchPanel');
-        if (!panel) return;
-        const isVisible = panel.style.display !== 'none';
-        if (isVisible) { panel.style.display = 'none'; return; }
-        panel.style.display = 'block';
-        heroBatchQueue = {};
-        document.getElementById('heroBatchStatus').textContent = '';
-        renderHeroBatchTable();
-        document.getElementById('heroMemberSelect').focus();
-      }
-
-      function renderHeroBatchTable() {
-        const tbody = document.getElementById('heroBatchBody');
-        if (!tbody) return;
-        const countEl = document.getElementById('heroBatchCount');
-        const queuedKeys = Object.keys(heroBatchQueue);
-        if (countEl) countEl.textContent = queuedKeys.length;
-        if (queuedKeys.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:20px;color:#888;">No entries queued yet. Use the Member dropdown above and press Enter.</td></tr>';
-          return;
-        }
-        let html = '';
-        queuedKeys.forEach(key => {
-          const entry = heroBatchQueue[key];
-          html += '<tr>'
-            + '<td style="padding:4px 8px;">' + escapeHtml(entry.name) + '</td>'
-            + '<td style="text-align:center;padding:4px 8px;color:#81c784;font-weight:700;">' + entry.level + '</td>'
-            + '<td style="text-align:center;padding:4px 8px;"><button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="MembersTab.removeHeroBatchEntry(\'' + escapeAttr(key) + '\')">✖</button></td>'
-            + '</tr>';
-        });
-        tbody.innerHTML = html;
-      }
-
-      function addToHeroBatch() {
-        const status = document.getElementById('heroLevelStatus');
-        status.textContent = ''; status.className = 'status';
-        const memberSel = document.getElementById('heroMemberSelect');
-        const levelInput = document.getElementById('heroLevelValue');
-        const memberName = memberSel.value;
-        const level = parseInt(levelInput.value, 10);
-        if (!memberName) { status.textContent = 'Select a member.'; status.classList.add('err'); return; }
-        if (isNaN(level) || level < 0) { status.textContent = 'Enter a valid hero level.'; status.classList.add('err'); return; }
-        heroBatchQueue[memberName.toLowerCase()] = { name: memberName, level: level };
-        status.textContent = '\u2713 Queued: ' + memberName + ' \u2192 Level ' + level;
-        status.classList.add('ok');
-        levelInput.value = '';
-        memberSel.value = '';
-        memberSel.focus();
-        renderHeroBatchTable();
-      }
-
-      function removeHeroBatchEntry(key) {
-        delete heroBatchQueue[key];
-        renderHeroBatchTable();
-      }
-
-      function saveHeroBatchEntries() {
-        const status = document.getElementById('heroBatchStatus');
-        status.textContent = ''; status.className = 'status';
-        const keys = Object.keys(heroBatchQueue);
-        if (keys.length === 0) { status.textContent = 'No entries queued.'; status.classList.add('err'); return; }
-        const date = document.getElementById('heroLevelDate').value;
-        const customTimestamp = date ? date + 'T12:00:00Z' : null;
-        const records = keys.map(k => ({ playerName: heroBatchQueue[k].name, level: heroBatchQueue[k].level }));
-        status.textContent = 'Saving ' + records.length + ' entries...';
-        fetch(window.GAS_WEB_APP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'batchRecordHeroLevel', records, customTimestamp })
-        }).then(res => res.json()).then(result => {
-          if (result && result.success !== false) {
-            status.textContent = 'Saved ' + (result.successCount || records.length) + ' hero level entries!';
-            status.classList.add('ok');
-            // Optimistic update for all queued entries
-            keys.forEach(k => {
-              const entry = heroBatchQueue[k];
-              heroData[entry.name.toLowerCase()] = { level: entry.level, timestamp: date || new Date().toISOString() };
-            });
-            renderTable();
-            updateStats();
-            heroBatchQueue = {};
-            renderHeroBatchTable();
-          } else {
-            status.textContent = result?.message || 'Failed to save.';
-            status.classList.add('err');
-          }
-        }).catch(error => { status.textContent = 'Error: ' + error.message; status.classList.add('err'); });
-      }
-
-      function submitAddMember() {
-        const name = document.getElementById('newMemberNameInput').value.trim();
-        const joinDate = document.getElementById('joinDate').value;
-        const status = document.getElementById('addMemberStatus');
-        status.textContent = '';
-        status.className = 'status';
-        if (!name) { status.textContent = 'Please enter a name.'; status.classList.add('err'); return; }
-        if (!joinDate) { status.textContent = 'Please select a join date.'; status.classList.add('err'); return; }
-        status.textContent = 'Adding member...';
-        fetch(window.GAS_WEB_APP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'addMember', name, joinDate })
-        })
-          .then(res => res.json())
-          .then(result => {
-            if (result && result.success) {
-              status.textContent = `Added "${name}".`;
-              status.classList.add('ok');
-              document.getElementById('newMemberNameInput').value = '';
-              const newMember = { name: name, joinDate: joinDate };
-              membersData.push(newMember);
-              filteredData = [...membersData];
-              populateMemberSelect();
-              renderTable();
-              updateStats();
-            } else {
-              status.textContent = result?.message || 'Failed to add.';
-              status.classList.add('err');
-            }
-          })
-          .catch(error => {
-            status.textContent = `Error: ${error.message}`;
-            status.classList.add('err');
-          });
-      }
-
-      function submitNameChange() {
-        const oldName = document.getElementById('oldMemberSelect').value;
-        const newName = document.getElementById('newMemberName').value.trim();
-        const status = document.getElementById('nameChangeStatus');
-        status.textContent = '';
-        status.className = 'status';
-        if (!oldName) { status.textContent = 'Please select a member.'; status.classList.add('err'); return; }
-        if (!newName) { status.textContent = 'Please enter a new name.'; status.classList.add('err'); return; }
-        if (oldName === newName) { status.textContent = 'Names are the same.'; status.classList.add('err'); return; }
-        status.textContent = 'Updating name...';
-        fetch(window.GAS_WEB_APP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'updateMemberName', oldName, newName })
-        })
-          .then(res => res.json())
-          .then(result => {
-            if (result && result.success) {
-              status.textContent = result.message || `Updated "${oldName}" to "${newName}".`;
-              status.classList.add('ok');
-              document.getElementById('newMemberName').value = '';
-              // Update client-side state immediately
-              const idx = membersData.findIndex(m => m.name === oldName);
-              if (idx >= 0) membersData[idx].name = newName;
-              filteredData = [...membersData];
-              populateMemberSelect();
-              renderTable();
-              // the server renamed them everywhere: reload the lists already shown with the old name
-              if (memberAccounts) loadMemberAccounts(true);
-              if (exemptSelection) loadExemptMembers(true);
-              if (superiors) loadSuperiors(true, true);
-            } else {
-              status.textContent = result?.message || 'Failed to update.';
-              status.classList.add('err');
-            }
-          })
-          .catch(error => {
-            status.textContent = `Error: ${error.message}`;
-            status.classList.add('err');
-          });
-      }
-
-      function submitRemoveMember() {
-        const memberName = document.getElementById('removeMemberSelect').value;
-        const endDate = document.getElementById('endDate').value;
-        const remarks = (document.getElementById('removeRemarks')?.value || '').trim();
-        const status = document.getElementById('removeMemberStatus');
-        status.textContent = '';
-        status.className = 'status';
-        if (!memberName) { status.textContent = 'Please select a member.'; status.classList.add('err'); return; }
-        if (!endDate) { status.textContent = 'Please select an end date.'; status.classList.add('err'); return; }
-        status.textContent = 'Removing member...';
-        fetch(window.GAS_WEB_APP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'disableMember', memberName, endDate, remarks })
-        })
-          .then(res => res.json())
-          .then(result => {
-            if (result && result.success) {
-              status.textContent = result.message || `Removed "${memberName}".`;
-              status.classList.add('ok');
-              // Update client-side state immediately
-              membersData = membersData.filter(m => m.name !== memberName);
-              filteredData = filteredData.filter(m => m.name !== memberName);
-              populateMemberSelect();
-              renderTable();
-              updateStats();
-            } else {
-              status.textContent = result?.message || 'Failed to remove.';
-              status.classList.add('err');
-            }
-          })
-          .catch(error => {
-            status.textContent = `Error: ${error.message}`;
-            status.classList.add('err');
-          });
       }
 
       // ── Penalty Exemptions ────────────────────────────────────────────
@@ -2006,11 +979,11 @@
           const unknown = !knownKeys.has(key) ? ' <span style="color:#888;font-size:11px;">(not an active member)</span>' : '';
           const meta = exemptMeta[key] || {};
           return `<tr style="color:#e0e0e0; font-size:13px;">
-            <td style="padding:4px 8px; text-align:center;"><input type="checkbox" style="width:auto; margin:0; cursor:pointer;" data-exempt="${escapeHtml(name)}"${checked} onchange="MembersTab.toggleExemptMember(this)"></td>
+            <td style="padding:4px 8px; text-align:center;"><input type="checkbox" style="width:auto; margin:0; cursor:pointer;" data-exempt="${escapeHtml(name)}"${checked} onchange="AdminTab.toggleExemptMember(this)"></td>
             <td style="padding:4px 8px; text-align:left;" data-sort="${escapeHtml(name).replace(/"/g, '&quot;')}">${escapeHtml(name)}${unknown}</td>
-            <td style="padding:4px 8px;"><input type="text" placeholder="Reason" value="${escapeHtml(meta.reason || '')}" data-exempt="${escapeHtml(name)}" data-field="reason" onchange="MembersTab.updateExemptField(this)" style="width:100%; padding:6px; font-size:12px;"></td>
-            <td style="padding:4px 8px; width:135px;"><input type="date" value="${escapeHtml(meta.startDate || '')}" data-exempt="${escapeHtml(name)}" data-field="startDate" onchange="MembersTab.updateExemptField(this)" title="Start date (blank = always)" style="width:100%; padding:6px; font-size:12px;"></td>
-            <td style="padding:4px 8px; width:135px;"><input type="date" value="${escapeHtml(meta.endDate || '')}" data-exempt="${escapeHtml(name)}" data-field="endDate" onchange="MembersTab.updateExemptField(this)" title="End date (blank = always)" style="width:100%; padding:6px; font-size:12px;"></td>
+            <td style="padding:4px 8px;"><input type="text" placeholder="Reason" value="${escapeHtml(meta.reason || '')}" data-exempt="${escapeHtml(name)}" data-field="reason" onchange="AdminTab.updateExemptField(this)" style="width:100%; padding:6px; font-size:12px;"></td>
+            <td style="padding:4px 8px; width:135px;"><input type="date" value="${escapeHtml(meta.startDate || '')}" data-exempt="${escapeHtml(name)}" data-field="startDate" onchange="AdminTab.updateExemptField(this)" title="Start date (blank = always)" style="width:100%; padding:6px; font-size:12px;"></td>
+            <td style="padding:4px 8px; width:135px;"><input type="date" value="${escapeHtml(meta.endDate || '')}" data-exempt="${escapeHtml(name)}" data-field="endDate" onchange="AdminTab.updateExemptField(this)" title="End date (blank = always)" style="width:100%; padding:6px; font-size:12px;"></td>
           </tr>`;
         }).join('')}</tbody></table>`;
       }
@@ -2103,7 +1076,7 @@
           <tbody>${rows.map(m => `<tr>
           <td style="padding:4px 8px; text-align:left; color:#e0e0e0; font-size:13px;">${escapeHtml(m.name)}</td>
           <td style="padding:4px 8px;"><input type="email" value="${escapeHtml(m.email || '')}" placeholder="name@gmail.com" data-account="${escapeHtml(m.name)}"
-            onchange="MembersTab.updateMemberAccount(this)" style="width:100%; padding:6px 8px; font-size:13px;"></td>
+            onchange="AdminTab.updateMemberAccount(this)" style="width:100%; padding:6px 8px; font-size:13px;"></td>
         </tr>`).join('')}</tbody></table>`;
       }
 
@@ -2184,7 +1157,7 @@
         container.innerHTML = rows.length ? `<table id="superiorsTable" data-sortable data-sort-col="1" data-name-col="1" style="width:100%; background:transparent;">
           <thead><tr><th style="text-align:center;padding:6px 8px;width:80px;">Superior</th><th style="text-align:left;padding:6px 8px;">Member</th><th style="text-align:left;padding:6px 8px;">Google account</th></tr></thead>
           <tbody>${rows.map(m => `<tr>
-          <td style="padding:4px 8px; text-align:center;"><input type="checkbox" ${m.superior ? 'checked' : ''} data-superior="${escapeHtml(m.name)}" onchange="MembersTab.toggleSuperior(this)" style="width:auto; margin:0; cursor:pointer;"></td>
+          <td style="padding:4px 8px; text-align:center;"><input type="checkbox" ${m.superior ? 'checked' : ''} data-superior="${escapeHtml(m.name)}" onchange="AdminTab.toggleSuperior(this)" style="width:auto; margin:0; cursor:pointer;"></td>
           <td style="padding:4px 8px; text-align:left; color:#e0e0e0; font-size:13px;">${escapeHtml(m.name)}</td>
           <td style="padding:4px 8px; text-align:left; font-size:12px; color:${m.notMember ? '#e57373' : (m.email ? '#b0b0b0' : '#888')};"${m.email || m.notMember ? '' : ' data-sort=""'}>${m.notMember ? 'no longer a member (untick and save)' : (m.email ? escapeHtml(m.email) : 'no Google account linked')}</td>
         </tr>`).join('')}</tbody></table>` : '<p style="color:#888; font-size:13px;">No members match this filter.</p>';
@@ -2204,9 +1177,9 @@
         const box = document.getElementById('superiorEmailsList');
         if (!box || !superiors) return;
         box.innerHTML = superiors.emails.length ? superiors.emails.map((e, i) => `<div style="display:grid; grid-template-columns:2fr 1fr 32px; gap:8px; align-items:center; padding:4px 0;">
-          <input type="email" value="${escapeHtml(e.email)}" placeholder="name@gmail.com" data-idx="${i}" data-field="email" onchange="MembersTab.updateSuperiorEmail(this)" style="padding:6px 8px; font-size:13px;">
-          <input type="text" value="${escapeHtml(e.note || '')}" placeholder="note (who is it?)" data-idx="${i}" data-field="note" onchange="MembersTab.updateSuperiorEmail(this)" style="padding:6px 8px; font-size:13px;">
-          <button class="btn btn-secondary" title="Remove" style="padding:4px 8px;" onclick="MembersTab.removeSuperiorEmail(${i})">✕</button>
+          <input type="email" value="${escapeHtml(e.email)}" placeholder="name@gmail.com" data-idx="${i}" data-field="email" onchange="AdminTab.updateSuperiorEmail(this)" style="padding:6px 8px; font-size:13px;">
+          <input type="text" value="${escapeHtml(e.note || '')}" placeholder="note (who is it?)" data-idx="${i}" data-field="note" onchange="AdminTab.updateSuperiorEmail(this)" style="padding:6px 8px; font-size:13px;">
+          <button class="btn btn-secondary" title="Remove" style="padding:4px 8px;" onclick="AdminTab.removeSuperiorEmail(${i})">✕</button>
         </div>`).join('') : '<p style="color:#888; font-size:13px; margin:0;">No extra e-mails.</p>';
       }
 
@@ -2263,8 +1236,8 @@
           });
       }
 
-      // Last tab opened in each group, so switching back returns there (else the
-      // group's first visible tab). A tab can be opened by link: admin.html#<tab id>.
+      // Groups: a group opens the tab last used there, else its first visible tab.
+      // A tab can be opened by link: admin.html#<tab id>.
       const lastTabInGroup = {};
 
       function switchGroup(group) {
@@ -2274,63 +1247,25 @@
       }
 
       function switchTab(tabId, evt) {
+        const btn = document.querySelector(`#members .tab[data-tab="${tabId}"]`) || (evt && evt.target);
+        if (!btn) return;
         document.querySelectorAll('#members .tab-content').forEach(c => c.classList.remove('active'));
         document.querySelectorAll('#members .tab').forEach(t => t.classList.remove('active'));
         document.getElementById(tabId)?.classList.add('active');
-        const btn = document.querySelector(`#members .tab[data-tab="${tabId}"]`) || (evt && evt.target);
-        if (btn) btn.classList.add('active');
-        // show the tabs of the button's group only
-        const group = (btn && btn.getAttribute('data-group')) || 'admin';
+        btn.classList.add('active');
+        const group = btn.getAttribute('data-group');
         lastTabInGroup[group] = tabId;
         document.querySelectorAll('#members .tab[data-group]').forEach(t => { t.hidden = t.getAttribute('data-group') !== group; });
         document.querySelectorAll('#members .tab-group').forEach(g => g.classList.toggle('active', g.getAttribute('data-group') === group));
-
-        const memberTableSection = document.getElementById('memberTableSection');
-        if (memberTableSection) {
-          memberTableSection.style.display = (tabId === 'chestPointsTab' || tabId === 'exemptTab' || tabId === 'accountsTab' || tabId === 'superiorsTab' || tabId === 'transfersTab' || tabId === 'linkFormerTab') ? 'none' : '';
-        }
-
-        if (tabId === 'chestPointsTab') {
-          loadChestPointsTabData();
-        }
-        if (tabId === 'chestNameFixTab' && window.ChestNameFix) {
-          window.ChestNameFix.load();
-        }
-        if (tabId === 'chestValuesTab' && window.ChestPointValues) {
-          window.ChestPointValues.load();
-        }
-        if (tabId === 'ocrTab' && window.OcrCorrections) {
-          window.OcrCorrections.load();
-        }
-        if (tabId === 'manualChestsTab' && window.ManualChests) {
-          window.ManualChests.load();
-        }
-        if (tabId === 'transfersTab' && window.MemberTransfers) {
-          window.MemberTransfers.load();
-        }
-        if (tabId === 'linkFormerTab' && window.LinkFormer) {
-          window.LinkFormer.load();
-        }
-        if (memberTableSection && (tabId === 'ocrTab' || tabId === 'chestNameFixTab' || tabId === 'chestValuesTab' || tabId === 'manualChestsTab')) memberTableSection.style.display = 'none';
-        if (tabId === 'exemptTab') {
-          loadExemptMembers();
-        }
-        if (tabId === 'accountsTab') {
-          loadMemberAccounts();
-        }
-        if (tabId === 'superiorsTab') {
-          loadSuperiors();
-        }
-      }
-
-      function formatMight(might) {
-        if (!might || might === 0) return '-';
-        return might.toLocaleString();
-      }
-
-      function formatDate(dateStr) {
-        if (!dateStr) return '-';
-        return cccDate(dateStr); // shared UTC format (ccc-dates.js)
+        if (tabId === 'chestNameFixTab' && window.ChestNameFix) window.ChestNameFix.load();
+        if (tabId === 'chestValuesTab' && window.ChestPointValues) window.ChestPointValues.load();
+        if (tabId === 'ocrTab' && window.OcrCorrections) window.OcrCorrections.load();
+        if (tabId === 'manualChestsTab' && window.ManualChests) window.ManualChests.load();
+        if (tabId === 'transfersTab' && window.MemberTransfers) window.MemberTransfers.load();
+        if (tabId === 'linkFormerTab' && window.LinkFormer) window.LinkFormer.load();
+        if (tabId === 'exemptTab') loadExemptMembers();
+        if (tabId === 'accountsTab') loadMemberAccounts();
+        if (tabId === 'superiorsTab') loadSuperiors();
       }
 
       function escapeHtml(text) {
@@ -2339,28 +1274,7 @@
         return div.innerHTML;
       }
 
-      function showLoading() {
-        document.getElementById('memberLoading').style.display = 'block';
-        document.getElementById('memberError').style.display = 'none';
-        document.getElementById('membersTable').style.display = 'none';
-        document.getElementById('memberEmpty').style.display = 'none';
-      }
-
-      function showTable() {
-        document.getElementById('memberLoading').style.display = 'none';
-        document.getElementById('memberError').style.display = 'none';
-        document.getElementById('membersTable').style.display = 'table';
-        document.getElementById('memberEmpty').style.display = 'none';
-      }
-
-      function showEmpty() {
-        document.getElementById('memberLoading').style.display = 'none';
-        document.getElementById('memberError').style.display = 'none';
-        document.getElementById('membersTable').style.display = 'none';
-        document.getElementById('memberEmpty').style.display = 'block';
-      }
-
-      return { init, loadAllData, switchTab, switchGroup, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, togglePointTargetsPanel, savePtDefault, addPtOverride, updatePtOverride, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts, loadSuperiors, toggleSuperior, addSuperiorEmail, updateSuperiorEmail, removeSuperiorEmail, saveSuperiors };
+      return { init, switchTab, switchGroup, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts, loadSuperiors, toggleSuperior, addSuperiorEmail, updateSuperiorEmail, removeSuperiorEmail, saveSuperiors };
     })();
   </script>
   <script>
