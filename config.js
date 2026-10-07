@@ -124,6 +124,9 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 		'#translateResetBtn { position: fixed; right: 8px; bottom: 52px; z-index: 7001; display: none; align-items: center; height: 34px; padding: 0 10px;'
 			+ ' border: 1px solid #444; border-radius: 8px; background: #232526; color: #ffb300; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.25); }',
 		'html.translated-ltr #translateResetBtn, html.translated-rtl #translateResetBtn { display: inline-flex; }',
+		// Phone menu: the same text size and spacing as the Legends / Masters menu
+		// (the pages' own rules use 18px text with 18px 24px padding)
+		'@media (max-width: 800px) { .tab-buttons .tab-btn { font-size: 14.4px !important; padding: 10px 12px !important; } }',
 		'#goog-gt-tt, .goog-te-balloon-frame { display: none !important; visibility: hidden !important; }',
 		'.goog-text-highlight { background: transparent !important; box-shadow: none !important; }',
 		'#google_translate_element, #translateToggleBtn { top: auto !important; right: 8px !important; bottom: 8px !important; }',
