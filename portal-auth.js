@@ -20,7 +20,8 @@
     'members.html',
     'warnings.html',
     'profiling.html',
-    'bank.html'
+    'bank.html',
+    'admin.html'
   ];
 
   var roleFetchInFlight = false;

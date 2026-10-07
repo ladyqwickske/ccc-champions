@@ -4,7 +4,7 @@
   <base target="_top">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>cCc Champions - Members</title>
+  <title>cCc Champions - Admin</title>
   <link rel="icon" href="favicon.png" type="image/png">
   <script src="perf-debug.js"></script>
   <script src="config.js"></script>
@@ -29,6 +29,8 @@
   }
   </script>
   <style>
+    /* Admin page: the member list is loaded (the tabs need the names) but not shown */
+    #memberStatsCards, #members > .controls, #memberTableSection { display: none !important; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Google Sans', 'Roboto', Arial, sans-serif;
@@ -633,7 +635,7 @@
           <img src="events.png" alt="Events" class="tab-icon desktop-only">
           <span class="tab-label mobile-only">Events</span>
         </a>
-        <a href="members.html" class="tab-btn active" title="Members">
+        <a href="members.html" class="tab-btn" title="Members">
           <img src="members.png" alt="Members" class="tab-icon desktop-only">
           <span class="tab-label mobile-only">Members</span>
         </a>
@@ -657,7 +659,7 @@
           <img src="bank.png" alt="Bank" class="tab-icon desktop-only">
           <span class="tab-label mobile-only">Bank</span>
         </a>
-        <a href="admin.html" class="tab-btn" id="adminTabBtn" title="Admin" style="display:none;">
+        <a href="admin.html" class="tab-btn active" id="adminTabBtn" title="Admin" style="display:none;">
           <img src="admin.png" alt="Admin" class="tab-icon desktop-only">
           <span class="tab-label mobile-only">Admin</span>
         </a>
@@ -671,7 +673,7 @@
   </nav>
 
   <div id="members" class="tab-content active">
-    <div class="header"><h1><img src="members.png" alt="Members" class="tab-icon" style="height: 64px; vertical-align: middle; margin-right: 8px;"> Member Management</h1><p>View and manage clan members</p></div>
+    <div class="header"><h1><img src="admin.png" alt="Admin" class="tab-icon" style="height: 64px; vertical-align: middle; margin-right: 8px;"> Admin</h1><p>Chest data, rules, transfers between the clans and access</p></div>
     <div class="stats-cards" id="memberStatsCards">
       <div class="stat-card"><h3>Total Members</h3><div class="value" id="memberTotal">-</div></div>
       <div class="stat-card"><h3>T9</h3><div class="value" id="statT9" style="color:#6a1b9a">-</div></div>
@@ -684,136 +686,160 @@
 
     <div class="tabs-container">
       <div class="tabs">
-        <!-- Groups; each shows its own tabs (MembersTab.switchGroup / switchTab) -->
+          <!-- Groups; each shows its own tabs (MembersTab.switchGroup / switchTab) -->
         <div class="tab-groups">
-          <button class="tab-group active" data-group="progress" onclick="MembersTab.switchGroup('progress')">📈 Progress</button>
-          <button class="tab-group" data-group="roster" onclick="MembersTab.switchGroup('roster')">👥 Roster</button>
+          <button class="tab-group active" data-group="chestdata" onclick="MembersTab.switchGroup('chestdata')">📥 Chest data</button>
+          <button class="tab-group" data-group="rules" onclick="MembersTab.switchGroup('rules')">🏷️ Rules</button>
+          <button class="tab-group" data-group="clans" onclick="MembersTab.switchGroup('clans')">🔁 Between clans</button>
+          <button class="tab-group" data-group="access" onclick="MembersTab.switchGroup('access')">🔐 Access</button>
         </div>
-        <button class="tab active" data-group="progress" data-tab="troopTab" onclick="MembersTab.switchTab('troopTab', event)">⚔️ Track Troops</button>
-        <button class="tab" data-group="progress" data-tab="heroTab" onclick="MembersTab.switchTab('heroTab', event)">🦸 Hero Level</button>
-        <button class="tab" data-group="progress" data-tab="chestPointsTab" onclick="MembersTab.switchTab('chestPointsTab', event)">📦 Chest Points</button>
-        <button class="tab" data-group="roster" hidden data-tab="addMemberTab" onclick="MembersTab.switchTab('addMemberTab', event)">➕ Add Member</button>
-        <button class="tab" data-group="roster" hidden data-tab="removeMemberTab" onclick="MembersTab.switchTab('removeMemberTab', event)">🚪 Remove Member</button>
-        <button class="tab" data-group="roster" hidden data-tab="nameTab" onclick="MembersTab.switchTab('nameTab', event)">✏️ Change Name</button>
+        <button class="tab" data-group="chestdata" data-tab="manualChestsTab" id="manualChestsTabBtn" style="display:none" onclick="MembersTab.switchTab('manualChestsTab', event)">➕ Manual Chests</button>
+        <button class="tab active" data-group="chestdata" data-tab="chestNameFixTab" onclick="MembersTab.switchTab('chestNameFixTab', event)">🔧 Fix Chest Names</button>
+        <button class="tab" data-group="chestdata" data-tab="ocrTab" onclick="MembersTab.switchTab('ocrTab', event)">🔤 OCR Corrections</button>
+        <button class="tab" data-group="rules" hidden data-tab="chestValuesTab" onclick="MembersTab.switchTab('chestValuesTab', event)">🏷️ Chest Point Values</button>
+        <button class="tab" data-group="rules" hidden data-tab="exemptTab" onclick="MembersTab.switchTab('exemptTab', event)">🛡️ Penalty Exemptions</button>
+        <button class="tab" data-group="clans" hidden data-tab="linkFormerTab" onclick="MembersTab.switchTab('linkFormerTab', event)">🔗 Link Former Members</button>
+        <button class="tab" data-group="clans" hidden data-tab="transfersTab" id="transfersTabBtn" onclick="MembersTab.switchTab('transfersTab', event)">🔁 Member Transfers</button>
+        <button class="tab" data-group="access" hidden data-tab="accountsTab" onclick="MembersTab.switchTab('accountsTab', event)">🔐 Member Login Accounts</button>
+        <button class="tab" data-group="access" hidden data-tab="superiorsTab" id="superiorsTabBtn" style="display:none" onclick="MembersTab.switchTab('superiorsTab', event)">👑 Superiors</button>
+    </div>
+      <div id="manualChestsTab" class="tab-content">
+        <h3 style="margin:0 0 6px 0;">Manual Chests</h3>
+        <div class="note" style="margin-bottom:12px;">Add chests the chesttracker missed or counted in the wrong period — e.g. crypts opened right after a period change that still went to the previous period. They get the points from 🏷️ Chest Point Values, like imported chests. Only you can see this tab.</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;align-items:end;margin-bottom:8px;">
+          <div><label for="mcPeriod">Period</label><select id="mcPeriod" onchange="ManualChests.load()"><option value="active">Active period</option><option value="previous">Previous period</option></select></div>
+          <div><label for="mcMember">Member</label><select id="mcMember"></select></div>
+          <div style="grid-column:span 2;min-width:0;"><label for="mcKind">Chest</label><select id="mcKind" onchange="ManualChests.pickKind()"></select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;align-items:end;margin-bottom:8px;">
+          <div><label for="mcType">Chest type</label><input type="text" id="mcType" placeholder="e.g. Level 20 Rare Crypt" oninput="ManualChests.preview()"></div>
+          <div><label for="mcName">Chest name</label><input type="text" id="mcName" placeholder="e.g. Rare Chest" oninput="ManualChests.preview()"></div>
+          <div><label for="mcLevel">Level</label><input type="number" id="mcLevel" min="0" step="1" oninput="ManualChests.preview()"></div>
+          <div><label for="mcCount">Number of chests</label><input type="number" id="mcCount" min="1" max="500" step="1" value="1" oninput="ManualChests.preview()"></div>
+        </div>
+        <div style="margin-bottom:8px;"><label for="mcNote">Note (optional)</label><input type="text" id="mcNote" maxlength="200" placeholder="e.g. crypts right after rotation"></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+          <button class="btn" style="margin:0;" id="mcAddBtn" onclick="ManualChests.add()">➕ Add chests</button>
+          <button class="btn btn-secondary" style="margin:0;" onclick="ManualChests.load()">🔄 Reload</button>
+          <span id="mcPreview" class="note" style="margin:0;"></span>
+        </div>
+        <div id="mcPeriodInfo" class="note" style="margin-bottom:8px;"></div>
+        <div id="mcStatus" class="status" style="display:none;"></div>
+        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Added by hand</h4>
+        <div style="overflow-x:auto;"><table id="mcRecentTable" data-sortable style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
+          <thead><tr><th style="text-align:left;padding:6px 8px;">When</th><th style="text-align:left;padding:6px 8px;">Period</th><th style="text-align:left;padding:6px 8px;">Member</th><th style="text-align:left;padding:6px 8px;">Chest</th><th style="text-align:center;padding:6px 8px;">#</th><th style="text-align:right;padding:6px 8px;">Points</th><th style="text-align:left;padding:6px 8px;">Note</th><th style="width:90px;"></th></tr></thead>
+          <tbody id="mcRecent"><tr><td colspan="8" style="padding:8px;color:#999;">Loading…</td></tr></tbody>
+        </table></div>
       </div>
-      <div id="troopTab" class="tab-content active">
-        <h3 style="margin:0 0 12px 0;">Track Troop Levels</h3>
-        <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
-          <div><label for="troopMemberSelect">Member</label><select id="troopMemberSelect" onchange="MembersTab.loadMemberTroops()"></select></div>
-          <div><label for="troopDateInput">Date</label><input type="date" id="troopDateInput"><div class="note">Defaults to today</div></div>
+      <div id="chestNameFixTab" class="tab-content active">
+        <h3 style="margin:0 0 6px 0;">Fix Chest Names</h3>
+        <div class="note" style="margin-bottom:12px;">A player name the chest reader got wrong: move those chests to the right member. Only the chests of the chosen period change (for a real name change in the game, use ✏️ Change Name).</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+          <label for="cnfPeriod" style="margin:0;">Period</label>
+          <select id="cnfPeriod" style="width:auto;" onchange="ChestNameFix.load()"><option value="active">Active period</option><option value="previous">Previous period</option></select>
+          <label style="margin:0 0 0 8px;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="cnfShowAll" onchange="ChestNameFix.render()"> show all names</label>
+          <button class="btn btn-secondary" style="margin:0;" onclick="ChestNameFix.load()">🔄 Reload</button>
         </div>
-        <div class="form-grid troop-form-grid">
-          <div><label>Guardsmen (G)</label><input type="number" id="troopG" min="3" max="9" placeholder="3-9"></div>
-          <div><label>Specialists (S)</label><input type="number" id="troopS" min="3" max="9" placeholder="3-9"></div>
-          <div><label>Monsters (M)</label><input type="number" id="troopM" min="3" max="9" placeholder="3-9"></div>
-          <div><label>Eng. Corps (E)</label><input type="number" id="troopE" min="3" max="9" placeholder="3-9"></div>
-          <div><label>Crypt Lvl (C)</label><input type="number" id="troopC" min="1" max="500" placeholder="1-500"></div>
-        </div>
-        <div class="form-grid" style="grid-template-columns: 1fr;">
-          <div><label>Notes (optional)</label><input type="text" id="troopNotesInput" placeholder="e.g. upgraded during event"></div>
-        </div>
-        <button class="btn" onclick="MembersTab.submitAllTroops()">💾 Save Changed Levels</button>
-        <div id="troopStatus" class="status"></div>
+        <div id="cnfPeriodInfo" class="note" style="margin-bottom:8px;"></div>
+        <div style="overflow-x:auto;"><table id="cnfTable" data-sortable style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr><th style="text-align:left;padding:6px 8px;">Name in the chests</th><th style="text-align:center;padding:6px 8px;width:70px;">Chests</th><th style="text-align:left;padding:6px 8px;">Correct member</th><th style="width:90px;"></th></tr></thead>
+          <tbody id="cnfBody"><tr><td colspan="4" style="padding:8px;color:#999;">Loading…</td></tr></tbody>
+        </table></div>
+        <div id="cnfStatus" class="status" style="display:none;"></div>
       </div>
-      <div id="heroTab" class="tab-content">
-        <h3 style="margin:0 0 12px 0;">Track Hero Level</h3>
-        <div class="form-grid might-form-grid">
-          <div><label for="heroMemberSelect">Member</label><select id="heroMemberSelect"></select></div>
-          <div><label for="heroLevelValue">Hero Level</label><input type="number" id="heroLevelValue" placeholder="Enter hero level" min="0" step="1" onkeypress="if(event.key==='Enter'){var bp=document.getElementById('heroBatchPanel');if(bp&&bp.style.display!=='none'){MembersTab.addToHeroBatch();}else{MembersTab.submitHeroLevelEntry();}}"></div>
-          <div><label for="heroLevelDate">Date</label><input type="date" id="heroLevelDate"><div class="note">Defaults to today (applies to all batch entries)</div></div>
+      <div id="ocrTab" class="tab-content">
+        <h3 style="margin:0 0 6px 0;">OCR Corrections</h3>
+        <div class="note" style="margin-bottom:12px;">The chesttracker's list of words it reads wrong (player and chest names) and what they should be. Changes here reach the chesttracker at its next run; words it learns show up here after that run.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <input type="text" id="ocrSearch" placeholder="🔍 Search words or misreadings…" style="flex:1;min-width:200px;" oninput="OcrCorrections.render()">
+          <input type="text" id="ocrNewWord" placeholder="New correct word" style="width:200px;" onkeydown="if(event.key==='Enter')OcrCorrections.addWord()">
+          <button class="btn" style="margin:0;" onclick="OcrCorrections.addWord()">➕ Add word</button>
+          <button class="btn btn-secondary" style="margin:0;" onclick="OcrCorrections.load()">🔄 Reload</button>
         </div>
-        <div style="margin-bottom:12px;"><button class="btn" onclick="var bp=document.getElementById('heroBatchPanel');if(bp&&bp.style.display!=='none'){MembersTab.addToHeroBatch();}else{MembersTab.submitHeroLevelEntry();}">💾 Save Hero Level</button><button class="btn" style="background:#7c3aed;color:#fff;margin-left:8px;" onclick="MembersTab.toggleHeroBatch()">📋 Batch Entry</button><div id="heroLevelStatus" class="status"></div></div>
-        <!-- Hero Level Batch panel -->
-        <div id="heroBatchPanel" style="display:none;border:1px solid #444;border-radius:8px;padding:14px;background:#1a1b1c;margin-bottom:14px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <h4 style="margin:0;color:#ffb300;">⚡ Batch Hero Level — <span id="heroBatchCount" style="color:#81c784;">0</span> queued</h4>
-            <div><button class="btn" style="background:#2e7d32;" onclick="MembersTab.saveHeroBatchEntries()">💾 Save All</button><button class="btn btn-secondary" style="margin-left:6px;" onclick="MembersTab.toggleHeroBatch()">✖ Close</button></div>
+        <div id="ocrInfo" class="note" style="margin-bottom:8px;"></div>
+        <div id="ocrStatus" class="status" style="display:none;"></div>
+        <div id="ocrList"></div>
+      </div>
+      <div id="chestValuesTab" class="tab-content">
+        <h3 style="margin:0 0 6px 0;">Chest Point Values</h3>
+        <div class="note" style="margin-bottom:12px;">How many points each chest is worth (what used to be the "Chests 2.0" tab). A change re-scores the chests of the <b>active period</b> right away; closed periods keep the points they had.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <input type="text" id="cpvSearch" placeholder="🔍 Search type, chest or level…" style="flex:1;min-width:200px;" oninput="ChestPointValues.render()">
+          <button class="btn" id="cpvSaveBtn" style="margin:0;" onclick="ChestPointValues.save()" disabled>💾 Save changes</button>
+          <button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.openForm()">➕ Add chest</button>
+          <button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.load()">🔄 Reload</button>
+        </div>
+        <div id="cpvInfo" class="note" style="margin-bottom:8px;"></div>
+        <div id="cpvStatus" class="status" style="display:none;"></div>
+        <div id="cpvForm" style="display:none;margin-bottom:12px;background:rgba(255,255,255,0.04);border:1px solid #333;border-radius:8px;padding:12px 14px;">
+          <div id="cpvFormTitle" style="font-size:12px;color:#ffb300;font-weight:600;margin-bottom:8px;">Add a chest</div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end;">
+            <div><label for="cpvType">Chest type</label><input type="text" id="cpvType" placeholder="e.g. Epic Crypt"></div>
+            <div><label for="cpvName">Chest name</label><input type="text" id="cpvName" placeholder="e.g. Epic Chest"></div>
+            <div><label for="cpvCrypt">Level / range / event</label><input type="text" id="cpvCrypt" placeholder="e.g. 35 or 20-25"></div>
+            <div><label for="cpvPoints">Points</label><input type="number" id="cpvPoints" min="0" step="1"></div>
           </div>
-          <p style="color:#b0b0b0;font-size:12px;margin-bottom:10px;">Use the Member dropdown & Hero Level field above, press Enter to queue each entry. Click Save All when done.</p>
-          <div id="heroBatchStatus" class="status" style="margin-bottom:8px;"></div>
-          <div style="max-height:50vh;overflow-y:auto;"><table id="heroBatchTable" data-sortable data-sort-col="0" style="width:100%;">
-            <thead><tr><th style="text-align:left;padding:6px 8px;">Member</th><th style="text-align:center;padding:6px 8px;width:100px;">Level</th><th style="text-align:center;padding:6px 8px;width:60px;"></th></tr></thead>
-            <tbody id="heroBatchBody"></tbody>
-          </table></div>
+          <div style="display:flex;gap:8px;margin-top:10px;">
+            <button class="btn" style="margin:0;" onclick="ChestPointValues.submitForm()">💾 Save</button>
+            <button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.closeForm()">Cancel</button>
+          </div>
         </div>
+        <div id="cpvUnmatched"></div>
+        <div style="overflow-x:auto;max-height:55vh;overflow-y:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr><th data-cpv-sort="type" onclick="ChestPointValues.sortBy('type')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">Chest type <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="name" onclick="ChestPointValues.sortBy('name')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">Chest name <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="crypt" onclick="ChestPointValues.sortBy('crypt')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">Level <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="points" onclick="ChestPointValues.sortBy('points')" title="Sort" style="text-align:right;padding:6px 8px;cursor:pointer;user-select:none;width:110px;">Points <span class="cpv-arrow" style="color:#ffb300;"></span></th><th style="width:80px;"></th></tr></thead>
+          <tbody id="cpvBody"><tr><td colspan="5" style="padding:8px;color:#999;">Loading…</td></tr></tbody>
+        </table></div>
+        <details style="margin-top:12px;text-align:left;"><summary style="cursor:pointer;color:#b0b0b0;font-size:13px;">Recent changes</summary><div id="cpvLog" style="font-size:12px;color:#b0b0b0;padding:6px 4px;"></div></details>
       </div>
-      <div id="chestPointsTab" class="tab-content">
-        <h3 style="margin:0 0 12px 0;">Chest Points - Last Active Periods</h3>
+      <div id="exemptTab" class="tab-content">
+        <h3 style="margin:0 0 12px 0;">Penalty Exemptions</h3>
+        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Members ticked here never receive an event penalty and are left out of the period-end underperformer report (crypting norm). Use this for utility accounts and leadership alts.</p>
         <div class="controls" style="margin-bottom:10px;">
-          <button class="btn" onclick="MembersTab.loadChestPointsTabData(true)">🔄 Refresh Chest Points</button>
-          <button class="btn" onclick="MembersTab.togglePointTargetsPanel()" style="margin-left:8px;">⚙️ Point Targets</button>
+          <div class="search-box"><input type="text" id="exemptSearchInput" placeholder="🔍 Filter members..."></div>
+          <button class="btn" onclick="MembersTab.saveExemptMembers()">💾 Save Exemptions</button>
+          <button class="btn btn-secondary" onclick="MembersTab.loadExemptMembers(true)">🔄 Reload</button>
         </div>
-
-        <!-- Point Targets Configuration Panel -->
-        <div id="pointTargetsPanel" style="display:none; margin-bottom:14px; background:rgba(255,255,255,0.04); border:1px solid #333; border-radius:8px; padding:14px 16px;">
-          <p style="font-size:12px;color:#b0b0b0;margin:0 0 12px 0;">Set a custom point target per player per active period. Overrides the default for that cell only. Saved locally in this browser.</p>
-          <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
-            <label style="font-size:12px;color:#ffb300;white-space:nowrap;font-weight:600;">Default target:</label>
-            <input type="number" id="ptDefaultInput" min="0" step="100" value="7500" style="width:100px;padding:5px 8px;border:1px solid #444;border-radius:5px;background:#1a1c1e;color:#e0e0e0;font-size:13px;">
-            <button onclick="MembersTab.savePtDefault()" class="btn" style="padding:5px 14px;font-size:12px;">Save default</button>
-          </div>
-          <div style="border-top:1px solid #333;padding-top:12px;">
-            <div style="font-size:12px;color:#ffb300;font-weight:600;margin-bottom:8px;">Per-player / per-period overrides</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 110px auto;gap:6px;align-items:center;margin-bottom:10px;">
-              <select id="ptPlayerSelect" style="padding:5px 8px;border:1px solid #444;border-radius:5px;background:#1a1c1e;color:#e0e0e0;font-size:12px;"><option value="">— select player —</option></select>
-              <select id="ptPeriodSelect" style="padding:5px 8px;border:1px solid #444;border-radius:5px;background:#1a1c1e;color:#e0e0e0;font-size:12px;"><option value="">— select period —</option></select>
-              <input type="number" id="ptOverridePoints" placeholder="Points" min="0" step="100" style="padding:5px 8px;border:1px solid #444;border-radius:5px;background:#1a1c1e;color:#e0e0e0;font-size:12px;">
-              <button onclick="MembersTab.addPtOverride()" class="btn" style="padding:5px 12px;font-size:12px;white-space:nowrap;">➕ Add</button>
-            </div>
-            <div id="ptOverrideList" style="max-height:160px;overflow-y:auto;"></div>
-          </div>
-        </div>
-
-        <div id="chestPointsMeta" class="points-meta">Target: 7,500 points (green), within 10% (orange), below (red).</div>
-        <div class="table-container" style="max-height:52vh;">
-          <div id="chestPointsLoading" class="loading" style="display:none;"><div class="spinner"></div>Loading chest points...</div>
-          <div id="chestPointsError" class="error" style="display:none;"></div>
-          <table id="chestPointsTable" style="display:none;">
-            <thead>
-              <tr id="chestPointsHeader">
-                <th>Member</th>
-              </tr>
-            </thead>
-            <tbody id="chestPointsBody"></tbody>
-          </table>
-          <div id="chestPointsEmpty" style="display:none; text-align:center; padding:30px; color:#b0b0b0;">No active periods found</div>
-        </div>
+        <div id="exemptStatus" class="status"></div>
+        <div id="exemptSummary" style="font-size:12px; color:#b0b0b0; margin-bottom:8px; text-align:left;"></div>
+        <div id="exemptList" style="max-height:50vh; overflow-y:auto; border:1px solid #444; border-radius:8px; padding:10px; background:#232526; text-align:left;"></div>
       </div>
-      <div id="addMemberTab" class="tab-content">
-        <h3 style="margin:0 0 12px 0;">Add New Member</h3>
-        <!-- New or returning member (member-transfers.js: ReturningMember) -->
-        <div style="display:flex;gap:18px;margin-bottom:12px;text-align:left;">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="addMemberMode" value="new" checked style="width:auto;"> 🆕 New member</label>
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="addMemberMode" value="returning" style="width:auto;"> ↩️ Returning member (was here before)</label>
-        </div>
-        <div id="returningMemberForm" style="display:none;"></div>
-        <div id="newMemberForm">
-        <div class="form-grid add-member-form-grid">
-          <div>
-            <label for="newMemberNameInput">Member Name</label>
-            <input type="text" id="newMemberNameInput" placeholder="Enter member name">
-          </div>
-          <div>
-            <label for="joinDate">Join Date</label>
-            <input type="date" id="joinDate">
-            <div class="note">Date member joined</div>
-          </div>
-        </div>
-        <div id="returningMemberHint" class="status" style="display:none;text-align:left;margin-bottom:10px;"></div>
-        <button class="btn" onclick="MembersTab.submitAddMember()">➕ Add Member</button>
-        <div id="addMemberStatus" class="status"></div>
-        </div>
+      <div id="linkFormerTab" class="tab-content">
+        <h3 style="margin:0 0 12px 0;">🔗 Link Former Members</h3>
+        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Someone who left and came back (maybe more than once) and was added as a new member? Pick them as the current member and tick their entries on the Former Members list. Their history (chests, troops, heroes, events, warnings, …) then counts for the current member, their old login comes along if they don't have one, and each earlier membership is kept on their profile. Entries under another name are renamed to the current member's name.</p>
+        <div id="linkFormerPanel"></div>
       </div>
-      <div id="removeMemberTab" class="tab-content">
-        <h3 style="margin:0 0 12px 0;">Remove Member</h3>
-        <div class="form-grid"><div><label for="removeMemberSelect">Member to Remove</label><select id="removeMemberSelect"></select></div><div><label for="endDate">End Date</label><input type="date" id="endDate"><div class="note">Date member left</div></div></div>
-        <div style="margin-bottom:12px;"><label for="removeRemarks">Remarks</label><textarea id="removeRemarks" rows="2" placeholder="Reason for leaving or removal (optional)" style="width:100%;padding:10px 12px;border:1px solid #444;border-radius:6px;font-size:14px;background:#232526;color:#e0e0e0;font-family:inherit;resize:vertical;"></textarea></div>
-        <button class="btn" onclick="MembersTab.submitRemoveMember()">🚪 Remove Member</button><div id="removeMemberStatus" class="status"></div>
+      <div id="transfersTab" class="tab-content">
+        <h3 style="margin:0 0 12px 0;">🔁 Member Transfers</h3>
+        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Players who move between the cCc clans: ask the clan they came from for their profile (memberships, troop and hero levels, chest points, events, warnings), and answer the other clans' requests. Nothing is shared until a superior of that clan approves.</p>
+        <div id="transfersPanel"></div>
       </div>
-      <div id="nameTab" class="tab-content">
-        <h3 style="margin:0 0 12px 0;">Change Member Name</h3>
-        <div class="form-grid"><div><label for="oldMemberSelect">Current Member</label><select id="oldMemberSelect"></select></div><div><label for="newMemberName">New Name</label><input type="text" id="newMemberName" placeholder="Enter new member name"></div></div>
-        <button class="btn" onclick="MembersTab.submitNameChange()">✏️ Update Name</button><div id="nameChangeStatus" class="status"></div>
+      <div id="accountsTab" class="tab-content">
+        <h3 style="margin:0 0 12px 0;">Linked Google Accounts</h3>
+        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Link a member to a Google account so they can sign in and see their own bank balance and point penalties. The same address can be linked to several members — handy for alt accounts — and the profile page then offers a dropdown to switch between them. Members only get the public pages plus their profile; management pages are for superiors only (the Superiors list).</p>
+        <div class="controls" style="margin-bottom:10px;">
+          <div class="search-box"><input type="text" id="accountsSearchInput" placeholder="🔍 Filter members..."></div>
+          <button class="btn" onclick="MembersTab.saveMemberAccounts()">💾 Save Accounts</button>
+          <button class="btn btn-secondary" onclick="MembersTab.loadMemberAccounts(true)">🔄 Reload</button>
+        </div>
+        <div id="accountsStatus" class="status"></div>
+        <div id="accountsSummary" style="font-size:12px; color:#b0b0b0; margin-bottom:8px; text-align:left;"></div>
+        <div id="accountsList" style="max-height:50vh; overflow-y:auto; border:1px solid #444; border-radius:8px; padding:10px; background:#232526; text-align:left;"></div>
+      </div>
+      <div id="superiorsTab" class="tab-content">
+        <h3 style="margin:0 0 12px 0;">Superiors</h3>
+        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Superiors can use the management pages (Events, Members, Warnings, Bank, Profiling, …) and make changes. Tick a member to make them a superior: the Google account(s) linked to them on <b>Member Login Accounts</b> get the rights, and lose them when the member leaves the clan. Logins that aren't clan members go under <b>Extra e-mails</b>. Only you can see this list; you are always a superior yourself.</p>
+        <div class="controls" style="margin-bottom:10px;">
+          <div class="search-box"><input type="text" id="superiorsSearchInput" placeholder="🔍 Filter members..."></div>
+          <button class="btn" onclick="MembersTab.saveSuperiors()">💾 Save Superiors</button>
+          <button class="btn btn-secondary" onclick="MembersTab.loadSuperiors(true)">🔄 Reload</button>
+        </div>
+        <div id="superiorsStatus" class="status"></div>
+        <div id="superiorsSummary" style="font-size:12px; color:#b0b0b0; margin-bottom:8px; text-align:left;"></div>
+        <div id="superiorsList" style="max-height:40vh; overflow-y:auto; border:1px solid #444; border-radius:8px; padding:10px; background:#232526; text-align:left;"></div>
+        <h4 style="margin:16px 0 6px 0; text-align:left;">Extra e-mails</h4>
+        <p style="color:#b0b0b0; font-size:12px; margin:0 0 8px 0; text-align:left;">Google logins with superior rights that aren't linked to a clan member. The note is just for you (e.g. who it is).</p>
+        <div id="superiorEmailsList" style="border:1px solid #444; border-radius:8px; padding:10px; background:#232526; text-align:left;"></div>
+        <button class="btn btn-secondary" style="margin-top:8px;" onclick="MembersTab.addSuperiorEmail()">➕ Add e-mail</button>
       </div>
     </div>
     <div id="memberTableSection" class="table-container">
@@ -862,17 +888,13 @@
       }
     }
 
-    // Tabs that moved to the Admin page: old links go there.
-    const ADMIN_PAGE_TABS = ['manualChestsTab', 'chestNameFixTab', 'ocrTab', 'chestValuesTab', 'exemptTab', 'linkFormerTab', 'transfersTab', 'accountsTab', 'superiorsTab'];
-    (function () {
-      const tab = (location.hash || '').slice(1);
-      if (ADMIN_PAGE_TABS.indexOf(tab) !== -1) location.replace('admin.html#' + tab);
-    })();
-
+    // Admin page: setup and corrections that used to be on the Members page. The
+    // member list's elements stay (hidden): the shared code loads the members
+    // the tabs need (exemptions, accounts, superiors, transfers) into them.
     window.addEventListener('DOMContentLoaded', () => {
       MembersTab.init();
       const tab = (location.hash || '').slice(1);
-      if (tab && document.querySelector(`#members .tab[data-tab="${tab}"]`)) MembersTab.switchTab(tab);
+      MembersTab.switchTab(tab && document.querySelector(`#members .tab[data-tab="${tab}"]`) ? tab : 'chestNameFixTab');
     });
 
     const MembersTab = (() => {
@@ -916,7 +938,7 @@
             },
           });
         }
-        if (window.LinkFormer && document.getElementById('linkFormerPanel')) {
+        if (window.LinkFormer) {
           window.LinkFormer.init({
             container: 'linkFormerPanel',
             currentMembers: () => membersData.map(m => m.name),
@@ -928,7 +950,7 @@
             },
           });
         }
-        if (window.MemberTransfers && document.getElementById('transfersPanel')) {
+        if (window.MemberTransfers) {
           window.MemberTransfers.init({ container: 'transfersPanel', badge: 'transfersTabBtn', onLevelsCopied: () => loadAllData() });
           setTimeout(() => window.MemberTransfers.check(), 1500); // waiting requests from other clans → count on the tab
         }
@@ -2242,7 +2264,7 @@
       }
 
       // Last tab opened in each group, so switching back returns there (else the
-      // group's first visible tab). A tab can be opened by link: members.html#<tab id>.
+      // group's first visible tab). A tab can be opened by link: admin.html#<tab id>.
       const lastTabInGroup = {};
 
       function switchGroup(group) {
@@ -2339,6 +2361,462 @@
       }
 
       return { init, loadAllData, switchTab, switchGroup, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, togglePointTargetsPanel, savePtDefault, addPtOverride, updatePtOverride, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts, loadSuperiors, toggleSuperior, addSuperiorEmail, updateSuperiorEmail, removeSuperiorEmail, saveSuperiors };
+    })();
+  </script>
+  <script>
+    // 🔧 Fix Chest Names: move chests read under a wrong name (OCR) to the right member,
+    // in the active or previous period (database site only: getChestNamesForFix / fixChestPlayerName).
+    window.ChestNameFix = (function () {
+      let state = { names: [], members: [], period: null };
+      const esc = (t) => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+      const post = async (body) => {
+        const res = await fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return res.json();
+      };
+      const status = (msg, ok) => {
+        const el = document.getElementById('cnfStatus');
+        el.style.display = msg ? '' : 'none';
+        el.className = 'status ' + (ok ? 'ok' : 'err');
+        el.textContent = msg || '';
+      };
+      async function load() {
+        status('');
+        document.getElementById('cnfBody').innerHTML = '<tr><td colspan="4" style="padding:8px;color:#999;">Loading…</td></tr>';
+        try {
+          const r = await post({ action: 'getChestNamesForFix', period: document.getElementById('cnfPeriod').value });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Could not load the names');
+          state = r;
+          document.getElementById('cnfPeriodInfo').textContent = 'Period ' + r.period.start + ' – ' + (r.period.end || '…');
+          render();
+        } catch (e) {
+          document.getElementById('cnfBody').innerHTML = '';
+          status(e.message, false);
+        }
+      }
+      function render() {
+        const showAll = document.getElementById('cnfShowAll').checked;
+        const rows = (state.names || []).filter(n => showAll || n.status === 'unknown');
+        const options = (sel) => '<option value="">— choose —</option>' + (state.members || []).slice().sort((a, b) => a.localeCompare(b)).map(m =>
+          '<option value="' + esc(m) + '"' + (m === sel ? ' selected' : '') + '>' + esc(m) + '</option>').join('');
+        const body = document.getElementById('cnfBody');
+        if (!rows.length) {
+          body.innerHTML = '<tr><td colspan="4" style="padding:8px;color:#81c784;">' +
+            (showAll ? 'No chests in this period yet.' : '✓ Every name in this period is a member. Tick "show all names" to fix a chest given to the wrong member.') + '</td></tr>';
+          return;
+        }
+        body.innerHTML = rows.map((n, i) => {
+          const tag = n.status === 'unknown' ? ' <span style="font-size:11px;color:#ff9800;">not a member</span>'
+            : (n.status === 'former' ? ' <span style="font-size:11px;color:#999;">former member</span>' : '');
+          return '<tr style="border-top:1px solid #444;"><td style="padding:6px 8px;" data-sort="' + esc(n.name).replace(/"/g, '&quot;') + '">' + esc(n.name) + tag + '</td>' +
+            '<td style="text-align:center;padding:6px 8px;">' + n.chests + '</td>' +
+            '<td style="padding:6px 8px;"><select data-cnf="' + i + '" style="width:100%;">' + options(n.suggestion) + '</select></td>' +
+            '<td style="padding:6px 8px;"><button class="btn" style="margin:0;padding:6px 12px;" data-cnf-apply="' + i + '">Fix</button></td></tr>';
+        }).join('');
+        body.querySelectorAll('[data-cnf-apply]').forEach(btn => btn.addEventListener('click', () => apply(rows[+btn.dataset.cnfApply], body.querySelector('[data-cnf="' + btn.dataset.cnfApply + '"]').value, btn)));
+      }
+      async function apply(row, target, btn) {
+        if (!target) { status('Choose the correct member for "' + row.name + '" first.', false); return; }
+        if (!confirm('Move ' + row.chests + ' chest(s) from "' + row.name + '" to "' + target + '" in this period?')) return;
+        btn.disabled = true;
+        try {
+          const r = await post({ action: 'fixChestPlayerName', wrongName: row.name, correctName: target, period: document.getElementById('cnfPeriod').value });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'The change failed');
+          await load();
+          status(r.message + ' Recalculate events of this period that were already calculated.', true);
+        } catch (e) {
+          btn.disabled = false;
+          status(e.message, false);
+        }
+      }
+      return { load, render };
+    })();
+
+    // ➕ Manual Chests (owner only; the Worker refuses anyone else): add chests by hand to the
+    // active or previous period, and undo an addition (getManualChests / addManualChests / removeManualChests).
+    window.ManualChests = (function () {
+      let state = { members: [], kinds: [], recent: [], period: null };
+      const esc = (t) => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+      const $ = (id) => document.getElementById(id);
+      const post = async (body) => {
+        const res = await fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return res.json();
+      };
+      const status = (msg, ok) => {
+        const el = $('mcStatus');
+        el.style.display = msg ? '' : 'none';
+        el.className = 'status ' + (ok ? 'ok' : 'err');
+        el.textContent = msg || '';
+      };
+      const kindLabel = (k) => k.type + ' — ' + k.name + ' (level ' + k.level + ') · ' + k.points + ' pts';
+      function show(r) {
+        state = r;
+        $('mcPeriodInfo').textContent = 'Adding to: period ' + r.period.start + ' – ' + (r.period.end || '…') + (r.period.status === 'active' ? ' (active)' : ' (closed)');
+        const member = $('mcMember').value;
+        $('mcMember').innerHTML = '<option value="">— choose —</option>' + r.members.slice().sort((a, b) => a.localeCompare(b)).map(m =>
+          '<option value="' + esc(m) + '"' + (m === member ? ' selected' : '') + '>' + esc(m) + '</option>').join('');
+        const kind = $('mcKind').value;
+        $('mcKind').innerHTML = '<option value="">— choose, or type it below —</option>' + r.kinds.map((k, i) =>
+          '<option value="' + i + '"' + (String(i) === kind ? ' selected' : '') + '>' + esc(kindLabel(k)) + '</option>').join('');
+        renderRecent();
+        preview();
+      }
+      async function load() {
+        status('');
+        try {
+          const r = await post({ action: 'getManualChests', period: $('mcPeriod').value });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Could not load');
+          show(r);
+        } catch (e) {
+          $('mcRecent').innerHTML = '';
+          status(e.message, false);
+        }
+      }
+      function pickKind() {
+        const k = state.kinds[+$('mcKind').value];
+        if ($('mcKind').value === '' || !k) return preview();
+        $('mcType').value = k.type; $('mcName').value = k.name; $('mcLevel').value = k.level;
+        preview();
+      }
+      // Points preview for a chest kind from the list (anything else is checked when adding).
+      function preview() {
+        const type = $('mcType').value.trim(), name = $('mcName').value.trim(), level = +$('mcLevel').value || 0;
+        const n = Math.max(0, parseInt($('mcCount').value, 10) || 0);
+        const k = state.kinds.find(x => x.type === type && x.name === name && x.level === level);
+        if (k && $('mcKind').value !== String(state.kinds.indexOf(k))) $('mcKind').value = String(state.kinds.indexOf(k));
+        if (!k && $('mcKind').value !== '') $('mcKind').value = '';
+        $('mcPreview').textContent = k ? (n + ' × ' + k.points + ' = ' + (n * k.points) + ' points') : (type && name ? 'Points are looked up when adding' : '');
+      }
+      function renderRecent() {
+        const rows = state.recent || [];
+        if (!rows.length) { $('mcRecent').innerHTML = '<tr><td colspan="8" style="padding:8px;color:#999;">Nothing added by hand yet.</td></tr>'; return; }
+        $('mcRecent').innerHTML = rows.map(r => {
+          const gone = !!r.removedAt;
+          const style = gone ? 'color:#777;text-decoration:line-through;' : '';
+          return '<tr style="border-top:1px solid #444;' + style + '">' +
+            '<td style="padding:6px 8px;white-space:nowrap;" title="' + esc(r.by || '') + '" data-sort="' + esc(r.at || '') + '">' + esc(cccDateTime(r.at)) + '</td>' +
+            '<td style="padding:6px 8px;white-space:nowrap;">' + esc(r.period) + '</td>' +
+            '<td style="padding:6px 8px;">' + esc(r.clanmate) + '</td>' +
+            '<td style="padding:6px 8px;">' + esc(r.type + ' — ' + r.name + ' (' + r.level + ')') + '</td>' +
+            '<td style="text-align:center;padding:6px 8px;">' + r.count + '</td>' +
+            '<td style="text-align:right;padding:6px 8px;">' + (r.count * r.points) + '</td>' +
+            '<td style="padding:6px 8px;color:#b0b0b0;">' + esc(r.note || '') + '</td>' +
+            '<td style="padding:6px 8px;">' + (gone ? '<span style="font-size:11px;" title="' + esc('by ' + (r.removedBy || '')) + '">undone</span>'
+              : '<button class="btn btn-secondary" style="margin:0;padding:4px 10px;" data-mc-undo="' + r.id + '">↩️ Undo</button>') + '</td></tr>';
+        }).join('');
+        $('mcRecent').querySelectorAll('[data-mc-undo]').forEach(b => b.addEventListener('click', () => undo(rows.find(r => r.id === +b.dataset.mcUndo), b)));
+      }
+      async function add() {
+        const body = {
+          action: 'addManualChests', period: $('mcPeriod').value, clanmate: $('mcMember').value,
+          chestType: $('mcType').value.trim(), chestName: $('mcName').value.trim(), chestLevel: $('mcLevel').value,
+          count: parseInt($('mcCount').value, 10), note: $('mcNote').value.trim(),
+        };
+        if (!body.clanmate) { status('Choose the member first.', false); return; }
+        if (!body.chestType || !body.chestName) { status('Choose a chest, or fill in its type and name.', false); return; }
+        if (!confirm('Add ' + body.count + ' × ' + body.chestName + ' (' + body.chestType + ', level ' + (body.chestLevel || 0) + ') for ' + body.clanmate + ' to ' + $('mcPeriodInfo').textContent.replace('Adding to: ', '') + '?')) return;
+        $('mcAddBtn').disabled = true;
+        try {
+          const r = await post(body);
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Adding failed');
+          show(r);
+          $('mcCount').value = 1; $('mcNote').value = '';
+          preview();
+          status(r.message, true);
+        } catch (e) {
+          status(e.message, false);
+        } finally {
+          $('mcAddBtn').disabled = false;
+        }
+      }
+      async function undo(row, btn) {
+        if (!row || !confirm('Take out ' + row.count + ' × ' + row.name + ' for ' + row.clanmate + ' (period ' + row.period + ')?')) return;
+        btn.disabled = true;
+        try {
+          const r = await post({ action: 'removeManualChests', id: row.id, period: $('mcPeriod').value });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Undo failed');
+          show(r);
+          status(r.message, true);
+        } catch (e) {
+          btn.disabled = false;
+          status(e.message, false);
+        }
+      }
+      return { load, pickKind, preview, add };
+    })();
+
+    // 🔤 OCR Corrections: the chesttracker's OcrCorrectionList, shared through the database
+    // (getOcrCorrections / updateOcrCorrections).
+    window.OcrCorrections = (function () {
+      let list = [];
+      const esc = (t) => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+      const attr = (t) => esc(t).replace(/"/g, '&quot;');
+      const post = async (body) => {
+        const res = await fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return res.json();
+      };
+      const status = (msg, ok) => {
+        const el = document.getElementById('ocrStatus');
+        el.style.display = msg ? '' : 'none';
+        el.className = 'status ' + (ok ? 'ok' : 'err');
+        el.textContent = msg || '';
+      };
+      const show = (r) => {
+        list = r.corrections || [];
+        const n = list.reduce((s, c) => s + c.variants.length, 0);
+        document.getElementById('ocrInfo').textContent = list.length + ' words, ' + n + ' misreadings' +
+          (r.lastChange ? ' · last change ' + (window.cccDateTime ? cccDateTime(r.lastChange.at) : r.lastChange.at) + ' by ' + (r.lastChange.by || '?') : '');
+        render();
+      };
+      async function load() {
+        status('');
+        try {
+          const r = await post({ action: 'getOcrCorrections' });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Could not load the list');
+          show(r);
+        } catch (e) { status(e.message, false); }
+      }
+      async function change(changes, okMsg) {
+        status('');
+        try {
+          let email = '';
+          try { email = localStorage.getItem('ccc_portal_google_email') || ''; } catch (e) {}
+          const r = await post({ action: 'updateOcrCorrections', changes: changes, userEmail: email });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'The change failed');
+          show(r);
+          status(okMsg || r.message, true);
+        } catch (e) { status(e.message, false); }
+      }
+      function render() {
+        const q = (document.getElementById('ocrSearch').value || '').toLowerCase().trim();
+        const rows = list.filter(c => !q || c.word.toLowerCase().includes(q) || c.variants.some(v => v.toLowerCase().includes(q)));
+        const box = document.getElementById('ocrList');
+        if (!rows.length) { box.innerHTML = '<div class="note" style="padding:8px;">' + (list.length ? 'Nothing matches.' : 'The list is empty until the chesttracker has synced it once.') + '</div>'; return; }
+        box.innerHTML = rows.map(c =>
+          '<div class="ocr-word" data-word="' + attr(c.word) + '" style="border-top:1px solid #444;padding:8px 4px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">' +
+            '<strong style="color:#ffb300;min-width:160px;">' + esc(c.word) + '</strong>' +
+            c.variants.map(v => '<span style="background:#33343a;border:1px solid #444;border-radius:12px;padding:2px 4px 2px 10px;font-size:12px;">' + esc(v) +
+              ' <button title="Remove this misreading" data-ocr-rmv="' + attr(v) + '" style="background:none;border:none;color:#ef5350;cursor:pointer;font-size:13px;">×</button></span>').join('') +
+            '<input type="text" placeholder="+ misreading" data-ocr-add style="width:140px;padding:4px 8px;font-size:12px;">' +
+            '<span style="margin-left:auto;display:flex;gap:4px;">' +
+              '<button class="btn btn-secondary" data-ocr-rename style="margin:0;padding:4px 8px;font-size:12px;" title="Change the correct word">✏️</button>' +
+              '<button class="btn btn-secondary" data-ocr-del style="margin:0;padding:4px 8px;font-size:12px;" title="Remove the word and its misreadings">🗑</button></span>' +
+          '</div>').join('');
+        box.querySelectorAll('.ocr-word').forEach(row => {
+          const word = row.getAttribute('data-word');
+          row.querySelectorAll('[data-ocr-rmv]').forEach(b => b.addEventListener('click', () =>
+            change([{ op: 'removeVariant', word: word, incorrect: b.getAttribute('data-ocr-rmv') }], '"' + b.getAttribute('data-ocr-rmv') + '" removed.')));
+          const input = row.querySelector('[data-ocr-add]');
+          input.addEventListener('keydown', (ev) => {
+            if (ev.key !== 'Enter' || !input.value.trim()) return;
+            change([{ op: 'addVariant', word: word, incorrect: input.value.trim() }], '"' + input.value.trim() + '" now reads as "' + word + '".');
+          });
+          row.querySelector('[data-ocr-rename]').addEventListener('click', () => {
+            const nw = prompt('Correct word "' + word + '" becomes:', word);
+            if (nw && nw.trim() && nw.trim() !== word) change([{ op: 'renameWord', word: word, newWord: nw.trim() }], '"' + word + '" is now "' + nw.trim() + '".');
+          });
+          row.querySelector('[data-ocr-del]').addEventListener('click', () => {
+            if (confirm('Remove "' + word + '" and its ' + (list.find(c => c.word === word) || { variants: [] }).variants.length + ' misreading(s)?'))
+              change([{ op: 'removeWord', word: word }], '"' + word + '" removed.');
+          });
+        });
+      }
+      function addWord() {
+        const el = document.getElementById('ocrNewWord');
+        const w = (el.value || '').trim();
+        if (!w) return;
+        el.value = '';
+        change([{ op: 'addWord', word: w }], '"' + w + '" added. Add its misreadings on its line.');
+      }
+      return { load, render, addWord };
+    })();
+
+    // 🏷️ Chest Point Values: the points per chest (old "Chests 2.0" tab), changed on the
+    // database site (getChestPointsTable / updateChestPoints). Saving re-scores the active period.
+    window.ChestPointValues = (function () {
+      let state = { rows: [], unmatched: [], log: [], period: null };
+      let edits = {};        // row id → new points (not saved yet)
+      let editing = null;    // row being edited in the form (null = adding)
+      let sort = { key: null, dir: 1 };  // header click: ascending → descending → list order
+      const esc = (t) => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+      const attr = (t) => esc(t).replace(/"/g, '&quot;');
+      const fmt = (n) => Number(n || 0).toLocaleString();
+      const post = async (body) => {
+        const res = await fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return res.json();
+      };
+      const status = (msg, ok) => {
+        const el = document.getElementById('cpvStatus');
+        el.style.display = msg ? '' : 'none';
+        el.className = 'status ' + (ok ? 'ok' : 'err');
+        el.textContent = msg || '';
+      };
+      const when = (at) => (window.cccDateTime ? cccDateTime(at) : at);
+      const rowText = (r) => r ? r.type + ' / ' + r.name + (r.crypt ? ' / ' + r.crypt : '') : '';
+      const show = (r) => {
+        state = r;
+        edits = {};
+        const last = (r.log || [])[0];
+        document.getElementById('cpvInfo').textContent = (r.rows || []).length + ' chests' +
+          (r.period ? ' · active period ' + r.period.start + ' – ' + (r.period.end || '…') : ' · no active period') +
+          (last ? ' · last change ' + when(last.at) + ' by ' + (last.by || '?') : '');
+        render();
+        renderUnmatched();
+        renderLog();
+      };
+      async function load() {
+        status('');
+        try {
+          const r = await post({ action: 'getChestPointsTable' });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Could not load the chest points');
+          show(r);
+        } catch (e) {
+          document.getElementById('cpvBody').innerHTML = '';
+          status(e.message, false);
+        }
+      }
+      async function change(changes) {
+        status('');
+        const btn = document.getElementById('cpvSaveBtn');
+        btn.disabled = true;
+        try {
+          let email = '';
+          try { email = localStorage.getItem('ccc_portal_google_email') || ''; } catch (e) {}
+          const r = await post({ action: 'updateChestPoints', changes: changes, userEmail: email });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'The change failed');
+          show(r);
+          status(r.message, true);
+          return true;
+        } catch (e) {
+          updateSaveBtn();
+          status(e.message, false);
+          return false;
+        }
+      }
+      function updateSaveBtn() {
+        const n = Object.keys(edits).length;
+        const btn = document.getElementById('cpvSaveBtn');
+        btn.disabled = !n;
+        btn.textContent = n ? '💾 Save changes (' + n + ')' : '💾 Save changes';
+      }
+      function render() {
+        const q = (document.getElementById('cpvSearch').value || '').toLowerCase().trim();
+        const rows = (state.rows || []).filter(r => !q || (r.type + ' ' + r.name + ' ' + r.crypt).toLowerCase().includes(q));
+        if (sort.key) {
+          // saved points, so a row doesn't jump away while its points are being typed
+          const cmp = sort.key === 'points' ? (a, b) => a.points - b.points
+            : (a, b) => String(a[sort.key]).localeCompare(String(b[sort.key]), undefined, { numeric: true, sensitivity: 'base' });
+          rows.sort((a, b) => sort.dir * cmp(a, b) || a.id - b.id);
+        }
+        document.querySelectorAll('#chestValuesTab [data-cpv-sort]').forEach(th => {
+          th.querySelector('.cpv-arrow').textContent = th.dataset.cpvSort === sort.key ? (sort.dir > 0 ? '▲' : '▼') : '';
+        });
+        const body = document.getElementById('cpvBody');
+        if (!rows.length) {
+          body.innerHTML = '<tr><td colspan="5" style="padding:8px;color:#999;">' + ((state.rows || []).length ? 'Nothing matches.' : 'The list is empty.') + '</td></tr>';
+          updateSaveBtn();
+          return;
+        }
+        body.innerHTML = rows.map(r => {
+          const val = Object.prototype.hasOwnProperty.call(edits, r.id) ? edits[r.id] : r.points;
+          const dirty = Object.prototype.hasOwnProperty.call(edits, r.id);
+          return '<tr style="border-top:1px solid #444;' + (dirty ? 'background:rgba(255,179,0,0.08);' : '') + '">' +
+            '<td style="padding:6px 8px;">' + esc(r.type) + '</td>' +
+            '<td style="padding:6px 8px;">' + esc(r.name) + '</td>' +
+            '<td style="padding:6px 8px;">' + esc(r.crypt) + '</td>' +
+            '<td style="padding:4px 8px;text-align:right;"><input type="number" min="0" step="1" data-cpv-pts="' + r.id + '" value="' + attr(val) + '" title="Was ' + attr(r.points) + '" style="width:90px;padding:4px 6px;font-size:13px;text-align:right;' + (dirty ? 'border-color:#ffb300;' : '') + '"></td>' +
+            '<td style="padding:4px 8px;white-space:nowrap;text-align:right;">' +
+              '<button class="btn btn-secondary" data-cpv-edit="' + r.id + '" style="margin:0;padding:4px 8px;font-size:12px;" title="Change type, name or level">✏️</button> ' +
+              '<button class="btn btn-secondary" data-cpv-del="' + r.id + '" style="margin:0;padding:4px 8px;font-size:12px;" title="Remove this chest">🗑</button></td></tr>';
+        }).join('');
+        const byId = (id) => state.rows.find(r => r.id === Number(id));
+        body.querySelectorAll('[data-cpv-pts]').forEach(input => {
+          input.addEventListener('change', () => {
+            const r = byId(input.dataset.cpvPts);
+            const v = input.value.trim();
+            if (v === '' || Number(v) === r.points) delete edits[r.id];
+            else edits[r.id] = Number(v);
+            render();
+          });
+          input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { input.blur(); } });
+        });
+        body.querySelectorAll('[data-cpv-edit]').forEach(b => b.addEventListener('click', () => openForm(byId(b.dataset.cpvEdit))));
+        body.querySelectorAll('[data-cpv-del]').forEach(b => b.addEventListener('click', () => {
+          const r = byId(b.dataset.cpvDel);
+          if (confirm('Remove "' + rowText(r) + '" (' + fmt(r.points) + ' points)? Its chests in the active period get 0 points.'))
+            change([{ op: 'remove', id: r.id, was: r }]);
+        }));
+        updateSaveBtn();
+      }
+      function renderUnmatched() {
+        const box = document.getElementById('cpvUnmatched');
+        const list = state.unmatched || [];
+        if (!list.length) { box.innerHTML = ''; return; }
+        box.innerHTML = '<div style="margin-bottom:12px;border:1px solid #ff9800;border-radius:8px;padding:10px 12px;text-align:left;">' +
+          '<div style="color:#ff9800;font-size:13px;font-weight:600;margin-bottom:6px;">⚠️ ' + list.length + ' chest kind(s) in the active period have no points yet</div>' +
+          list.map((u, i) => '<div style="display:flex;gap:8px;align-items:center;padding:3px 0;font-size:13px;">' +
+            '<span style="flex:1;">' + esc(u.type) + ' / ' + esc(u.name) + ' / level ' + esc(u.level) + ' <span style="color:#999;">(' + u.count + '×)</span></span>' +
+            '<button class="btn btn-secondary" data-cpv-add="' + i + '" style="margin:0;padding:3px 10px;font-size:12px;">➕ Add</button></div>').join('') +
+          '</div>';
+        box.querySelectorAll('[data-cpv-add]').forEach(b => b.addEventListener('click', () => {
+          const u = list[+b.dataset.cpvAdd];
+          // "Level 35 Epic Crypt" → type "Epic Crypt", level 35 (how the list is usually written)
+          const m = String(u.type || '').match(/^Level\s+\d+\s+(.+)$/i);
+          openForm(null, { type: m ? m[1] : u.type, name: u.name, crypt: String(u.level || ''), points: '' });
+        }));
+      }
+      function renderLog() {
+        const box = document.getElementById('cpvLog');
+        const log = state.log || [];
+        box.innerHTML = log.length ? log.map(l => {
+          const what = l.op === 'add' ? '➕ ' + esc(rowText(l.after)) + ': ' + fmt(l.after.points)
+            : l.op === 'remove' ? '🗑 ' + esc(rowText(l.before)) + ' (' + fmt(l.before.points) + ')'
+            : '✏️ ' + esc(rowText(l.before)) + ': ' + fmt(l.before.points) + ' → ' + (rowText(l.before) !== rowText(l.after) ? esc(rowText(l.after)) + ': ' : '') + fmt(l.after.points);
+          return '<div style="padding:2px 0;">' + esc(when(l.at)) + ' · ' + esc(l.by || '?') + ' · ' + what + '</div>';
+        }).join('') : 'No changes made on the site yet.';
+      }
+      function openForm(row, prefill) {
+        editing = row || null;
+        const v = row || prefill || { type: '', name: '', crypt: '', points: '' };
+        document.getElementById('cpvFormTitle').textContent = row ? 'Change "' + rowText(row) + '"' : 'Add a chest';
+        document.getElementById('cpvType').value = v.type || '';
+        document.getElementById('cpvName').value = v.name || '';
+        document.getElementById('cpvCrypt').value = v.crypt || '';
+        document.getElementById('cpvPoints').value = v.points === '' || v.points == null ? '' : v.points;
+        const form = document.getElementById('cpvForm');
+        form.style.display = '';
+        form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        document.getElementById(row || !prefill ? 'cpvType' : 'cpvPoints').focus();
+      }
+      function closeForm() {
+        editing = null;
+        document.getElementById('cpvForm').style.display = 'none';
+      }
+      async function submitForm() {
+        const row = {
+          type: document.getElementById('cpvType').value.trim(),
+          name: document.getElementById('cpvName').value.trim(),
+          crypt: document.getElementById('cpvCrypt').value.trim(),
+          points: document.getElementById('cpvPoints').value.trim(),
+        };
+        if (!row.type || !row.name || row.points === '') { status('Chest type, chest name and points are needed.', false); return; }
+        row.points = Number(row.points);
+        const ok = await change([editing ? { op: 'set', id: editing.id, was: editing, ...row } : { op: 'add', ...row }]);
+        if (ok) closeForm();
+      }
+      function sortBy(key) {
+        if (sort.key !== key) sort = { key: key, dir: 1 };
+        else if (sort.dir > 0) sort.dir = -1;
+        else sort = { key: null, dir: 1 };
+        render();
+      }
+      function save() {
+        const changes = Object.keys(edits).map(id => {
+          const r = state.rows.find(x => x.id === Number(id));
+          return { op: 'set', id: r.id, points: edits[id], was: r };
+        });
+        if (changes.length) change(changes);
+      }
+      return { load, render, save, sortBy, openForm: () => openForm(null), closeForm, submitForm };
     })();
   </script>
 </body>
