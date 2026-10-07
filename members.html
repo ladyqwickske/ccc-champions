@@ -291,12 +291,13 @@
 
     /* Troop Badges — color by LEVEL, consistent across all types */
     /* G/M/S/E: 1-5 red, 6 orange, 7 yellow, 8 green, 9 purple, 10+ pink */
-    /* C (crypt): 1-15 red, 16-20 orange, 21-25 yellow, 26-30 green, 31-35 purple, 36+ pink */
+    /* C (Carter): under 100 red, 100-199 orange, 200-299 yellow, 300-399 green, 400-499 blue, 500+ purple */
     .troop-badge { display: inline-block; padding: 1px 4px; border-radius: 8px; font-size: 0.72em; font-weight: 700; min-width: 16px; text-align: center; line-height: 1.4; }
     .troop-badge.lvl-red    { background: rgba(244, 67, 54, 0.18); color: #ef9a9a; }
     .troop-badge.lvl-orange { background: rgba(255, 152, 0, 0.18); color: #ffb74d; }
     .troop-badge.lvl-yellow { background: rgba(255, 235, 59, 0.18); color: #fff176; }
     .troop-badge.lvl-green  { background: rgba(76, 175, 80, 0.18); color: #81c784; }
+    .troop-badge.lvl-blue   { background: rgba(33, 150, 243, 0.18); color: #64b5f6; }
     .troop-badge.lvl-purple { background: rgba(156, 39, 176, 0.18); color: #ce93d8; }
     .troop-badge.lvl-pink   { background: rgba(233, 30, 99, 0.18); color: #f48fb1; }
     .troop-category { display: inline-block; padding: 1px 5px; border-radius: 8px; font-size: 0.7em; font-weight: 700; text-align: center; min-width: 20px; }
@@ -685,28 +686,28 @@
       <div class="tabs">
         <!-- Groups; each shows its own tabs (MembersTab.switchGroup / switchTab) -->
         <div class="tab-groups">
-          <button class="tab-group active" data-group="progress" onclick="MembersTab.switchGroup('progress')">📈 Progress</button>
-          <button class="tab-group" data-group="roster" onclick="MembersTab.switchGroup('roster')">👥 Roster</button>
+          <button class="tab-group active" data-group="roster" onclick="MembersTab.switchGroup('roster')">👥 Roster</button>
+          <button class="tab-group" data-group="progress" onclick="MembersTab.switchGroup('progress')">📈 Progress</button>
         </div>
-        <button class="tab active" data-group="progress" data-tab="troopTab" onclick="MembersTab.switchTab('troopTab', event)">⚔️ Track Troops</button>
-        <button class="tab" data-group="progress" data-tab="heroTab" onclick="MembersTab.switchTab('heroTab', event)">🦸 Hero Level</button>
-        <button class="tab" data-group="progress" data-tab="chestPointsTab" onclick="MembersTab.switchTab('chestPointsTab', event)">📦 Chest Points</button>
-        <button class="tab" data-group="roster" hidden data-tab="addMemberTab" onclick="MembersTab.switchTab('addMemberTab', event)">➕ Add Member</button>
-        <button class="tab" data-group="roster" hidden data-tab="removeMemberTab" onclick="MembersTab.switchTab('removeMemberTab', event)">🚪 Remove Member</button>
-        <button class="tab" data-group="roster" hidden data-tab="nameTab" onclick="MembersTab.switchTab('nameTab', event)">✏️ Change Name</button>
+        <button class="tab active" data-group="roster" data-tab="addMemberTab" onclick="MembersTab.switchTab('addMemberTab', event)">➕ Add Member</button>
+        <button class="tab" data-group="roster" data-tab="removeMemberTab" onclick="MembersTab.switchTab('removeMemberTab', event)">🚪 Remove Member</button>
+        <button class="tab" data-group="roster" data-tab="nameTab" onclick="MembersTab.switchTab('nameTab', event)">✏️ Change Name</button>
+        <button class="tab" data-group="progress" hidden data-tab="troopTab" onclick="MembersTab.switchTab('troopTab', event)">⚔️ Track Troops</button>
+        <button class="tab" data-group="progress" hidden data-tab="heroTab" onclick="MembersTab.switchTab('heroTab', event)">🦸 Hero Level</button>
+        <button class="tab" data-group="progress" hidden data-tab="chestPointsTab" onclick="MembersTab.switchTab('chestPointsTab', event)">📦 Chest Points</button>
       </div>
-      <div id="troopTab" class="tab-content active">
+      <div id="troopTab" class="tab-content">
         <h3 style="margin:0 0 12px 0;">Track Troop Levels</h3>
         <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
           <div><label for="troopMemberSelect">Member</label><select id="troopMemberSelect" onchange="MembersTab.loadMemberTroops()"></select></div>
           <div><label for="troopDateInput">Date</label><input type="date" id="troopDateInput"><div class="note">Defaults to today</div></div>
         </div>
         <div class="form-grid troop-form-grid">
-          <div><label>Guardsmen (G)</label><input type="number" id="troopG" min="3" max="9" placeholder="3-9"></div>
-          <div><label>Specialists (S)</label><input type="number" id="troopS" min="3" max="9" placeholder="3-9"></div>
-          <div><label>Monsters (M)</label><input type="number" id="troopM" min="3" max="9" placeholder="3-9"></div>
-          <div><label>Eng. Corps (E)</label><input type="number" id="troopE" min="3" max="9" placeholder="3-9"></div>
-          <div><label>Crypt Lvl (C)</label><input type="number" id="troopC" min="1" max="500" placeholder="1-500"></div>
+          <div><label>Guardsmen (G)</label><input type="number" id="troopG" min="1" max="9" placeholder="1-9"></div>
+          <div><label>Specialists (S)</label><input type="number" id="troopS" min="1" max="9" placeholder="1-9"></div>
+          <div><label>Monsters (M)</label><input type="number" id="troopM" min="1" max="9" placeholder="1-9"></div>
+          <div><label>Eng. Corps (E)</label><input type="number" id="troopE" min="1" max="9" placeholder="1-9"></div>
+          <div><label>Carter Lvl (C)</label><input type="number" id="troopC" min="1" max="500" placeholder="1-500"></div>
         </div>
         <div class="form-grid" style="grid-template-columns: 1fr;">
           <div><label>Notes (optional)</label><input type="text" id="troopNotesInput" placeholder="e.g. upgraded during event"></div>
@@ -778,7 +779,7 @@
           <div id="chestPointsEmpty" style="display:none; text-align:center; padding:30px; color:#b0b0b0;">No active periods found</div>
         </div>
       </div>
-      <div id="addMemberTab" class="tab-content">
+      <div id="addMemberTab" class="tab-content active">
         <h3 style="margin:0 0 12px 0;">Add New Member</h3>
         <!-- New or returning member (member-transfers.js: ReturningMember) -->
         <div style="display:flex;gap:18px;margin-bottom:12px;text-align:left;">
@@ -825,7 +826,7 @@
             <th class="sortable" data-column="heroLevel" title="Latest recorded hero level">Hero</th>
             <th class="sortable" data-column="joinDate">Joined</th>
             <th class="sortable" data-column="category" title="Troop Category">Cat</th>
-            <th class="sortable" data-column="troops" title="Guardsmen / Monsters / Specialists / Eng. Corps / Crypt">G/M/S/E/C</th>
+            <th class="sortable" data-column="troops" title="Guardsmen / Monsters / Specialists / Eng. Corps / Carter">G/M/S/E/C</th>
           </tr>
         </thead>
         <tbody id="membersTableBody"></tbody>
@@ -1500,12 +1501,12 @@
         const n = Number(level) || 0;
         let cls;
         if (type === 'c') {
-          // Crypt: 1-15 red, 16-20 orange, 21-25 yellow, 26-30 green, 31-35 purple, 36+ pink
-          if (n >= 36) cls = 'lvl-pink';
-          else if (n >= 31) cls = 'lvl-purple';
-          else if (n >= 26) cls = 'lvl-green';
-          else if (n >= 21) cls = 'lvl-yellow';
-          else if (n >= 16) cls = 'lvl-orange';
+          // Carter: under 100 red, 100-199 orange, 200-299 yellow, 300-399 green, 400-499 blue, 500+ purple
+          if (n >= 500) cls = 'lvl-purple';
+          else if (n >= 400) cls = 'lvl-blue';
+          else if (n >= 300) cls = 'lvl-green';
+          else if (n >= 200) cls = 'lvl-yellow';
+          else if (n >= 100) cls = 'lvl-orange';
           else cls = 'lvl-red';
         } else {
           // G/M/S/E: 1-5 red, 6 orange, 7 yellow, 8 green, 9 purple, 10+ pink
@@ -1642,8 +1643,8 @@
           if (raw === '') continue;
           const level = parseInt(raw, 10);
           const isC = t === 'C';
-          if (isNaN(level) || (isC ? (level < 1 || level > 500) : (level < 3 || level > 9))) {
-            status.textContent = `${t}: ${isC ? 'must be 1-500' : 'must be 3-9'}.`;
+          if (isNaN(level) || (isC ? (level < 1 || level > 500) : (level < 1 || level > 9))) {
+            status.textContent = `${t}: ${isC ? 'must be 1-500' : 'must be 1-9'}.`;
             status.className = 'status err'; return;
           }
           if (level !== (loadedTroopLevels[t] || 0)) changes.push({ type: t, level });
