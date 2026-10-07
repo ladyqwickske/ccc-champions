@@ -685,17 +685,17 @@
       <div class="tabs">
         <!-- Groups; each shows its own tabs (MembersTab.switchGroup / switchTab) -->
         <div class="tab-groups">
-          <button class="tab-group active" data-group="progress" onclick="MembersTab.switchGroup('progress')">📈 Progress</button>
-          <button class="tab-group" data-group="roster" onclick="MembersTab.switchGroup('roster')">👥 Roster</button>
+          <button class="tab-group active" data-group="roster" onclick="MembersTab.switchGroup('roster')">👥 Roster</button>
+          <button class="tab-group" data-group="progress" onclick="MembersTab.switchGroup('progress')">📈 Progress</button>
         </div>
-        <button class="tab active" data-group="progress" data-tab="troopTab" onclick="MembersTab.switchTab('troopTab', event)">⚔️ Track Troops</button>
-        <button class="tab" data-group="progress" data-tab="heroTab" onclick="MembersTab.switchTab('heroTab', event)">🦸 Hero Level</button>
-        <button class="tab" data-group="progress" data-tab="chestPointsTab" onclick="MembersTab.switchTab('chestPointsTab', event)">📦 Chest Points</button>
-        <button class="tab" data-group="roster" hidden data-tab="addMemberTab" onclick="MembersTab.switchTab('addMemberTab', event)">➕ Add Member</button>
-        <button class="tab" data-group="roster" hidden data-tab="removeMemberTab" onclick="MembersTab.switchTab('removeMemberTab', event)">🚪 Remove Member</button>
-        <button class="tab" data-group="roster" hidden data-tab="nameTab" onclick="MembersTab.switchTab('nameTab', event)">✏️ Change Name</button>
+        <button class="tab active" data-group="roster" data-tab="addMemberTab" onclick="MembersTab.switchTab('addMemberTab', event)">➕ Add Member</button>
+        <button class="tab" data-group="roster" data-tab="removeMemberTab" onclick="MembersTab.switchTab('removeMemberTab', event)">🚪 Remove Member</button>
+        <button class="tab" data-group="roster" data-tab="nameTab" onclick="MembersTab.switchTab('nameTab', event)">✏️ Change Name</button>
+        <button class="tab" data-group="progress" hidden data-tab="troopTab" onclick="MembersTab.switchTab('troopTab', event)">⚔️ Track Troops</button>
+        <button class="tab" data-group="progress" hidden data-tab="heroTab" onclick="MembersTab.switchTab('heroTab', event)">🦸 Hero Level</button>
+        <button class="tab" data-group="progress" hidden data-tab="chestPointsTab" onclick="MembersTab.switchTab('chestPointsTab', event)">📦 Chest Points</button>
       </div>
-      <div id="troopTab" class="tab-content active">
+      <div id="troopTab" class="tab-content">
         <h3 style="margin:0 0 12px 0;">Track Troop Levels</h3>
         <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
           <div><label for="troopMemberSelect">Member</label><select id="troopMemberSelect" onchange="MembersTab.loadMemberTroops()"></select></div>
@@ -778,7 +778,7 @@
           <div id="chestPointsEmpty" style="display:none; text-align:center; padding:30px; color:#b0b0b0;">No active periods found</div>
         </div>
       </div>
-      <div id="addMemberTab" class="tab-content">
+      <div id="addMemberTab" class="tab-content active">
         <h3 style="margin:0 0 12px 0;">Add New Member</h3>
         <!-- New or returning member (member-transfers.js: ReturningMember) -->
         <div style="display:flex;gap:18px;margin-bottom:12px;text-align:left;">
