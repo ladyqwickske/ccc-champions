@@ -291,7 +291,7 @@
 
     /* Troop Badges — color by LEVEL, consistent across all types */
     /* G/M/S/E: 1-5 red, 6 orange, 7 yellow, 8 green, 9 purple, 10+ pink */
-    /* C (crypt): 1-15 red, 16-20 orange, 21-25 yellow, 26-30 green, 31-35 purple, 36+ pink */
+    /* C (Carter): 1-15 red, 16-20 orange, 21-25 yellow, 26-30 green, 31-35 purple, 36+ pink */
     .troop-badge { display: inline-block; padding: 1px 4px; border-radius: 8px; font-size: 0.72em; font-weight: 700; min-width: 16px; text-align: center; line-height: 1.4; }
     .troop-badge.lvl-red    { background: rgba(244, 67, 54, 0.18); color: #ef9a9a; }
     .troop-badge.lvl-orange { background: rgba(255, 152, 0, 0.18); color: #ffb74d; }
@@ -706,7 +706,7 @@
           <div><label>Specialists (S)</label><input type="number" id="troopS" min="3" max="9" placeholder="3-9"></div>
           <div><label>Monsters (M)</label><input type="number" id="troopM" min="3" max="9" placeholder="3-9"></div>
           <div><label>Eng. Corps (E)</label><input type="number" id="troopE" min="3" max="9" placeholder="3-9"></div>
-          <div><label>Crypt Lvl (C)</label><input type="number" id="troopC" min="1" max="500" placeholder="1-500"></div>
+          <div><label>Carter Lvl (C)</label><input type="number" id="troopC" min="1" max="500" placeholder="1-500"></div>
         </div>
         <div class="form-grid" style="grid-template-columns: 1fr;">
           <div><label>Notes (optional)</label><input type="text" id="troopNotesInput" placeholder="e.g. upgraded during event"></div>
@@ -825,7 +825,7 @@
             <th class="sortable" data-column="heroLevel" title="Latest recorded hero level">Hero</th>
             <th class="sortable" data-column="joinDate">Joined</th>
             <th class="sortable" data-column="category" title="Troop Category">Cat</th>
-            <th class="sortable" data-column="troops" title="Guardsmen / Monsters / Specialists / Eng. Corps / Crypt">G/M/S/E/C</th>
+            <th class="sortable" data-column="troops" title="Guardsmen / Monsters / Specialists / Eng. Corps / Carter">G/M/S/E/C</th>
           </tr>
         </thead>
         <tbody id="membersTableBody"></tbody>
@@ -1500,7 +1500,7 @@
         const n = Number(level) || 0;
         let cls;
         if (type === 'c') {
-          // Crypt: 1-15 red, 16-20 orange, 21-25 yellow, 26-30 green, 31-35 purple, 36+ pink
+          // Carter: 1-15 red, 16-20 orange, 21-25 yellow, 26-30 green, 31-35 purple, 36+ pink
           if (n >= 36) cls = 'lvl-pink';
           else if (n >= 31) cls = 'lvl-purple';
           else if (n >= 26) cls = 'lvl-green';
