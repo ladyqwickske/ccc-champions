@@ -116,6 +116,14 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 		'html, body { margin-top: 0 !important; top: 0 !important; }',
 		'body.translated-ltr, body.translated-rtl { margin-top: 0 !important; top: 0 !important; }',
 		'.goog-te-banner-frame, iframe.goog-te-banner-frame, .goog-te-banner-frame.skiptranslate { display: none !important; visibility: hidden !important; height: 0 !important; }',
+		// Google's current top bar (an iframe in a .skiptranslate block straight inside
+		// <body>), which covered the menu on phones; the language menu is left alone
+		'iframe.VIpgJd-ZVi9od-ORHb-OEVmcd, body > .skiptranslate:has(> iframe.VIpgJd-ZVi9od-ORHb-OEVmcd) { display: none !important; visibility: hidden !important; height: 0 !important; }',
+		'.VIpgJd-ZVi9od-aZ2wEe-wOHMyf { display: none !important; visibility: hidden !important; }',
+		// "↺ Original" (in place of the hidden bar): only while the page is translated
+		'#translateResetBtn { position: fixed; right: 8px; bottom: 52px; z-index: 7001; display: none; align-items: center; height: 34px; padding: 0 10px;'
+			+ ' border: 1px solid #444; border-radius: 8px; background: #232526; color: #ffb300; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.25); }',
+		'html.translated-ltr #translateResetBtn, html.translated-rtl #translateResetBtn { display: inline-flex; }',
 		'#goog-gt-tt, .goog-te-balloon-frame { display: none !important; visibility: hidden !important; }',
 		'.goog-text-highlight { background: transparent !important; box-shadow: none !important; }',
 		'#google_translate_element, #translateToggleBtn { top: auto !important; right: 8px !important; bottom: 8px !important; }',
@@ -128,6 +136,30 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 		style.id = 'global-translate-hardening-style';
 		style.textContent = css;
 		document.head.appendChild(style);
+	};
+
+	// Back to English now that Google's top bar is hidden: Google keeps the chosen
+	// language in the "googtrans" cookie (on this address and on its parent domain);
+	// remove it and reload.
+	const addResetButton = function () {
+		if (!document.body || document.getElementById('translateResetBtn')) return;
+		const btn = document.createElement('button');
+		btn.id = 'translateResetBtn';
+		btn.type = 'button';
+		btn.className = 'notranslate';
+		btn.title = 'Show the page in English again';
+		btn.textContent = '\u21BA Original';
+		btn.addEventListener('click', function () {
+			const expired = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+			const host = location.hostname;
+			const parts = host.split('.');
+			document.cookie = expired;
+			document.cookie = expired + '; domain=' + host;
+			document.cookie = expired + '; domain=.' + host;
+			if (parts.length > 2) document.cookie = expired + '; domain=.' + parts.slice(-2).join('.');
+			location.reload();
+		});
+		document.body.appendChild(btn);
 	};
 
 	const normalizeTopOffset = function () {
@@ -145,7 +177,7 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 				});
 			}
 		}
-		const banner = document.querySelector('iframe.goog-te-banner-frame, .goog-te-banner-frame.skiptranslate, .goog-te-banner-frame');
+		const banner = document.querySelector('iframe.goog-te-banner-frame, .goog-te-banner-frame.skiptranslate, .goog-te-banner-frame, iframe.VIpgJd-ZVi9od-ORHb-OEVmcd');
 		if (banner) {
 			banner.style.display = 'none';
 			banner.style.visibility = 'hidden';
@@ -188,11 +220,13 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 	if (document.readyState === 'loading') {
 		document.addEventListener('DOMContentLoaded', function () {
 			injectStyle();
+			addResetButton();
 			startObserver();
 			window.addEventListener('resize', normalizeTopOffset);
 		});
 	} else {
 		injectStyle();
+		addResetButton();
 		startObserver();
 		window.addEventListener('resize', normalizeTopOffset);
 	}
