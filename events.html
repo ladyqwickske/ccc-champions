@@ -757,7 +757,7 @@
         <div class="form-grid"><div><label for="eventStartDate">Start Date</label><input type="date" id="eventStartDate"></div><div><label for="eventEndDate">End Date</label><input type="date" id="eventEndDate"></div><div id="targetPointsGroup" style="display:none;"><label for="eventTargetPoints">Target Points</label><input type="number" id="eventTargetPoints" placeholder="e.g., 4000 (blank = use global default)" min="0"></div></div>
         <div id="eventTroopTargetSection" style="display:none; margin:12px 0;">
           <label style="display:block; margin-bottom:8px;">🎖️ Troop Category Targets</label>
-          <p style="color:#b0b0b0; font-size:12px; margin-bottom:12px;">Set target points for each troop category. These override the event type defaults for this specific event.</p>
+          <p style="color:#b0b0b0; font-size:12px; margin-bottom:12px;">Set target points for each troop category, or choose <strong>Title</strong>: the member has to earn a tournament title (Winner, Podium, Top 10 or Badge, from the Voltron import). These override the event type defaults for this specific event.</p>
           <div id="eventTroopTargetsList" style="border:1px solid #444; border-radius:6px; padding:12px; background:#232526; margin-bottom:12px; max-height:250px; overflow-y:auto;"></div>
           <button type="button" class="btn btn-secondary" style="width:100%; margin-bottom:12px;" onclick="EventsTab.addEventTroopTargetRow()">➕ Add Category Target</button>
         </div>
@@ -872,6 +872,23 @@
     const escapeAttr = (str) => String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     // Numbers with thousand separators (the viewer's locale); anything else ('—', '') as is.
     const fmtNum = (v) => (v === '' || v === null || v === undefined || isNaN(Number(v))) ? (v ?? '') : Number(v).toLocaleString();
+    // Tournament titles (Voltron import, column C of troop events): "Top 10 (#5)", "Badge (#94)", "No badge (#119)".
+    // A troop target of "title" means the member has to earn one (Winner, Podium, Top 10 or Badge).
+    const TITLE_KINDS = [
+      { name: 'Winner', re: /^winner\b/i, bg: '#ffd700', fg: '#1a1a1a' },
+      { name: 'Podium', re: /^podium\b/i, bg: '#b0bec5', fg: '#1a1a1a' },
+      { name: 'Top 10', re: /^top\s*10\b/i, bg: '#c68642', fg: '#fff' },
+      { name: 'Badge', re: /^badge\b/i, bg: '#1565c0', fg: '#fff' },
+      { name: 'No badge', re: /^no\s*badge\b/i, bg: '#424242', fg: '#bbb' },
+    ];
+    const titleKind = (v) => { const t = String(v ?? '').trim(); return TITLE_KINDS.find(k => k.re.test(t)) || null; };
+    const hasTitle = (v) => { const k = titleKind(v); return !!k && k.name !== 'No badge'; };
+    const isTitleTarget = (v) => String(v ?? '').trim().toLowerCase() === 'title';
+    const titleBadge = (v) => {
+      const k = titleKind(v);
+      if (!k) return '<span style="color:#666">—</span>';
+      return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:${k.bg};color:${k.fg};">${escapeHtml(String(v).trim())}</span>`;
+    };
 
     window.addEventListener('DOMContentLoaded', () => {
       EventsTab.init();
@@ -2188,8 +2205,12 @@
           { key: 'achieved', label: 'Achieved' },
           { key: 'status', label: 'Status' }
         ];
+        // Tournament titles from the Voltron import (column C): a Title column and a summary line
+        const showTitles = participationRawData.some(p => titleKind(p.value2));
+        if (showTitles) columns.splice(4, 0, { key: 'title', label: 'Title' });
         if (showPenalty) columns.push({ key: 'penalty', label: 'Penalty' });
         thead.innerHTML = '<tr>' + columns.map(col => `<th class="sortable" data-sort="${col.key}">${escapeHtml(col.label)}</th>`).join('') + '</tr>';
+        renderTitleSummary(showTitles);
         // Build data rows with computed fields
         let rows = participationRawData.map(p => {
           const pts = Number(p.value1 ?? 0);
@@ -2198,13 +2219,18 @@
           const category = troopEntry.category || null;
           const eventTypeName = selectedEvent?.eventType || '';
           const targets = getEventTroopTargets(eventTypeName);
-          const targetPoints = (targets && category) ? Number(targets[category]) : null;
+          const titleTarget = !!(targets && category && isTitleTarget(targets[category]));
+          const targetPoints = (targets && category && !titleTarget) ? Number(targets[category]) : null;
           const eventEndDate = parseDateSafe(selectedEvent?.endDate);
           const joinDate = memberJoinDatesMap[nameKey] || null;
           const notInClan = joinDate && eventEndDate && joinDate > eventEndDate;
           let statusIcon = '<span class="status-icon na">—</span>';
           let statusSort = 0;
-          if (!notInClan && targetPoints !== null && !isNaN(targetPoints)) {
+          if (!notInClan && titleTarget) {
+            // Title target: met with a tournament title (Winner, Podium, Top 10, Badge)
+            statusIcon = hasTitle(p.value2) ? '<span class="status-icon ok">✓</span>' : '<span class="status-icon err">✕</span>';
+            statusSort = hasTitle(p.value2) ? 3 : 1;
+          } else if (!notInClan && targetPoints !== null && !isNaN(targetPoints)) {
             if (pts >= targetPoints) {
               statusIcon = '<span class="status-icon ok">✓</span>';
               statusSort = 3;
@@ -2219,8 +2245,10 @@
           return {
             memberName: p.memberName,
             category: category || '—',
-            target: targetPoints !== null && !isNaN(targetPoints) ? targetPoints : '—',
+            target: titleTarget ? 'Title' : targetPoints !== null && !isNaN(targetPoints) ? targetPoints : '—',
             achieved: pts,
+            title: titleKind(p.value2) ? String(p.value2).trim() : '',
+            _titleSort: (() => { const k = titleKind(p.value2); return k ? TITLE_KINDS.length - TITLE_KINDS.indexOf(k) : 0; })(),
             status: statusIcon,
             penalty: Number(p.penalty) || 0,
             penaltyStatus: p.penaltyStatus || '',
@@ -2244,6 +2272,9 @@
             } else if (troopSortColumn === 'status') {
               vA = a._statusSort;
               vB = b._statusSort;
+            } else if (troopSortColumn === 'title') {
+              vA = a._titleSort;
+              vB = b._titleSort;
             }
             if (vA < vB) return troopSortDirection === 'asc' ? -1 : 1;
             if (vA > vB) return troopSortDirection === 'asc' ? 1 : -1;
@@ -2257,7 +2288,7 @@
             : '<span style="color:#666">—</span>';
           const tr = document.createElement('tr');
           const penaltyCell = showPenalty ? `<td style="text-align:center;">${penaltyCellHtml(row.memberName, row.penalty, row.penaltyStatus)}</td>` : '';
-          tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td><td style="text-align:center;">${row.status}</td>${penaltyCell}`;
+          tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td>${showTitles ? `<td style="text-align:center;">${titleBadge(row.title)}</td>` : ''}<td style="text-align:center;">${row.status}</td>${penaltyCell}`;
           tbody.appendChild(tr);
         });
         // Add sort indicators
@@ -2268,6 +2299,27 @@
         });
         // Add handlers
         addSortHandlers('troopParticipationTableHead', 'troop');
+      }
+
+      /** Above the troop table: how many members got each title, and the total with a title. */
+      function renderTitleSummary(show) {
+        const table = document.getElementById('troopParticipationTableHead').closest('table');
+        const box = table.closest('.table-container') || table;
+        let el = document.getElementById('troopTitleSummary');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'troopTitleSummary';
+          el.style.cssText = 'margin:0 0 10px 0; font-size:13px; color:#e0e0e0; display:flex; flex-wrap:wrap; gap:6px 14px; align-items:center;';
+          box.parentNode.insertBefore(el, box);
+        }
+        if (!show) { el.style.display = 'none'; el.innerHTML = ''; return; }
+        const counts = {};
+        participationRawData.forEach(p => { const k = titleKind(p.value2); if (k) counts[k.name] = (counts[k.name] || 0) + 1; });
+        const total = TITLE_KINDS.filter(k => k.name !== 'No badge').reduce((s, k) => s + (counts[k.name] || 0), 0);
+        el.style.display = 'flex';
+        el.innerHTML = '<strong style="color:#ffb300;">Title:</strong>'
+          + TITLE_KINDS.map(k => `<span>${titleBadge(k.name)} ${counts[k.name] || 0}</span>`).join('')
+          + `<span style="margin-left:6px;"><strong>Total with a title: ${total}</strong></span>`;
       }
 
       function sortTable(column) { currentSortColumn = column; renderChestParticipationData(); }
@@ -2326,7 +2378,7 @@
         const hint = document.getElementById('troopTargetSectionHint');
         if (hint) hint.textContent = method === 'chest-troop'
           ? 'Set the number of chests expected from each troop category (G7, G8, T8, G9, T9).'
-          : 'Set target points for each troop category (G7, G8, T8, G9, T9).';
+          : 'Set target points for each troop category (G7, G8, T8, G9, T9), or choose Title: the member has to earn a tournament title (Winner, Podium, Top 10 or Badge, from the Voltron import).';
       }
 
       function submitAddEventType() {
@@ -2385,7 +2437,9 @@
         rows.forEach(row => {
           const level = row.querySelector('select').value;
           const points = row.querySelector('input[type="number"]').value;
-          if (level && points) targets[level] = parseInt(points);
+          const kind = row.querySelector('select.tt-kind');
+          if (level && kind && kind.value === 'title') targets[level] = 'title';
+          else if (level && points) targets[level] = parseInt(points);
         });
         return Object.keys(targets).length === 0 ? '' : JSON.stringify(targets);
       }
@@ -2408,7 +2462,7 @@
         const row = document.createElement('div');
         row.className = 'troop-target-row';
         row.id = rowId;
-        row.style.cssText = 'display:grid; grid-template-columns:1fr 2fr auto; gap:8px; margin-bottom:8px;';
+        row.style.cssText = 'display:grid; grid-template-columns:1fr auto 2fr auto; gap:8px; margin-bottom:8px;';
         const categories = ['G7', 'G8', 'T8', 'G9', 'T9'];
         const options = categories.map(cat =>
           `<option value="${cat}" ${level === cat ? 'selected' : ''}>${cat}</option>`
@@ -2418,7 +2472,8 @@
             <option value="">-- Category --</option>
             ${options}
           </select>
-          <input type="number" placeholder="Target points" value="${points}" style="padding:6px; border:1px solid #444; border-radius:4px; background:#232526; color:#e0e0e0;" min="0" step="1">
+          ${'<select class="tt-kind" onchange="this.nextElementSibling.disabled = this.value === \'title\'; if (this.value === \'title\') this.nextElementSibling.value = \'\';" style="padding:6px; border:1px solid #444; border-radius:4px; background:#232526; color:#e0e0e0;"><option value="points"' + (isTitleTarget(points) ? '' : ' selected') + '>Points</option><option value="title"' + (isTitleTarget(points) ? ' selected' : '') + '>Title</option></select>'}
+          <input type="number" placeholder="Target points" value="${isTitleTarget(points) ? '' : points}" ${isTitleTarget(points) ? 'disabled' : ''} style="padding:6px; border:1px solid #444; border-radius:4px; background:#232526; color:#e0e0e0;" min="0" step="1">
           <button type="button" class="btn btn-secondary" style="padding:4px 8px;" onclick="EventsTab.removeTroopTargetRow('${rowId}')">✖ Remove</button>
         `;
         container.appendChild(row);
@@ -2436,7 +2491,9 @@
         rows.forEach(row => {
           const level = row.querySelector('select').value;
           const points = row.querySelector('input[type="number"]').value;
-          if (level && points) targets[level] = parseInt(points);
+          const kind = row.querySelector('select.tt-kind');
+          if (level && kind && kind.value === 'title') targets[level] = 'title';
+          else if (level && points) targets[level] = parseInt(points);
         });
         return Object.keys(targets).length === 0 ? '' : JSON.stringify(targets);
       }
@@ -2461,14 +2518,15 @@
         const row = document.createElement('div');
         row.className = 'evt-troop-target-row';
         row.id = rowId;
-        row.style.cssText = 'display:grid; grid-template-columns:1fr 2fr auto; gap:8px; margin-bottom:8px;';
+        row.style.cssText = 'display:grid; grid-template-columns:1fr auto 2fr auto; gap:8px; margin-bottom:8px;';
         const categories = ['G7', 'G8', 'T8', 'G9', 'T9'];
         const options = categories.map(cat =>
           '<option value="' + cat + '"' + (level === cat ? ' selected' : '') + '>' + cat + '</option>'
         ).join('');
         row.innerHTML =
           '<select style="padding:6px; border:1px solid #444; border-radius:4px; background:#232526; color:#e0e0e0;"><option value="">-- Category --</option>' + options + '</select>' +
-          '<input type="number" placeholder="Target points" value="' + points + '" style="padding:6px; border:1px solid #444; border-radius:4px; background:#232526; color:#e0e0e0;" min="0" step="1">' +
+          '<select class="tt-kind" onchange="this.nextElementSibling.disabled = this.value === \'title\'; if (this.value === \'title\') this.nextElementSibling.value = \'\';" style="padding:6px; border:1px solid #444; border-radius:4px; background:#232526; color:#e0e0e0;"><option value="points"' + (isTitleTarget(points) ? '' : ' selected') + '>Points</option><option value="title"' + (isTitleTarget(points) ? ' selected' : '') + '>Title</option></select>' +
+          '<input type="number" placeholder="Target points" value="' + (isTitleTarget(points) ? '' : points) + '"' + (isTitleTarget(points) ? ' disabled' : '') + ' style="padding:6px; border:1px solid #444; border-radius:4px; background:#232526; color:#e0e0e0;" min="0" step="1">' +
           '<button type="button" class="btn btn-secondary" style="padding:4px 8px;" onclick="EventsTab.removeEventTroopTargetRow(\'' + rowId + '\')">✖</button>';
         container.appendChild(row);
       }
@@ -2974,7 +3032,7 @@
           html += '<tr>'
             + '<td style="padding:4px 8px;">' + escapeHtml(entry.name) + '</td>'
             + '<td style="text-align:center;padding:4px 8px;">' + catDisplay + '</td>'
-            + '<td style="text-align:center;padding:4px 8px;color:#aaa;">' + (targetPts !== '' ? fmtNum(targetPts) : '—') + '</td>'
+            + '<td style="text-align:center;padding:4px 8px;color:#aaa;">' + (targetPts !== '' ? (isTitleTarget(targetPts) ? 'Title' : fmtNum(targetPts)) : '—') + '</td>'
             + '<td style="text-align:center;padding:4px 8px;color:#4ade80;font-weight:700;">' + fmtNum(entry.points) + '</td>'
             + '<td style="text-align:center;padding:4px 8px;"><button class="btn btn-secondary" style="padding:2px 8px;font-size:11px;" onclick="EventsTab.removeBatchEntry(\'' + escapeAttr(key) + '\')">✖</button></td>'
             + '</tr>';
