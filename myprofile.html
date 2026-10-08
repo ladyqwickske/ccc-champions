@@ -480,7 +480,7 @@
                 + '<td>' + escapeHtml(norm.eventName || '-') + category + '</td>'
                 + '<td>' + escapeHtml(cccDate(norm.startDate, '-')) + ' → ' + escapeHtml(cccDate(norm.endDate, '-')) + '</td>'
                 + '<td>' + fmtInt(norm.achieved) + '</td>'
-                + '<td>' + fmtInt(norm.target) + '</td>'
+                + '<td>' + (norm.target === 'Title' ? 'Title' + (norm.title ? ' <span style="color:#888;font-size:11px;">(' + escapeHtml(norm.title) + ')</span>' : '') : fmtInt(norm.target)) + '</td>'
                 + '<td style="color:' + color + ';font-weight:600;">' + norm.percent + '%</td>'
                 + '<td style="color:' + color + ';font-weight:600;">' + status + '</td>'
                 + '</tr>';
