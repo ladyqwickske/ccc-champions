@@ -685,6 +685,7 @@
         <button class="tab" data-group="chestdata" data-tab="manualChestsTab" id="manualChestsTabBtn" style="display:none" onclick="AdminTab.switchTab('manualChestsTab', event)">➕ Manual Chests</button>
         <button class="tab active" data-group="chestdata" data-tab="chestNameFixTab" onclick="AdminTab.switchTab('chestNameFixTab', event)">🔧 Fix Chest Names</button>
         <button class="tab" data-group="chestdata" data-tab="ocrTab" onclick="AdminTab.switchTab('ocrTab', event)">🔤 OCR Corrections</button>
+        <button class="tab" data-group="chestdata" data-tab="removeChestsTab" onclick="AdminTab.switchTab('removeChestsTab', event)">🗑️ Remove Chests</button>
         <button class="tab" data-group="rules" hidden data-tab="chestValuesTab" onclick="AdminTab.switchTab('chestValuesTab', event)">🏷️ Chest Point Values</button>
         <button class="tab" data-group="rules" hidden data-tab="exemptTab" onclick="AdminTab.switchTab('exemptTab', event)">🛡️ Penalty Exemptions</button>
         <button class="tab" data-group="clans" hidden data-tab="linkFormerTab" onclick="AdminTab.switchTab('linkFormerTab', event)">🔗 Link Former Members</button>
@@ -748,6 +749,56 @@
         <div id="ocrInfo" class="note" style="margin-bottom:8px;"></div>
         <div id="ocrStatus" class="status" style="display:none;"></div>
         <div id="ocrList"></div>
+      </div>
+      <div id="removeChestsTab" class="tab-content">
+        <h3 style="margin:0 0 12px 0;">Remove Chests</h3>
+        <p style="font-size:0.82em;color:#b0b0b0;margin-bottom:12px;text-align:left;">Every chest of the active or previous period, one by one. Remove the ones that shouldn't count — e.g. chests read under <b>Inactive Player</b>, under a name that is no clan member, or chests that aren't in the chest points list. Removed chests are kept under <b>Recent removals</b> and can be put back.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+          <select id="rcPeriod" style="width:auto;flex:0 1 auto;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;" onchange="RemoveChests.load()"><option value="active">Active period</option><option value="previous">Previous period</option></select>
+          <select id="rcWho" style="width:auto;flex:0 1 auto;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;" onchange="RemoveChests.render()">
+            <option value="notmember">Players: not members (Inactive Player, unknown, former)</option>
+            <option value="inactive">Players: Inactive Player</option>
+            <option value="unknown">Players: unknown names</option>
+            <option value="former">Players: former members</option>
+            <option value="member">Players: members</option>
+            <option value="all">Players: everyone</option>
+          </select>
+          <select id="rcChestStatus" style="width:auto;flex:0 1 auto;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;" onchange="RemoveChests.render()">
+            <option value="all">Chests: all</option>
+            <option value="unmatched">Chests: not in the points list</option>
+            <option value="skipped">Chests: skipped (name or type missing)</option>
+            <option value="matched">Chests: in the points list</option>
+          </select>
+          <input type="text" id="rcSearch" placeholder="🔍 Player or chest…" style="flex:1;min-width:160px;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;" oninput="RemoveChests.render()">
+          <button class="btn btn-secondary" style="margin:0;" onclick="RemoveChests.load()">↻ Reload</button>
+        </div>
+        <div id="rcPeriodInfo" style="font-size:0.82em;color:#b0b0b0;margin-bottom:6px;text-align:left;"></div>
+        <div id="rcNames" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>
+        <div id="rcStatus" class="status" style="display:none;"></div>
+        <div style="max-height:55vh;overflow:auto;border:1px solid #444;border-radius:8px;background:#232526;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.85em;text-align:left;">
+            <thead><tr>
+              <th style="width:34px;padding:6px 8px;position:sticky;top:0;z-index:1;"><input type="checkbox" id="rcAll" onchange="RemoveChests.toggleAll(this.checked)" title="Select all chests shown by the filters" style="width:auto;margin:0;"></th>
+              <th style="padding:6px 8px;position:sticky;top:0;z-index:1;">Date</th><th style="padding:6px 8px;position:sticky;top:0;z-index:1;">Player</th>
+              <th style="padding:6px 8px;position:sticky;top:0;z-index:1;">Chest</th><th style="padding:6px 8px;position:sticky;top:0;z-index:1;">Level</th>
+              <th style="padding:6px 8px;position:sticky;top:0;z-index:1;">Type</th><th style="padding:6px 8px;position:sticky;top:0;z-index:1;text-align:right;">Points</th>
+              <th style="padding:6px 8px;position:sticky;top:0;z-index:1;">Status</th><th style="padding:6px 8px;position:sticky;top:0;z-index:1;">Source</th>
+            </tr></thead>
+            <tbody id="rcBody"><tr><td colspan="9" style="padding:8px;color:#b0b0b0;">Loading…</td></tr></tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">
+          <span id="rcSelected" style="font-size:0.85em;color:#b0b0b0;">0 selected</span>
+          <input type="text" id="rcReason" maxlength="200" placeholder="Reason (optional), e.g. Inactive Player" style="flex:1;min-width:200px;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;">
+          <button class="btn" id="rcRemoveBtn" style="margin:0;" onclick="RemoveChests.remove()" disabled>🗑️ Remove selected</button>
+        </div>
+        <h4 style="margin:16px 0 6px;text-align:left;">Recent removals</h4>
+        <div style="overflow:auto;border:1px solid #444;border-radius:8px;background:#232526;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.85em;text-align:left;">
+            <thead><tr><th style="padding:6px 8px;">When</th><th style="padding:6px 8px;">By</th><th style="padding:6px 8px;">Period</th><th style="padding:6px 8px;">Players</th><th style="padding:6px 8px;text-align:right;">Chests</th><th style="padding:6px 8px;text-align:right;">Points</th><th style="padding:6px 8px;">Reason</th><th style="width:110px;"></th></tr></thead>
+            <tbody id="rcRemovals"><tr><td colspan="8" style="padding:8px;color:#b0b0b0;">—</td></tr></tbody>
+          </table>
+        </div>
       </div>
       <div id="chestValuesTab" class="tab-content">
         <h3 style="margin:0 0 6px 0;">Chest Point Values</h3>
@@ -1260,6 +1311,7 @@
         if (tabId === 'chestNameFixTab' && window.ChestNameFix) window.ChestNameFix.load();
         if (tabId === 'chestValuesTab' && window.ChestPointValues) window.ChestPointValues.load();
         if (tabId === 'ocrTab' && window.OcrCorrections) window.OcrCorrections.load();
+        if (tabId === 'removeChestsTab' && window.RemoveChests) window.RemoveChests.load();
         if (tabId === 'manualChestsTab' && window.ManualChests) window.ManualChests.load();
         if (tabId === 'transfersTab' && window.MemberTransfers) window.MemberTransfers.load();
         if (tabId === 'linkFormerTab' && window.LinkFormer) window.LinkFormer.load();
@@ -1731,6 +1783,131 @@
         if (changes.length) change(changes);
       }
       return { load, render, save, sortBy, openForm: () => openForm(null), closeForm, submitForm };
+    })();
+  </script>
+  <script>
+    // 🗑️ Remove Chests: a period's chests one by one; remove the chosen ones, or put a
+    // removal back (database only: getPeriodChests / removeChests / restoreRemovedChests).
+    window.RemoveChests = (function () {
+      let data = null;
+      const selected = new Set();
+      const SHOW_MAX = 1500;   // rows drawn at once; the filters narrow it down
+      const esc = (t) => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+      const $ = (id) => document.getElementById(id);
+      const when = (v) => (window.cccDateTime ? window.cccDateTime(v) : String(v || '').replace('T', ' ').slice(0, 16));
+      const post = async (body) => {
+        const res = await fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return res.json();
+      };
+      const status = (msg, ok) => {
+        const el = $('rcStatus');
+        el.style.display = msg ? '' : 'none';
+        el.className = 'status ' + (ok ? 'ok' : 'err');
+        el.textContent = msg || '';
+      };
+      const WHO = { inactive: ['Inactive Player', '#c62828'], unknown: ['not a member', '#ef6c00'], former: ['former member', '#8e24aa'], member: ['member', ''] };
+      const STATUS = { matched: 'in points list', unmatched: 'not in points list', skipped: 'skipped' };
+
+      function filtered() {
+        const who = $('rcWho').value, st = $('rcChestStatus').value, term = $('rcSearch').value.trim().toLowerCase();
+        return data.chests.filter(c => {
+          const ps = data.players[c.player];
+          if (who === 'notmember' ? ps === 'member' : (who !== 'all' && ps !== who)) return false;
+          if (st !== 'all' && c.status !== st) return false;
+          return !term || (c.player + ' ' + c.name + ' ' + c.type).toLowerCase().includes(term);
+        });
+      }
+      async function load() {
+        status('');
+        $('rcBody').innerHTML = '<tr><td colspan="9" style="padding:8px;">Loading…</td></tr>';
+        try {
+          show(await post({ action: 'getPeriodChests', period: $('rcPeriod').value }));
+        } catch (e) { status(e.message, false); }
+      }
+      function show(r) {
+        if (!r || !r.success) { status((r && (r.message || r.error)) || 'Could not load the chests', false); $('rcBody').innerHTML = ''; return; }
+        data = r;
+        selected.clear();
+        const p = r.period;
+        $('rcPeriodInfo').textContent = `${p.which === 'previous' ? 'Previous' : 'Active'} period ${p.start} – ${p.end || '…'}: ${r.chests.length} chests.`;
+        render();
+        renderRemovals();
+      }
+      function render() {
+        if (!data) return;
+        // the player names that aren't members, with their number of chests: click one to filter on it
+        const counts = {};
+        data.chests.forEach(c => { if (data.players[c.player] !== 'member') counts[c.player] = (counts[c.player] || 0) + 1; });
+        $('rcNames').innerHTML = Object.keys(counts).sort((a, b) => counts[b] - counts[a]).map(n => {
+          const w = WHO[data.players[n]];
+          return `<button type="button" onclick="RemoveChests.pick(this.dataset.name)" data-name="${esc(n)}" title="Show only ${esc(n)}" style="cursor:pointer;border:1px solid ${w[1]};color:${w[1]};background:transparent;border-radius:12px;padding:2px 10px;font-size:0.8em;">${esc(n)} · ${counts[n]}</button>`;
+        }).join('');
+        const rows = filtered();
+        const shown = rows.slice(0, SHOW_MAX);
+        $('rcBody').innerHTML = shown.length ? shown.map(c => {
+          const w = WHO[data.players[c.player]] || ['', ''];
+          const tag = data.players[c.player] === 'member' ? '' : ` <span style="font-size:0.85em;color:${w[1]};">(${w[0]})</span>`;
+          return `<tr style="border-top:1px solid rgba(128,128,128,0.25);">
+            <td style="padding:4px 8px;"><input type="checkbox" data-id="${c.id}" ${selected.has(c.id) ? 'checked' : ''} onchange="RemoveChests.toggle(${c.id}, this.checked)" style="width:auto;margin:0;"></td>
+            <td style="padding:4px 8px;white-space:nowrap;">${esc(c.date)}</td><td style="padding:4px 8px;">${esc(c.player)}${tag}</td>
+            <td style="padding:4px 8px;">${esc(c.name)}</td><td style="padding:4px 8px;">${esc(c.level)}</td><td style="padding:4px 8px;">${esc(c.type)}</td>
+            <td style="padding:4px 8px;text-align:right;">${esc(c.points)}</td>
+            <td style="padding:4px 8px;${c.status === 'matched' ? '' : 'color:#ef6c00;'}">${esc(STATUS[c.status] || c.status)}</td>
+            <td style="padding:4px 8px;">${c.source === 'manual' ? 'added by hand' : 'imported'}</td></tr>`;
+        }).join('') + (rows.length > SHOW_MAX ? `<tr><td colspan="9" style="padding:8px;">Showing the first ${SHOW_MAX} of ${rows.length} chests — narrow the filters to see the rest ("select all" takes all ${rows.length}).</td></tr>` : '')
+          : '<tr><td colspan="9" style="padding:8px;">No chests match these filters.</td></tr>';
+        $('rcAll').checked = rows.length > 0 && rows.every(c => selected.has(c.id));
+        updateSelected();
+      }
+      function updateSelected() {
+        const chosen = data ? data.chests.filter(c => selected.has(c.id)) : [];
+        const points = chosen.reduce((t, c) => t + (Number(c.points) || 0), 0);
+        $('rcSelected').textContent = `${chosen.length} selected` + (chosen.length ? ` (${points} points)` : '');
+        $('rcRemoveBtn').disabled = !chosen.length;
+      }
+      function toggle(id, on) { if (on) selected.add(id); else selected.delete(id); updateSelected(); }
+      function toggleAll(on) {
+        filtered().forEach(c => { if (on) selected.add(c.id); else selected.delete(c.id); });
+        render();
+      }
+      function pick(name) { $('rcWho').value = 'all'; $('rcSearch').value = name; render(); }
+      async function remove() {
+        const chosen = data.chests.filter(c => selected.has(c.id));
+        if (!chosen.length) return;
+        const points = chosen.reduce((t, c) => t + (Number(c.points) || 0), 0);
+        const names = [...new Set(chosen.map(c => c.player))];
+        if (!confirm(`Remove ${chosen.length} chest(s) (${points} points) of ${names.length > 3 ? names.length + ' players' : names.join(', ')} from this period?\n\nThey can be put back under "Recent removals".`)) return;
+        $('rcRemoveBtn').disabled = true;
+        status('Removing…', true);
+        try {
+          const r = await post({ action: 'removeChests', period: $('rcPeriod').value, ids: chosen.map(c => c.id), reason: $('rcReason').value });
+          if (!r || !r.success) { status((r && (r.message || r.error)) || 'Removing failed', false); updateSelected(); return; }
+          $('rcReason').value = '';
+          show(r);
+          status(r.message, true);
+        } catch (e) { status(e.message, false); updateSelected(); }
+      }
+      function renderRemovals() {
+        const list = (data && data.removals) || [];
+        $('rcRemovals').innerHTML = list.length ? list.map(x => `<tr style="border-top:1px solid rgba(128,128,128,0.25);">
+          <td style="padding:4px 8px;white-space:nowrap;">${esc(when(x.at))}</td><td style="padding:4px 8px;">${esc(x.by || '')}</td>
+          <td style="padding:4px 8px;">${esc(x.period)}</td><td style="padding:4px 8px;">${esc(x.players)}</td>
+          <td style="padding:4px 8px;text-align:right;">${esc(x.chests)}</td><td style="padding:4px 8px;text-align:right;">${esc(x.points)}</td>
+          <td style="padding:4px 8px;">${esc(x.reason || '')}</td>
+          <td style="padding:4px 8px;">${x.restoredAt ? `<span title="by ${esc(x.restoredBy || '')}">put back</span>` : `<button type="button" class="btn btn-secondary" style="margin:0;padding:3px 10px;" data-id="${esc(x.id)}" onclick="RemoveChests.undo(this.dataset.id, this)">↩️ Put back</button>`}</td></tr>`).join('')
+          : '<tr><td colspan="8" style="padding:8px;">No removals yet.</td></tr>';
+      }
+      async function undo(removalId, btn) {
+        if (!confirm('Put these chests back in their period?')) return;
+        btn.disabled = true;
+        try {
+          const r = await post({ action: 'restoreRemovedChests', removalId, period: $('rcPeriod').value });
+          if (!r || !r.success) { status((r && (r.message || r.error)) || 'Putting back failed', false); btn.disabled = false; return; }
+          show(r);
+          status(r.message, true);
+        } catch (e) { status(e.message, false); btn.disabled = false; }
+      }
+      return { load, render, toggle, toggleAll, pick, remove, undo };
     })();
   </script>
 </body>
