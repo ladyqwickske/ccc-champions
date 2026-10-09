@@ -2367,7 +2367,7 @@
         let line = String(r.memberName || '').trim();
         if (r.category && r.category !== '—') line += ` [${r.category}]`;
         const pts = Number(r.achieved) || 0;
-        if (pts <= 0 && !hasTitle(r.title)) return line + ' Not Participated';
+        if (pts <= 0 && !hasTitle(r.title)) return line + ' - Not Participated';
         line += ' ' + fmtNum(pts);
         if (r.titleTarget) { if (titleKind(r.title)) line += ` - ${String(r.title).trim()}`; }
         else if (r.target > 0) line += ` (${Math.floor(pts / r.target * 100) || '<1'}%)`;
