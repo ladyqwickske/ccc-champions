@@ -130,7 +130,19 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 		'#goog-gt-tt, .goog-te-balloon-frame { display: none !important; visibility: hidden !important; }',
 		'.goog-text-highlight { background: transparent !important; box-shadow: none !important; }',
 		'#google_translate_element, #translateToggleBtn { top: auto !important; right: 8px !important; bottom: 8px !important; }',
-		'@media (max-width: 800px) { body { padding-top: max(56px, calc(env(safe-area-inset-top) + 56px)) !important; padding-bottom: max(84px, calc(env(safe-area-inset-bottom) + 84px)) !important; } .tab-nav { top: max(56px, calc(env(safe-area-inset-top) + 56px)) !important; } }'
+		// Phones (≤ 800px): one thin bar at the very top, as on the Legends / Masters sites —
+		// ☰ on the left, the e-mail and Logout on the right, the menu as a full list below it.
+		// (The bar used to sit 56px lower, under Google's translate bar, which is hidden now.)
+		'@media (max-width: 800px) {'
+			+ ' body { padding-top: max(52px, calc(env(safe-area-inset-top) + 52px)) !important; padding-bottom: max(70px, calc(env(safe-area-inset-bottom) + 70px)) !important; }'
+			+ ' .tab-nav { position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; width: 100% !important; z-index: 9999 !important; padding-top: env(safe-area-inset-top); max-height: 100vh; overflow-y: auto; }'
+			+ ' .tab-nav-container { max-width: 100% !important; width: 100% !important; box-sizing: border-box !important; flex-wrap: wrap !important; align-items: center !important; padding: 2px 8px !important; min-height: 48px; }'
+			+ ' .nav-brand { display: none !important; }'
+			+ ' .hamburger { order: 0 !important; padding: 8px 8px 8px 0 !important; }'
+			+ ' .login-bar { order: 1 !important; flex: 1 1 auto !important; justify-content: flex-end !important; margin-left: auto !important; padding: 4px 0 !important; gap: 6px !important; min-width: 0; }'
+			+ ' .login-bar .user-email { max-width: 55vw !important; }'
+			+ ' .tab-buttons { position: static !important; top: auto !important; order: 10 !important; flex: 0 0 100% !important; width: 100% !important; height: auto !important; align-items: stretch !important; max-height: none !important; overflow: visible !important; border-radius: 0 !important; box-shadow: none !important; border-top: 1px solid #444; }'
+			+ ' }',
 	].join('\n');
 
 	const injectStyle = function () {
@@ -170,15 +182,6 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 		if (document.body) {
 			document.body.style.top = '0px';
 			document.body.style.marginTop = '0px';
-			if (window.matchMedia('(max-width: 800px)').matches) {
-				const topPad = 'max(56px, calc(env(safe-area-inset-top) + 56px))';
-				const bottomPad = 'max(84px, calc(env(safe-area-inset-bottom) + 84px))';
-				document.body.style.setProperty('padding-top', 'max(56px, calc(env(safe-area-inset-top) + 56px))', 'important');
-				document.body.style.setProperty('padding-bottom', bottomPad, 'important');
-				document.querySelectorAll('.tab-nav').forEach(function (el) {
-					el.style.setProperty('top', topPad, 'important');
-				});
-			}
 		}
 		const banner = document.querySelector('iframe.goog-te-banner-frame, .goog-te-banner-frame.skiptranslate, .goog-te-banner-frame, iframe.VIpgJd-ZVi9od-ORHb-OEVmcd');
 		if (banner) {
