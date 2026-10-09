@@ -1756,6 +1756,8 @@
         participationDiv.style.display = 'block';
         thead.innerHTML = '';
         tbody.innerHTML = '';
+        const staleSummary = document.getElementById('chestOutcomeSummary');
+        if (staleSummary) staleSummary.remove();
         loadingIndicator.style.display = 'block';
         fetch(window.GAS_WEB_APP_URL, {
           method: 'POST',
@@ -1784,6 +1786,8 @@
         participationDiv.style.display = 'block';
         thead.innerHTML = '';
         tbody.innerHTML = '';
+        const staleSummary = document.getElementById('manualOutcomeSummary');
+        if (staleSummary) staleSummary.remove();
         loadingIndicator.style.display = 'block';
         fetch(window.GAS_WEB_APP_URL, {
           method: 'POST',
@@ -1812,6 +1816,8 @@
         participationDiv.style.display = 'block';
         thead.innerHTML = '';
         tbody.innerHTML = '';
+        const staleSummary = document.getElementById('troopOutcomeSummary');
+        if (staleSummary) staleSummary.remove();
         loadingIndicator.style.display = 'block';
         fetch(window.GAS_WEB_APP_URL, {
           method: 'POST',
@@ -2068,7 +2074,14 @@
           });
         }
         tbody.innerHTML = '';
+        const typeConfig = eventTypesData.find(et => et.name === eventTypeName);
+        const flatTarget = Number(selectedEvent?.targetPoints) || Number(typeConfig?.threshold) || 0;
+        const summaryRows = [];
         sorted.forEach(p => {
+          const summaryCategory = (troopSummaryMap[normalizeName(p.memberName)] || {}).category || '';
+          const summaryTarget = isChestTroop ? Number((targets || {})[summaryCategory]) || 0 : flatTarget;
+          summaryRows.push({ memberName: p.memberName, category: summaryCategory, achieved: Number(p.value1) || 0, target: summaryTarget, exempt: p.value3 === 'N/A',
+            fallback: p.value3 === 'Yes' ? 'met' : p.value3 === 'Partial' ? 'tried' : (Number(p.value1) > 0 ? 'low' : 'none') });
           const icon = p.value3 === 'Yes'
             ? '<span style="color:#4caf50;">✓</span>'
             : (p.value3 === 'Partial'
@@ -2089,6 +2102,7 @@
           }
           tbody.appendChild(row);
         });
+        renderOutcomeSummary('chest', summaryRows);
         // Add sort indicators
         thead.querySelectorAll('th.sortable').forEach(th => {
           const col = th.getAttribute('data-sort');
@@ -2144,6 +2158,7 @@
             category: category || '—',
             target: targetPoints !== null && !isNaN(targetPoints) ? targetPoints : '—',
             achieved: pts,
+            _exempt: !!notInClan,
             status: statusIcon,
             penalty: Number(p.penalty) || 0,
             penaltyStatus: p.penaltyStatus || '',
@@ -2189,6 +2204,7 @@
           th.innerHTML = th.textContent.replace(/[▲▼]/g, '').trim();
           if (col === manualSortColumn) th.innerHTML += manualSortDirection === 'asc' ? ' ▲' : ' ▼';
         });
+        renderOutcomeSummary('manual', rows.map(r => ({ memberName: r.memberName, category: r.category, achieved: r.achieved, target: Number(r.target) || 0, titleTarget: !!r._titleTarget, title: r.title, exempt: r._exempt })));
         // Add handlers
         addSortHandlers('manualParticipationTableHead', 'manual');
       }
@@ -2247,6 +2263,8 @@
             category: category || '—',
             target: titleTarget ? 'Title' : targetPoints !== null && !isNaN(targetPoints) ? targetPoints : '—',
             achieved: pts,
+            _titleTarget: titleTarget,
+            _exempt: !!notInClan,
             title: titleKind(p.value2) ? String(p.value2).trim() : '',
             _titleSort: (() => { const k = titleKind(p.value2); return k ? TITLE_KINDS.length - TITLE_KINDS.indexOf(k) : 0; })(),
             status: statusIcon,
@@ -2297,6 +2315,7 @@
           th.innerHTML = th.textContent.replace(/[▲▼]/g, '').trim();
           if (col === troopSortColumn) th.innerHTML += troopSortDirection === 'asc' ? ' ▲' : ' ▼';
         });
+        renderOutcomeSummary('troop', rows.map(r => ({ memberName: r.memberName, category: r.category, achieved: r.achieved, target: Number(r.target) || 0, titleTarget: !!r._titleTarget, title: r.title, exempt: r._exempt })));
         // Add handlers
         addSortHandlers('troopParticipationTableHead', 'troop');
       }
@@ -2320,6 +2339,93 @@
         el.innerHTML = '<strong style="color:#ffb300;">Title:</strong>'
           + TITLE_KINDS.map(k => `<span>${titleBadge(k.name)} ${counts[k.name] || 0}</span>`).join('')
           + `<span style="margin-left:6px;"><strong>Total with a title: ${total}</strong></span>`;
+      }
+
+      // --- Results summary + copy/paste export, above each participation table ---
+      // Met = reached the target, Tried = at least 50% of it, Didn't try = some points but under 50%,
+      // Didn't participate = no points. Exempt members (joined after the event) are left out.
+      // Title target: a tournament title meets it, points without a title count as tried.
+      const OUTCOME_GROUPS = [
+        { key: 'met', label: 'Met target', color: '#4caf50' },
+        { key: 'tried', label: 'Tried (≥ 50%)', color: '#ff9800' },
+        { key: 'low', label: "Didn't try (< 50%)", color: '#f44336' },
+        { key: 'none', label: "Didn't participate", color: '#9e9e9e' },
+        { key: 'noTarget', label: 'No target', color: '#78909c' },
+      ];
+      let outcomeRowsByTable = {};
+
+      function outcomeOf(r) {
+        const pts = Number(r.achieved) || 0;
+        if (r.titleTarget) return hasTitle(r.title) ? 'met' : (pts > 0 ? 'tried' : 'none');
+        if (r.target > 0) return pts >= r.target ? 'met' : pts >= r.target * 0.5 ? 'tried' : pts > 0 ? 'low' : 'none';
+        if (r.fallback) return r.fallback;
+        return pts > 0 ? 'noTarget' : 'none';
+      }
+
+      // "Name [G9] 12,345 (85%)" — the troop level and % only when known
+      function outcomeLine(r) {
+        let line = String(r.memberName || '').trim();
+        if (r.category && r.category !== '—') line += ` [${r.category}]`;
+        line += ' ' + fmtNum(Number(r.achieved) || 0);
+        if (r.titleTarget) { if (titleKind(r.title)) line += ` - ${String(r.title).trim()}`; }
+        else if (r.target > 0) line += ` (${Math.floor((Number(r.achieved) || 0) / r.target * 100)}%)`;
+        return line;
+      }
+
+      /** rows: in table order, { memberName, category, achieved, target, titleTarget, title, exempt, fallback } */
+      function renderOutcomeSummary(tableKey, rows) {
+        const table = document.getElementById(tableKey + 'ParticipationTableHead').closest('table');
+        const box = table.closest('.table-container') || table;
+        const id = tableKey + 'OutcomeSummary';
+        let el = document.getElementById(id);
+        if (!el) {
+          el = document.createElement('div');
+          el.id = id;
+          el.style.cssText = 'margin:0 0 10px 0; padding:10px 12px; border:1px solid #444; border-radius:8px; background:#232526; font-size:13px; color:#e0e0e0;';
+        }
+        // Champions troop events: above the tournament title summary (Voltron import)
+        const anchor = (tableKey === 'troop' && document.getElementById('troopTitleSummary')) || box;
+        if (el.nextSibling !== anchor) anchor.parentNode.insertBefore(el, anchor);
+        const counted = rows.filter(r => !r.exempt).map(r => Object.assign({}, r, { outcome: outcomeOf(r) }));
+        outcomeRowsByTable[tableKey] = counted;
+        const counts = {};
+        counted.forEach(r => { counts[r.outcome] = (counts[r.outcome] || 0) + 1; });
+        const exempt = rows.length - counted.length;
+        const chips = OUTCOME_GROUPS.filter(g => g.key !== 'noTarget' || counts.noTarget).map(g =>
+          `<button type="button" class="btn btn-secondary" style="margin:0;padding:4px 10px;font-size:12px;border-left:4px solid ${g.color};" title="Copy this group" onclick="EventsTab.copyOutcome('${tableKey}','${g.key}')">${escapeHtml(g.label)}: <strong>${counts[g.key] || 0}</strong></button>`).join('');
+        el.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;">`
+          + `<strong style="color:#ffb300;">Results (${counted.length} members${exempt ? `, ${exempt} exempt` : ''}):</strong>${chips}`
+          + `<button type="button" class="btn" style="margin:0 0 0 auto;padding:4px 10px;font-size:12px;" title="Name [troop level] points (% of target), in the order of the table" onclick="EventsTab.copyOutcome('${tableKey}','')">📋 Copy all</button>`
+          + `<span id="${tableKey}OutcomeCopyStatus" style="font-size:12px;color:#4caf50;"></span></div>`
+          + `<details style="margin-top:8px;"><summary style="cursor:pointer;color:#b0b0b0;font-size:12px;">Show text to copy</summary>`
+          + `<textarea id="${tableKey}OutcomeText" readonly rows="8" style="width:100%;margin-top:6px;box-sizing:border-box;font-family:monospace;font-size:12px;background:#1a1a1a;color:#e0e0e0;border:1px solid #444;border-radius:6px;padding:6px;"></textarea></details>`;
+        document.getElementById(tableKey + 'OutcomeText').value = counted.map(outcomeLine).join('\n');
+      }
+
+      /** Copy the list (one group, or everyone when groupKey is empty) for the game chat or Telegram. */
+      function copyOutcome(tableKey, groupKey) {
+        const rows = (outcomeRowsByTable[tableKey] || []).filter(r => !groupKey || r.outcome === groupKey);
+        const text = rows.map(outcomeLine).join('\n');
+        const ta = document.getElementById(tableKey + 'OutcomeText');
+        const status = document.getElementById(tableKey + 'OutcomeCopyStatus');
+        if (ta) ta.value = text;
+        const group = OUTCOME_GROUPS.find(g => g.key === groupKey);
+        const done = (ok) => {
+          if (!status) return;
+          status.style.color = ok ? '#4caf50' : '#ff9800';
+          status.textContent = ok ? `Copied ${rows.length} ${group ? '"' + group.label + '"' : ''} line(s).` : 'Copy blocked by the browser: select the text below and copy it.';
+          if (!ok && ta) { ta.closest('details').open = true; ta.select(); }
+        };
+        const fallback = () => {
+          if (!ta) return done(false);
+          ta.closest('details').open = true;
+          ta.select();
+          let ok = false;
+          try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+          done(ok);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => done(true), fallback);
+        else fallback();
       }
 
       function sortTable(column) { currentSortColumn = column; renderChestParticipationData(); }
@@ -2783,6 +2889,8 @@
         participationDiv.style.display = 'block';
         thead.innerHTML = '';
         tbody.innerHTML = '';
+        const staleSummary = document.getElementById('resourceOutcomeSummary');
+        if (staleSummary) staleSummary.remove();
         loadingIndicator.style.display = 'block';
         fetch(window.GAS_WEB_APP_URL, {
           method: 'POST',
@@ -2855,6 +2963,7 @@
             category: category || '—',
             target: (targetPoints !== null && !isNaN(targetPoints) && targetPoints > 0) ? targetPoints : '—',
             achieved: pts,
+            _exempt: !!notInClan || notes.includes('Not Applicable'),
             status: statusIcon,
             penalty: Number(p.penalty) || 0,
             penaltyStatus: p.penaltyStatus || '',
@@ -2896,6 +3005,7 @@
           th.innerHTML = th.textContent.replace(/[▲▼]/g, '').trim();
           if (col === resourceSortColumn) th.innerHTML += resourceSortDirection === 'asc' ? ' ▲' : ' ▼';
         });
+        renderOutcomeSummary('resource', rows.map(r => ({ memberName: r.memberName, category: r.category, achieved: r.achieved, target: Number(r.target) || 0, titleTarget: !!r._titleTarget, title: r.title, exempt: r._exempt })));
         addSortHandlers('resourceParticipationTableHead', 'resource');
       }
 
@@ -3105,7 +3215,7 @@
         }).catch(error => { status.textContent = 'Error: ' + error.message; status.classList.add('err'); });
       }
 
-      return { init, switchTab, loadEvents, loadEventsBundle, generateEvents, toggleAllGenTypes, onChestEventSelected, onManualEventSelected, onTroopEventSelected, onResourceEventSelected, submitManualEntry, submitTroopEntry, calculateManualNonParticipants, calculateTroopNonParticipants, calculateChestParticipation, calculateResourceEvent, submitCreateEvent, updateEventTypeMethod, submitAddEventType, renderEventTypesTable, cancelEditEventType, addTroopTargetRow, removeTroopTargetRow, addEventTroopTargetRow, removeEventTroopTargetRow, editEventType, editEvent, deleteEvent, deleteEventType, viewEventParticipation, sortTable, sortManualTable, setEventFilter, setEventTypeFilter, toggleBatchTroopEntry, saveBatchTroopEntries, addToBatchEntry, removeBatchEntry, toggleManualBatchEntry, addToManualBatch, removeManualBatchEntry, saveManualBatchEntries, onPenaltyEnabledChange, savePenalty, waivePenalty, resetPenalty, calculatePenalties, recalculatePenalties };
+      return { init, switchTab, loadEvents, loadEventsBundle, generateEvents, toggleAllGenTypes, onChestEventSelected, onManualEventSelected, onTroopEventSelected, onResourceEventSelected, submitManualEntry, submitTroopEntry, calculateManualNonParticipants, calculateTroopNonParticipants, calculateChestParticipation, calculateResourceEvent, submitCreateEvent, updateEventTypeMethod, submitAddEventType, renderEventTypesTable, cancelEditEventType, addTroopTargetRow, removeTroopTargetRow, addEventTroopTargetRow, removeEventTroopTargetRow, editEventType, editEvent, deleteEvent, deleteEventType, viewEventParticipation, sortTable, sortManualTable, setEventFilter, setEventTypeFilter, toggleBatchTroopEntry, saveBatchTroopEntries, addToBatchEntry, removeBatchEntry, toggleManualBatchEntry, addToManualBatch, removeManualBatchEntry, saveManualBatchEntries, onPenaltyEnabledChange, savePenalty, waivePenalty, resetPenalty, calculatePenalties, recalculatePenalties, copyOutcome };
     })();
   </script>
 </body>
