@@ -624,6 +624,9 @@
 				return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 			}
 
+			// The countdown runs every second until the competition has ended
+			// (it used to stop a timer that didn't exist yet when the page opened after the end).
+			let intervalId = null;
 			function update() {
 				const now = Date.now();
 				if (now < startMs) {
@@ -637,12 +640,13 @@
 				} else {
 					// Competition has ended
 					noticeTextEl.innerHTML = 'This competition has concluded. The results shown below are the final results.';
-					clearInterval(intervalId);
+					if (intervalId) clearInterval(intervalId);
+					return false;
 				}
+				return true;
 			}
 
-			update();
-			const intervalId = setInterval(update, 1000);
+			if (update()) intervalId = setInterval(update, 1000);
 		}
 	</script>
 	<script>
