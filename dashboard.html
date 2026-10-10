@@ -171,6 +171,7 @@
     .troop-category.cat-G8 { color: #ffa726; }
     .troop-category.cat-G7 { color: #78909c; }
     .penalty-target { color: #ffb300; font-size: 10px; font-style: normal; opacity: 0.75; }
+    .lowered-target { color: #66bb6a; font-size: 10px; font-style: normal; font-weight: 600; }
     .date-filter {
       background: #232526;
       border-radius: 8px;
@@ -1503,9 +1504,11 @@ function filterPlayerTable() {
         const troopLabel = troopCategory
           ? ` <span class="troop-category cat-${escapeHtmlDash(troopCategory)}">${escapeHtmlDash(troopCategory)}</span>`
           : '';
-        const targetLabel = playerTarget !== defaultTarget
-          ? ` <span class="penalty-target">(◎ ${playerTarget.toLocaleString()})</span>`
-          : '';
+        const targetLabel = playerTarget < defaultTarget
+          ? ` <span class="lowered-target" title="Lowered target: surplus points carried over from an earlier period">(⬇ ${playerTarget.toLocaleString()})</span>`
+          : playerTarget !== defaultTarget
+            ? ` <span class="penalty-target">(◎ ${playerTarget.toLocaleString()})</span>`
+            : '';
 
         const rowClass = isNewMember ? 'player-row new-member-row' : 'player-row';
         rowsHtml += `<div class="${rowClass}">`;
