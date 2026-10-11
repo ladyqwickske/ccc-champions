@@ -952,6 +952,11 @@
           startDateInput.required = true;
           endDateInput.required = true;
           if (targetPointsGroup) targetPointsGroup.style.display = (method === 'resource-manual' || method === 'period-marker') ? '' : 'none';
+          // A new Active Period event starts with the event type's points as its target
+          const targetPointsInput = document.getElementById('eventTargetPoints');
+          if (method === 'period-marker' && !editingEventName && targetPointsInput && !targetPointsInput.value && Number(typeData?.threshold) > 0) {
+            targetPointsInput.value = Number(typeData.threshold);
+          }
         } else {
           startDateInput.required = false;
           endDateInput.required = false;
