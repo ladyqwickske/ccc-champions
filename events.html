@@ -1449,6 +1449,60 @@
           .catch(() => { troopSummaryMap = {}; });
       }
 
+      // Penalty exemptions (Admin → 🛡️ Penalty Exemptions), loaded once: an Exempt label next to the
+      // member's name, and those members left out of the results, as the penalties leave them out.
+      let penaltyExemptions = null;   // lower-case name → { name, reason, startDate, endDate }
+
+      function ensurePenaltyExemptionsLoaded() {
+        if (penaltyExemptions) return Promise.resolve();
+        return fetch(window.GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'getExemptMembers' })
+        })
+          .then(res => res.json())
+          .then(result => {
+            if (!result || !Array.isArray(result.members)) return;
+            penaltyExemptions = {};
+            result.members.forEach(entry => {
+              const key = normalizeName(entry?.name);
+              if (key) penaltyExemptions[key] = entry;
+            });
+          })
+          .catch(() => { /* no labels this time; tried again on the next load */ });
+      }
+
+      /** The member's exemption when it covers the selected event's dates (no dates = always), else null. */
+      function penaltyExemptionOf(memberName) {
+        const entry = (penaltyExemptions || {})[normalizeName(memberName)];
+        if (!entry) return null;
+        const from = cccDate(entry.startDate, ''), until = cccDate(entry.endDate, '');
+        const eventStart = cccDate(selectedEvent?.startDate || selectedEvent?.endDate, '');
+        const eventEnd = cccDate(selectedEvent?.endDate || selectedEvent?.startDate, '');
+        if (from && eventEnd && from > eventEnd) return null;
+        if (until && eventStart && until < eventStart) return null;
+        return entry;
+      }
+
+      /** "until 2026-11-15" / "from 2026-10-01" for a temporary exemption, '' for a permanent one. */
+      function exemptionDatesText(entry) {
+        const from = cccDate(entry.startDate, ''), until = cccDate(entry.endDate, '');
+        if (from && until) return `${from} → ${until}`;
+        return until ? `until ${until}` : from ? `from ${from}` : '';
+      }
+
+      /** The member's name, with an Exempt (permanent) or Temp. exempt (with dates) badge. */
+      function memberNameCellHtml(memberName) {
+        const entry = penaltyExemptionOf(memberName);
+        if (!entry) return escapeHtml(memberName);
+        const dates = exemptionDatesText(entry);
+        const tip = 'Penalty exemption' + (entry.reason ? ': ' + entry.reason : '') + ' (' + (dates || 'permanent') + '). Not counted in the results, no penalty.';
+        const badge = dates
+          ? `<span class="badge" style="background:#5c4b18;color:#fff3cd;" title="${escapeHtml(tip)}">🛡️ Temp. exempt · ${escapeHtml(dates)}</span>`
+          : `<span class="badge" style="background:#1b5e20;color:#c8e6c9;" title="${escapeHtml(tip)}">🛡️ Exempt</span>`;
+        return `${escapeHtml(memberName)} ${badge}`;
+      }
+
       function getEventTroopTargets(eventTypeName) {
         // Check per-event troop targets first (override event type defaults)
         if (selectedEvent && selectedEvent.troopTargets) {
@@ -1768,7 +1822,7 @@
           loadingIndicator.style.display = 'none';
           if (result && result.success && result.data && result.data.length > 0) {
             participationRawData = result.data;
-            ensureTroopSummaryLoaded().then(() => renderChestParticipationData());
+            Promise.all([ensureTroopSummaryLoaded(), ensurePenaltyExemptionsLoaded()]).then(() => renderChestParticipationData());
           } else {
             thead.innerHTML = '';
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:40px; color:#7f8c8d;">No data yet. Click "Calculate" above.</td></tr>';
@@ -1798,7 +1852,7 @@
           loadingIndicator.style.display = 'none';
           if (result && result.success && result.data && result.data.length > 0) {
             participationRawData = result.data;
-            ensureTroopSummaryLoaded().then(() => renderManualParticipationData());
+            Promise.all([ensureTroopSummaryLoaded(), ensurePenaltyExemptionsLoaded()]).then(() => renderManualParticipationData());
           } else {
             thead.innerHTML = '';
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:40px; color:#7f8c8d;">No data yet.</td></tr>';
@@ -1828,7 +1882,7 @@
           loadingIndicator.style.display = 'none';
           if (result && result.success && result.data && result.data.length > 0) {
             participationRawData = result.data;
-            ensureTroopSummaryLoaded().then(() => renderTroopParticipationData());
+            Promise.all([ensureTroopSummaryLoaded(), ensurePenaltyExemptionsLoaded()]).then(() => renderTroopParticipationData());
           } else {
             thead.innerHTML = '';
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:40px; color:#7f8c8d;">No troop participation data yet.</td></tr>';
@@ -2097,9 +2151,9 @@
             const category = (troopSummaryMap[nameKey] || {}).category || '—';
             const targetPoints = (targets && category !== '—') ? Number(targets[category]) : null;
             const targetCell = (targetPoints !== null && !isNaN(targetPoints)) ? targetPoints : '—';
-            row.innerHTML = `<td>${escapeHtml(p.memberName)}</td><td style="text-align:center;">${escapeHtml(category)}</td><td style="text-align:center;">${fmtNum(targetCell)}</td><td>${fmtNum(p.value1 || 0)}</td><td style="text-align:center;">${icon}</td>${penaltyCell}`;
+            row.innerHTML = `<td>${memberNameCellHtml(p.memberName)}</td><td style="text-align:center;">${escapeHtml(category)}</td><td style="text-align:center;">${fmtNum(targetCell)}</td><td>${fmtNum(p.value1 || 0)}</td><td style="text-align:center;">${icon}</td>${penaltyCell}`;
           } else {
-            row.innerHTML = `<td>${escapeHtml(p.memberName)}</td><td>${fmtNum(p.value1 || 0)}</td><td style="text-align:center;">${icon}</td>${penaltyCell}`;
+            row.innerHTML = `<td>${memberNameCellHtml(p.memberName)}</td><td>${fmtNum(p.value1 || 0)}</td><td style="text-align:center;">${icon}</td>${penaltyCell}`;
           }
           tbody.appendChild(row);
         });
@@ -2196,7 +2250,7 @@
             : '<span style="color:#666">—</span>';
           const tr = document.createElement('tr');
           const penaltyCell = showPenalty ? `<td style="text-align:center;">${penaltyCellHtml(row.memberName, row.penalty, row.penaltyStatus)}</td>` : '';
-          tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td><td style="text-align:center;">${row.status}</td>${penaltyCell}`;
+          tr.innerHTML = `<td>${memberNameCellHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td><td style="text-align:center;">${row.status}</td>${penaltyCell}`;
           tbody.appendChild(tr);
         });
         // Add sort indicators
@@ -2307,7 +2361,7 @@
             : '<span style="color:#666">—</span>';
           const tr = document.createElement('tr');
           const penaltyCell = showPenalty ? `<td style="text-align:center;">${penaltyCellHtml(row.memberName, row.penalty, row.penaltyStatus)}</td>` : '';
-          tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td>${showTitles ? `<td style="text-align:center;">${titleBadge(row.title)}</td>` : ''}<td style="text-align:center;">${row.status}</td>${penaltyCell}`;
+          tr.innerHTML = `<td>${memberNameCellHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td>${showTitles ? `<td style="text-align:center;">${titleBadge(row.title)}</td>` : ''}<td style="text-align:center;">${row.status}</td>${penaltyCell}`;
           tbody.appendChild(tr);
         });
         // Add sort indicators
@@ -2389,7 +2443,8 @@
         // Champions troop events: above the tournament title summary (Voltron import)
         const anchor = (tableKey === 'troop' && document.getElementById('troopTitleSummary')) || box;
         if (el.nextSibling !== anchor) anchor.parentNode.insertBefore(el, anchor);
-        const counted = rows.filter(r => !r.exempt).map(r => Object.assign({}, r, { outcome: outcomeOf(r) }));
+        const exemptions = rows.map(r => penaltyExemptionOf(r.memberName) && r).filter(Boolean);
+        const counted = rows.filter(r => !r.exempt && !penaltyExemptionOf(r.memberName)).map(r => Object.assign({}, r, { outcome: outcomeOf(r) }));
         outcomeRowsByTable[tableKey] = counted;
         const counts = {};
         counted.forEach(r => { counts[r.outcome] = (counts[r.outcome] || 0) + 1; });
@@ -2400,6 +2455,10 @@
           + `<strong style="color:#ffb300;">Results (${counted.length} members${exempt ? `, ${exempt} exempt` : ''}):</strong>${chips}`
           + `<button type="button" class="btn" style="margin:0 0 0 auto;padding:4px 10px;font-size:12px;" title="Name [troop level] points (% of target), in the order of the table" onclick="EventsTab.copyOutcome('${tableKey}','')">📋 Copy all</button>`
           + `<span id="${tableKey}OutcomeCopyStatus" style="font-size:12px;color:#4caf50;"></span></div>`
+          + (exemptions.length ? `<div style="margin-top:8px;color:#b0b0b0;">🛡️ <strong style="color:#c8e6c9;">Penalty exempt (${exemptions.length}):</strong> ${exemptions.map(r => {
+              const dates = exemptionDatesText(penaltyExemptionOf(r.memberName));
+              return escapeHtml(r.memberName) + (dates ? ` <span style="color:#fff3cd;">(temp., ${escapeHtml(dates)})</span>` : '');
+            }).join(', ')}</div>` : '')
           + `<details style="margin-top:8px;"><summary style="cursor:pointer;color:#b0b0b0;font-size:12px;">Show text to copy</summary>`
           + `<textarea id="${tableKey}OutcomeText" readonly rows="8" style="width:100%;margin-top:6px;box-sizing:border-box;font-family:monospace;font-size:12px;background:#1a1a1a;color:#e0e0e0;border:1px solid #444;border-radius:6px;padding:6px;"></textarea></details>`;
         document.getElementById(tableKey + 'OutcomeText').value = counted.map(outcomeLine).join('\n');
@@ -2903,7 +2962,7 @@
           loadingIndicator.style.display = 'none';
           if (result && result.success && result.data && result.data.length > 0) {
             participationRawData = result.data;
-            ensureTroopSummaryLoaded().then(() => renderResourceParticipationData());
+            Promise.all([ensureTroopSummaryLoaded(), ensurePenaltyExemptionsLoaded()]).then(() => renderResourceParticipationData());
           } else {
             thead.innerHTML = '';
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:40px; color:#7f8c8d;">No data yet. Click \"Calculate from Resources\" above.</td></tr>';
@@ -2996,9 +3055,9 @@
           const tr = document.createElement('tr');
           const penaltyCell = showPenalty ? `<td style="text-align:center;">${penaltyCellHtml(row.memberName, row.penalty, row.penaltyStatus)}</td>` : '';
           if (isTroop) {
-            tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td><td style="text-align:center;">${row.status}</td>${penaltyCell}`;
+            tr.innerHTML = `<td>${memberNameCellHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td><td style="text-align:center;">${row.status}</td>${penaltyCell}`;
           } else {
-            tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${row.status}</td>${penaltyCell}`;
+            tr.innerHTML = `<td>${memberNameCellHtml(row.memberName)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${row.status}</td>${penaltyCell}`;
           }
           tbody.appendChild(tr);
         });
