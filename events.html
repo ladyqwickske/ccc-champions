@@ -1491,16 +1491,16 @@
         return until ? `until ${until}` : from ? `from ${from}` : '';
       }
 
-      /** The member's name, with an Exempt (permanent) or Temp. exempt (with dates) badge. */
-      function memberNameCellHtml(memberName) {
+      /** For the Status column: an Exempt (permanent) or Temp. exempt badge with its dates; '' when not exempt. */
+      function penaltyExemptBadge(memberName) {
         const entry = penaltyExemptionOf(memberName);
-        if (!entry) return escapeHtml(memberName);
+        if (!entry) return '';
         const dates = exemptionDatesText(entry);
         const tip = 'Penalty exemption' + (entry.reason ? ': ' + entry.reason : '') + ' (' + (dates || 'permanent') + '). Not counted in the results, no penalty.';
         const badge = dates
-          ? `<span class="badge" style="background:#5c4b18;color:#fff3cd;" title="${escapeHtml(tip)}">🛡️ Temp. exempt · ${escapeHtml(dates)}</span>`
+          ? `<span class="badge" style="background:#5c4b18;color:#fff3cd;" title="${escapeHtml(tip)}">🛡️ Temp. exempt</span><div style="font-size:11px;color:#b0b0b0;margin-top:2px;">${escapeHtml(dates)}</div>`
           : `<span class="badge" style="background:#1b5e20;color:#c8e6c9;" title="${escapeHtml(tip)}">🛡️ Exempt</span>`;
-        return `${escapeHtml(memberName)} ${badge}`;
+        return badge;
       }
 
       function getEventTroopTargets(eventTypeName) {
@@ -2151,9 +2151,9 @@
             const category = (troopSummaryMap[nameKey] || {}).category || '—';
             const targetPoints = (targets && category !== '—') ? Number(targets[category]) : null;
             const targetCell = (targetPoints !== null && !isNaN(targetPoints)) ? targetPoints : '—';
-            row.innerHTML = `<td>${memberNameCellHtml(p.memberName)}</td><td style="text-align:center;">${escapeHtml(category)}</td><td style="text-align:center;">${fmtNum(targetCell)}</td><td>${fmtNum(p.value1 || 0)}</td><td style="text-align:center;">${icon}</td>${penaltyCell}`;
+            row.innerHTML = `<td>${escapeHtml(p.memberName)}</td><td style="text-align:center;">${escapeHtml(category)}</td><td style="text-align:center;">${fmtNum(targetCell)}</td><td>${fmtNum(p.value1 || 0)}</td><td style="text-align:center;">${penaltyExemptBadge(p.memberName) || icon}</td>${penaltyCell}`;
           } else {
-            row.innerHTML = `<td>${memberNameCellHtml(p.memberName)}</td><td>${fmtNum(p.value1 || 0)}</td><td style="text-align:center;">${icon}</td>${penaltyCell}`;
+            row.innerHTML = `<td>${escapeHtml(p.memberName)}</td><td>${fmtNum(p.value1 || 0)}</td><td style="text-align:center;">${penaltyExemptBadge(p.memberName) || icon}</td>${penaltyCell}`;
           }
           tbody.appendChild(row);
         });
@@ -2250,7 +2250,7 @@
             : '<span style="color:#666">—</span>';
           const tr = document.createElement('tr');
           const penaltyCell = showPenalty ? `<td style="text-align:center;">${penaltyCellHtml(row.memberName, row.penalty, row.penaltyStatus)}</td>` : '';
-          tr.innerHTML = `<td>${memberNameCellHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td><td style="text-align:center;">${row.status}</td>${penaltyCell}`;
+          tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td><td style="text-align:center;">${penaltyExemptBadge(row.memberName) || row.status}</td>${penaltyCell}`;
           tbody.appendChild(tr);
         });
         // Add sort indicators
@@ -2361,7 +2361,7 @@
             : '<span style="color:#666">—</span>';
           const tr = document.createElement('tr');
           const penaltyCell = showPenalty ? `<td style="text-align:center;">${penaltyCellHtml(row.memberName, row.penalty, row.penaltyStatus)}</td>` : '';
-          tr.innerHTML = `<td>${memberNameCellHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td>${showTitles ? `<td style="text-align:center;">${titleBadge(row.title)}</td>` : ''}<td style="text-align:center;">${row.status}</td>${penaltyCell}`;
+          tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td>${showTitles ? `<td style="text-align:center;">${titleBadge(row.title)}</td>` : ''}<td style="text-align:center;">${penaltyExemptBadge(row.memberName) || row.status}</td>${penaltyCell}`;
           tbody.appendChild(tr);
         });
         // Add sort indicators
@@ -3055,9 +3055,9 @@
           const tr = document.createElement('tr');
           const penaltyCell = showPenalty ? `<td style="text-align:center;">${penaltyCellHtml(row.memberName, row.penalty, row.penaltyStatus)}</td>` : '';
           if (isTroop) {
-            tr.innerHTML = `<td>${memberNameCellHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td><td style="text-align:center;">${row.status}</td>${penaltyCell}`;
+            tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${catBadge}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td><td style="text-align:center;">${penaltyExemptBadge(row.memberName) || row.status}</td>${penaltyCell}`;
           } else {
-            tr.innerHTML = `<td>${memberNameCellHtml(row.memberName)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${row.status}</td>${penaltyCell}`;
+            tr.innerHTML = `<td>${escapeHtml(row.memberName)}</td><td style="text-align:center;">${fmtNum(row.achieved)}</td><td style="text-align:center;">${fmtNum(row.target)}</td><td style="text-align:center;">${penaltyExemptBadge(row.memberName) || row.status}</td>${penaltyCell}`;
           }
           tbody.appendChild(tr);
         });
