@@ -588,7 +588,7 @@
       var col = s >= 90 ? '#8bc34a' : s >= 75 ? '#4caf50' : s >= 60 ? '#42a5f5' : s >= 40 ? '#ff9800' : s >= 20 ? '#ff5722' : '#ef5350';
       h += '<div class="cards">'
         + card('Score', '<span style="color:' + col + '">' + s + '</span> / 100', escapeHtml(p.rating || ''))
-        + (p.rank ? card('Rank', '#' + p.rank + ' of ' + p.of, 'in the clan') : '')
+        + (p.rank ? card('Rank', '#' + p.rank + ' of ' + p.of, 'in the clan') : p.newMember ? card('Rank', '🆕 New', 'ranked after 7 days in the clan') : '')
         + '</div>';
       var parts = p.parts || [], b = p.breakdown || {};
       h += '<div style="margin:8px 0 4px 0;">';
