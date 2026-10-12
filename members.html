@@ -797,8 +797,11 @@
             <label for="joinDate">Join Date</label>
             <input type="date" id="joinDate">
             <div class="note">Date member joined</div>
-            <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="joinedBeforeReset" style="width:auto;margin:0;"> Joined before reset (17:00 UTC)</label>
-            <div class="note">Then they take part in the events starting that day; otherwise those are exempt for them.</div>
+          </div>
+          <div>
+            <label for="joinedBeforeReset">Joined Before Reset</label>
+            <label for="joinedBeforeReset" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;margin:0;padding:0 10px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer;"><input type="checkbox" id="joinedBeforeReset" style="width:auto;margin:0;"> Before 17:00 UTC</label>
+            <div class="note">Takes part in the events starting that day</div>
           </div>
         </div>
         <div id="returningMemberHint" class="status" style="display:none;text-align:left;margin-bottom:10px;"></div>
