@@ -201,6 +201,8 @@
       .add-member-form-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
+      /* two columns: "Joined Before Reset" gets its own centered row instead of hanging under the name */
+      .add-member-form-grid > div:nth-child(3) { grid-column: 1 / -1; }
     }
 
     @media (max-width: 700px) {
@@ -797,8 +799,11 @@
             <label for="joinDate">Join Date</label>
             <input type="date" id="joinDate">
             <div class="note">Date member joined</div>
-            <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="joinedBeforeReset" style="width:auto;margin:0;"> Joined before reset (17:00 UTC)</label>
-            <div class="note">Then they take part in the events starting that day; otherwise those are exempt for them.</div>
+          </div>
+          <div>
+            <label for="joinedBeforeReset">Joined Before Reset</label>
+            <label for="joinedBeforeReset" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;margin:0;padding:0 10px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer;"><input type="checkbox" id="joinedBeforeReset" style="width:auto;margin:0;"> Before 17:00 UTC</label>
+            <div class="note">Takes part in the events starting that day</div>
           </div>
         </div>
         <div id="returningMemberHint" class="status" style="display:none;text-align:left;margin-bottom:10px;"></div>
@@ -1592,7 +1597,7 @@
             ? `<span style="display:inline-block;padding:1px 5px;border-radius:8px;font-size:10px;font-weight:700;background:${getHeroBg(hero.level)};color:${getHeroFg(hero.level)};" title="Updated: ${hero.timestamp ? cccDateTime(hero.timestamp) : '?'}">${hero.level}</span>`
             : '<span style="color:#666">—</span>';
           const cat = determineTroopCategory(troops.G, troops.M, troops.S);
-          row.innerHTML = `<td class="member-name">${escapeHtml(member.name)}</td><td style="text-align:center;">${heroHtml}</td><td class="date-value">${formatDate(member.joinDate)}<br><button type="button" class="reset-toggle" style="margin-top:3px;padding:1px 7px;font-size:11px;border-radius:8px;border:1px solid ${member.beforeReset ? '#ffb300' : '#555'};background:${member.beforeReset ? 'rgba(255,179,0,0.15)' : 'transparent'};color:${member.beforeReset ? '#ffb300' : '#999'};cursor:pointer;" title="Joined before or after the daily reset (17:00 UTC) on the join day. Before: takes part in the events starting that day. Click to change." onclick="MembersTab.toggleJoinedBeforeReset('${escapeAttr(member.name)}')">${member.beforeReset ? '🌅 before reset' : 'after reset'}</button></td><td style="text-align:center">${categoryBadge(cat)}</td><td style="text-align:center;white-space:nowrap;">${troopCell(troops)}</td>`;
+          row.innerHTML = `<td class="member-name">${escapeHtml(member.name)}</td><td style="text-align:center;">${heroHtml}</td><td class="date-value" style="white-space:nowrap;">${formatDate(member.joinDate)}<br><button type="button" class="reset-toggle" style="white-space:nowrap;margin-top:3px;padding:1px 7px;font-size:11px;border-radius:8px;border:1px solid ${member.beforeReset ? '#ffb300' : '#555'};background:${member.beforeReset ? 'rgba(255,179,0,0.15)' : 'transparent'};color:${member.beforeReset ? '#ffb300' : '#999'};cursor:pointer;" title="Joined before or after the daily reset (17:00 UTC) on the join day. Before: takes part in the events starting that day. Click to change." onclick="MembersTab.toggleJoinedBeforeReset('${escapeAttr(member.name)}')">${member.beforeReset ? '🌅 before reset' : 'after reset'}</button></td><td style="text-align:center">${categoryBadge(cat)}</td><td style="text-align:center;white-space:nowrap;">${troopCell(troops)}</td>`;
           tbody.appendChild(row);
         });
       }
