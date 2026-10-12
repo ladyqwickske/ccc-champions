@@ -797,6 +797,8 @@
             <label for="joinDate">Join Date</label>
             <input type="date" id="joinDate">
             <div class="note">Date member joined</div>
+            <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:13px;cursor:pointer;"><input type="checkbox" id="joinedBeforeReset" style="width:auto;margin:0;"> Joined before reset (17:00 UTC)</label>
+            <div class="note">Then they take part in the events starting that day; otherwise those are exempt for them.</div>
           </div>
         </div>
         <div id="returningMemberHint" class="status" style="display:none;text-align:left;margin-bottom:10px;"></div>
@@ -1590,7 +1592,7 @@
             ? `<span style="display:inline-block;padding:1px 5px;border-radius:8px;font-size:10px;font-weight:700;background:${getHeroBg(hero.level)};color:${getHeroFg(hero.level)};" title="Updated: ${hero.timestamp ? cccDateTime(hero.timestamp) : '?'}">${hero.level}</span>`
             : '<span style="color:#666">—</span>';
           const cat = determineTroopCategory(troops.G, troops.M, troops.S);
-          row.innerHTML = `<td class="member-name">${escapeHtml(member.name)}</td><td style="text-align:center;">${heroHtml}</td><td class="date-value">${formatDate(member.joinDate)}</td><td style="text-align:center">${categoryBadge(cat)}</td><td style="text-align:center;white-space:nowrap;">${troopCell(troops)}</td>`;
+          row.innerHTML = `<td class="member-name">${escapeHtml(member.name)}</td><td style="text-align:center;">${heroHtml}</td><td class="date-value">${formatDate(member.joinDate)}<br><button type="button" class="reset-toggle" style="margin-top:3px;padding:1px 7px;font-size:11px;border-radius:8px;border:1px solid ${member.beforeReset ? '#ffb300' : '#555'};background:${member.beforeReset ? 'rgba(255,179,0,0.15)' : 'transparent'};color:${member.beforeReset ? '#ffb300' : '#999'};cursor:pointer;" title="Joined before or after the daily reset (17:00 UTC) on the join day. Before: takes part in the events starting that day. Click to change." onclick="MembersTab.toggleJoinedBeforeReset('${escapeAttr(member.name)}')">${member.beforeReset ? '🌅 before reset' : 'after reset'}</button></td><td style="text-align:center">${categoryBadge(cat)}</td><td style="text-align:center;white-space:nowrap;">${troopCell(troops)}</td>`;
           tbody.appendChild(row);
         });
       }
@@ -1822,12 +1824,19 @@
           body: JSON.stringify({ action: 'addMember', name, joinDate })
         })
           .then(res => res.json())
-          .then(result => {
+          .then(async result => {
             if (result && result.success) {
+              // Joined before the reset on the join day: saved in the Members tab's "Joined Before Reset" column
+              const beforeReset = document.getElementById('joinedBeforeReset').checked;
+              if (beforeReset) {
+                const r = await postAction({ action: 'setMemberJoinedBeforeReset', name, beforeReset: true }).catch(e => ({ success: false, message: e.message }));
+                if (!r || !r.success) showToast('Added, but "joined before reset" was not saved: ' + ((r && r.message) || 'error'), 'error');
+              }
+              document.getElementById('joinedBeforeReset').checked = false;
               status.textContent = `Added "${name}".`;
               status.classList.add('ok');
               document.getElementById('newMemberNameInput').value = '';
-              const newMember = { name: name, joinDate: joinDate };
+              const newMember = { name: name, joinDate: joinDate, beforeReset };
               membersData.push(newMember);
               filteredData = [...membersData];
               populateMemberSelect();
@@ -1842,6 +1851,22 @@
             status.textContent = `Error: ${error.message}`;
             status.classList.add('err');
           });
+      }
+
+      /** Members table: switch "joined before / after the reset" on the member's join day. */
+      async function toggleJoinedBeforeReset(name) {
+        const member = membersData.find(m => m.name === name);
+        if (!member) return;
+        const next = !member.beforeReset;
+        if (!confirm(`${name} joined ${next ? 'BEFORE' : 'AFTER'} the reset (17:00 UTC) on their join day?\n\n`
+          + (next ? 'They take part in the events starting that day (penalties and results count them).' : 'The events starting that day are exempt for them.'))) return;
+        try {
+          const r = await postAction({ action: 'setMemberJoinedBeforeReset', name, beforeReset: next });
+          if (!r || !r.success) { showToast((r && r.message) || 'Not saved', 'error'); return; }
+          member.beforeReset = next;
+          renderTable();
+          showToast(r.message || 'Saved', 'success');
+        } catch (e) { showToast('Error: ' + e.message, 'error'); }
       }
 
       function submitNameChange() {
@@ -2344,7 +2369,7 @@
         document.getElementById('memberEmpty').style.display = 'block';
       }
 
-      return { init, loadAllData, switchTab, switchGroup, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, togglePointTargetsPanel, savePtDefault, addPtOverride, updatePtOverride, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts, loadSuperiors, toggleSuperior, addSuperiorEmail, updateSuperiorEmail, removeSuperiorEmail, saveSuperiors };
+      return { init, toggleJoinedBeforeReset, loadAllData, switchTab, switchGroup, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, togglePointTargetsPanel, savePtDefault, addPtOverride, updatePtOverride, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts, loadSuperiors, toggleSuperior, addSuperiorEmail, updateSuperiorEmail, removeSuperiorEmail, saveSuperiors };
     })();
   </script>
 </body>
