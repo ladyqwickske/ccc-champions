@@ -1959,6 +1959,8 @@
         return (selectedEvent && selectedEvent.penaltyType === 'points') ? 'pts' : 'silver';
       }
 
+      const LATE_JOINER_BADGE = '<span class="badge" style="background:#1b5e20;color:#c8e6c9;" title="Joined the clan after this event started: not counted, no penalty">Exempt</span>';
+
       function penaltyBadge(amount, status) {
         if (status === 'Exempt') return '<span class="badge" style="background:#1b5e20;color:#c8e6c9;">Exempt</span>';
         if (status === 'Waived') return '<span class="badge" style="background:#455a64;color:#cfd8dc;">Waived</span>';
@@ -2196,11 +2198,12 @@
           const eventTypeName = selectedEvent?.eventType || '';
           const targets = getEventTroopTargets(eventTypeName);
           const targetPoints = (targets && category) ? Number(targets[category]) : null;
-          const eventEndDate = parseDateSafe(selectedEvent?.endDate);
+          // Joined on or after the event's start day: not counted, no penalty (as applyEventPenalties)
+          const eventStartDate = parseDateSafe(selectedEvent?.startDate);
           const joinDate = memberJoinDatesMap[nameKey] || null;
-          const notInClan = joinDate && eventEndDate && joinDate > eventEndDate;
-          let statusIcon = '<span class="status-icon na">—</span>';
-          let statusSort = 0;
+          const notInClan = joinDate && eventStartDate && joinDate >= eventStartDate;
+          let statusIcon = notInClan ? LATE_JOINER_BADGE : '<span class="status-icon na">—</span>';
+          let statusSort = notInClan ? -1 : 0;
           if (!notInClan && targetPoints !== null && !isNaN(targetPoints)) {
             if (pts >= targetPoints) {
               statusIcon = '<span class="status-icon ok">✓</span>';
@@ -2297,11 +2300,12 @@
           const targets = getEventTroopTargets(eventTypeName);
           const titleTarget = !!(targets && category && isTitleTarget(targets[category]));
           const targetPoints = (targets && category && !titleTarget) ? Number(targets[category]) : null;
-          const eventEndDate = parseDateSafe(selectedEvent?.endDate);
+          // Joined on or after the event's start day: not counted, no penalty (as applyEventPenalties)
+          const eventStartDate = parseDateSafe(selectedEvent?.startDate);
           const joinDate = memberJoinDatesMap[nameKey] || null;
-          const notInClan = joinDate && eventEndDate && joinDate > eventEndDate;
-          let statusIcon = '<span class="status-icon na">—</span>';
-          let statusSort = 0;
+          const notInClan = joinDate && eventStartDate && joinDate >= eventStartDate;
+          let statusIcon = notInClan ? LATE_JOINER_BADGE : '<span class="status-icon na">—</span>';
+          let statusSort = notInClan ? -1 : 0;
           if (!notInClan && titleTarget) {
             // Title target: met with a tournament title (Winner, Podium, Top 10, Badge)
             statusIcon = hasTitle(p.value2) ? '<span class="status-icon ok">✓</span>' : '<span class="status-icon err">✕</span>';
@@ -3001,12 +3005,13 @@
           const troopEntry = troopSummaryMap[nameKey] || {};
           const category = isTroop ? (troopEntry.category || (p.value2 || null)) : null;
           const targetPoints = isTroop ? ((targets && category) ? Number(targets[category]) : null) : flatTarget;
-          const eventEndDate = parseDateSafe(selectedEvent?.endDate);
+          // Joined on or after the event's start day: not counted, no penalty (as applyEventPenalties)
+          const eventStartDate = parseDateSafe(selectedEvent?.startDate);
           const joinDate = memberJoinDatesMap[nameKey] || null;
-          const notInClan = joinDate && eventEndDate && joinDate > eventEndDate;
+          const notInClan = joinDate && eventStartDate && joinDate >= eventStartDate;
           const notes = (p.value3 || '').toString();
-          let statusIcon = '<span class="status-icon na">—</span>';
-          let statusSort = 0;
+          let statusIcon = notInClan ? LATE_JOINER_BADGE : '<span class="status-icon na">—</span>';
+          let statusSort = notInClan ? -1 : 0;
           if (notes.includes('Not Applicable')) {
             statusIcon = '<span class="badge" style="background:#1b5e20;color:#c8e6c9;" title="Joined the clan after this event started: not counted, no penalty">Exempt</span>';
             statusSort = -1;
