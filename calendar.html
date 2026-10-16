@@ -134,6 +134,10 @@
     .cal-event.color-gold    { background: #ffd700; color: #232526; }
     .cal-event.color-silver  { background: #b0bec5; color: #232526; }
     .cal-event.color-caramel  { background: #c68642; color: #fff; }
+    .cal-event.color-sky      { background: #29b6f6; color: #232526; }
+    .cal-event.color-rose     { background: #f48fb1; color: #232526; }
+    .cal-event.color-violet   { background: #7e57c2; color: #fff; }
+    .cal-event.color-sand     { background: #d7b56d; color: #232526; }
 
     .cal-more {
       font-size: 10px;
@@ -604,8 +608,8 @@
     'use strict';
 
     /* ── Color palette for events ───────────────── */
-    var COLORS = ['amber','blue','green','red','purple','cyan','orange','pink','teal','indigo','lime','brown','crimson','gold','silver','caramel'];
-    var COLOR_HEX = {amber:'#ffb300',blue:'#42a5f5',green:'#66bb6a',red:'#ef5350',purple:'#ab47bc',cyan:'#26c6da',orange:'#ff7043',pink:'#ec407a',teal:'#26a69a',indigo:'#5c6bc0',lime:'#9ccc65',brown:'#8d6e63',crimson:'#d32f2f',gold:'#ffd700',silver:'#b0bec5',caramel:'#c68642'};
+    var COLORS = ['amber','blue','green','red','purple','cyan','orange','pink','teal','indigo','lime','brown','crimson','gold','silver','caramel','sky','rose','violet','sand'];
+    var COLOR_HEX = {amber:'#ffb300',blue:'#42a5f5',green:'#66bb6a',red:'#ef5350',purple:'#ab47bc',cyan:'#26c6da',orange:'#ff7043',pink:'#ec407a',teal:'#26a69a',indigo:'#5c6bc0',lime:'#9ccc65',brown:'#8d6e63',crimson:'#d32f2f',gold:'#ffd700',silver:'#b0bec5',caramel:'#c68642',sky:'#29b6f6',rose:'#f48fb1',violet:'#7e57c2',sand:'#d7b56d'};
 
     /* ── Recurring event definitions (from Google Calendar ICS) ─── */
     // Each entry: title, firstStart (YYYY-MM-DD), duration (days), intervalDays, color, category, description
@@ -626,6 +630,12 @@
       { title: 'HellForge',         firstStart: '2026-03-29', duration: 2, interval: 24, color: 'crimson', category: 'Major Event', description: 'HellForge — 2-day event recurring every 24 days.' },
       { title: 'Olympus',           firstStart: '2026-03-29', duration: 5, interval: 24, color: 'gold',    category: 'Major Event', description: 'Olympus — 5-day event recurring every 24 days.' },
       { title: 'Ragnarok',          firstStart: '2026-04-04', duration: 2, interval: 24, color: 'lime',    category: 'Major Event', description: 'Ragnarok — 2-day event.' },
+      // Only on the dates Voltron's calendar lists (no rhythm): a tournament's game days run from
+      // the day after its 17:00 UTC start (the day itself when it starts before 17:00) to its end.
+      { title: 'Dawn of the Season', voltronOnly: true, firstStart: '2026-01-01', duration: 1, interval: 1, color: 'sky', category: 'Season Event', description: 'Dawn of the Season — shown on the dates from Voltron\'s calendar (no fixed rhythm).' },
+      { title: 'Prime Arena', voltronOnly: true, firstStart: '2026-01-01', duration: 1, interval: 1, color: 'rose', category: 'Special Event', description: 'Prime Arena — shown on the dates from Voltron\'s calendar (no fixed rhythm).' },
+      { title: 'Lucky Bazaar', voltronOnly: true, firstStart: '2026-01-01', duration: 1, interval: 1, color: 'violet', category: 'Special Event', description: 'Lucky Bazaar — shown on the dates from Voltron\'s calendar (no fixed rhythm).' },
+      { title: 'Sands of Eternity', voltronOnly: true, firstStart: '2026-01-01', duration: 1, interval: 1, color: 'sand', category: 'Special Event', description: 'Sands of Eternity — shown on the dates from Voltron\'s calendar (no fixed rhythm).' },
     ];
 
     /* ── Voltron's tournament calendar (getVoltronCalendar: stored daily by the chesttracker) ──
@@ -638,7 +648,8 @@
       'thirst for battle': { title: 'Thirst for Battle' }, 'the great hunt': { title: 'The Great Hunt' },
       'clash of kingdoms': { title: 'KvK' }, 'clash for the throne': { title: 'CoT' },
       'armageddon': { title: 'Armageddon' }, 'dark omens': { title: 'Dark Omens' }, 'shadow invasion': { title: 'Shadow Invasion' },
-      'hellforge': { title: 'HellForge' }, 'trials of olympus': { title: 'Olympus' }, 'ragnarök': { title: 'Ragnarok' }, 'ragnarok': { title: 'Ragnarok' }
+      'hellforge': { title: 'HellForge' }, 'trials of olympus': { title: 'Olympus' }, 'ragnarök': { title: 'Ragnarok' }, 'ragnarok': { title: 'Ragnarok' },
+      'dawn of the season': { title: 'Dawn of the Season' }, 'prime arena': { title: 'Prime Arena' }, 'lucky bazaar': { title: 'Lucky Bazaar' }, 'sands of eternity': { title: 'Sands of Eternity' }
     };
     var VOLTRON = {};          // title → [{ start: Date, end: Date }] (UTC dates)
     var VOLTRON_INFO = null;   // { kingdom, syncedAt }
@@ -656,6 +667,10 @@
         list.forEach(function (o) { var last = merged[merged.length - 1]; if (last && o.s <= last.e) last.e = Math.max(last.e, o.e); else merged.push({ s: o.s, e: o.e, offset: o.offset }); });
         if (!merged.length) return;
         byTitle[def.title] = merged.map(function (o) {
+          if (def.voltronOnly) {   // game day of a moment: its UTC date 7 h later (reset 17:00 UTC)
+            var vs = dayOf(o.s + 7 * 3600), ve = Math.max(vs, dayOf(o.e + 7 * 3600 - 1));
+            return { start: new Date(vs), end: new Date(ve) };
+          }
           var start = dayOf(o.s) + o.offset * 86400000;
           var end = Math.max(start, Math.min(dayOf(o.e), start + (def.duration - 1) * 86400000));
           return { start: new Date(start), end: new Date(end) };
@@ -693,7 +708,9 @@
             }
           });
           occ = new Date(known[known.length - 1].start.getTime() + interval * 86400000);
-        } else {
+        }
+        if (def.voltronOnly) continue;   // no rhythm: Voltron's dates only
+        if (!(known && known.length)) {
           // Find the first occurrence that could overlap with rangeStart
           var diffDays = Math.floor((rangeStart - first) / 86400000);
           var skipCount = diffDays > 0 ? Math.floor(diffDays / interval) : 0;
