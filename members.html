@@ -743,27 +743,7 @@
         <h3 style="margin:0 0 12px 0;">Chest Points - Last Active Periods</h3>
         <div class="controls" style="margin-bottom:10px;">
           <button class="btn" onclick="MembersTab.loadChestPointsTabData(true)">🔄 Refresh Chest Points</button>
-          <button class="btn" onclick="MembersTab.togglePointTargetsPanel()" style="margin-left:8px;">⚙️ Point Targets</button>
-        </div>
-
-        <!-- Point Targets Configuration Panel -->
-        <div id="pointTargetsPanel" style="display:none; margin-bottom:14px; background:rgba(255,255,255,0.04); border:1px solid #333; border-radius:8px; padding:14px 16px;">
-          <p style="font-size:12px;color:#b0b0b0;margin:0 0 12px 0;">Set a custom point target per player per active period. Overrides the default for that cell only. Saved locally in this browser.</p>
-          <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;">
-            <label style="font-size:12px;color:#ffb300;white-space:nowrap;font-weight:600;">Default target:</label>
-            <input type="number" id="ptDefaultInput" min="0" step="100" value="7500" style="width:100px;padding:5px 8px;border:1px solid #444;border-radius:5px;background:#1a1c1e;color:#e0e0e0;font-size:13px;">
-            <button onclick="MembersTab.savePtDefault()" class="btn" style="padding:5px 14px;font-size:12px;">Save default</button>
-          </div>
-          <div style="border-top:1px solid #333;padding-top:12px;">
-            <div style="font-size:12px;color:#ffb300;font-weight:600;margin-bottom:8px;">Per-player / per-period overrides</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr 110px auto;gap:6px;align-items:center;margin-bottom:10px;">
-              <select id="ptPlayerSelect" style="padding:5px 8px;border:1px solid #444;border-radius:5px;background:#1a1c1e;color:#e0e0e0;font-size:12px;"><option value="">— select player —</option></select>
-              <select id="ptPeriodSelect" style="padding:5px 8px;border:1px solid #444;border-radius:5px;background:#1a1c1e;color:#e0e0e0;font-size:12px;"><option value="">— select period —</option></select>
-              <input type="number" id="ptOverridePoints" placeholder="Points" min="0" step="100" style="padding:5px 8px;border:1px solid #444;border-radius:5px;background:#1a1c1e;color:#e0e0e0;font-size:12px;">
-              <button onclick="MembersTab.addPtOverride()" class="btn" style="padding:5px 12px;font-size:12px;white-space:nowrap;">➕ Add</button>
-            </div>
-            <div id="ptOverrideList" style="max-height:160px;overflow-y:auto;"></div>
-          </div>
+          <a class="btn" href="admin.html#pointTargetsTab" style="margin-left:8px;text-decoration:none;" title="Set the members' own targets on the Admin page">🎯 Point Targets</a>
         </div>
 
         <div id="chestPointsMeta" class="points-meta">Target: 7,500 points (green), within 10% (orange), below (red).</div>
@@ -870,7 +850,7 @@
     }
 
     // Tabs that moved to the Admin page: old links go there.
-    const ADMIN_PAGE_TABS = ['manualChestsTab', 'chestNameFixTab', 'ocrTab', 'chestValuesTab', 'exemptTab', 'linkFormerTab', 'transfersTab', 'accountsTab', 'superiorsTab'];
+    const ADMIN_PAGE_TABS = ['manualChestsTab', 'chestNameFixTab', 'ocrTab', 'chestValuesTab', 'exemptTab', 'linkFormerTab', 'transfersTab', 'accountsTab', 'superiorsTab', 'pointTargetsTab'];
     (function () {
       const tab = (location.hash || '').slice(1);
       if (ADMIN_PAGE_TABS.indexOf(tab) !== -1) location.replace('admin.html#' + tab);
@@ -955,16 +935,6 @@
           return raw;
         } catch(e) { return { default: 7500, overrides: [] }; }
       }
-      function savePointTargets(obj) {
-        pointTargetsCache = obj;
-        try { localStorage.setItem(PT_KEY, JSON.stringify(obj)); } catch(e) {}
-        // Persist to server (fire-and-forget)
-        fetch(window.GAS_WEB_APP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'savePointTargets', targets: obj })
-        }).catch(() => {});
-      }
       function loadPointTargetsFromServer() {
         return fetch(window.GAS_WEB_APP_URL, {
           method: 'POST',
@@ -1003,109 +973,6 @@
           return Number(periodTargetPoints);
         }
         return loadPointTargets().default || 7500;
-      }
-      function escapeHtmlMem(text) {
-        const d = document.createElement('div'); d.textContent = text; return d.innerHTML;
-      }
-      function togglePointTargetsPanel() {
-        const panel = document.getElementById('pointTargetsPanel');
-        if (!panel) return;
-        const open = panel.style.display !== 'none';
-        panel.style.display = open ? 'none' : 'block';
-        if (!open) renderPointTargetsPanel();
-      }
-      function populatePtSelects() {
-        const playerSel = document.getElementById('ptPlayerSelect');
-        if (playerSel) {
-          const current = playerSel.value;
-          playerSel.innerHTML = '<option value="">— select player —</option>';
-          const names = [...new Set(membersData.map(m => m.name || m.player || '').filter(Boolean))].sort();
-          names.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; playerSel.appendChild(o); });
-          if (current) playerSel.value = current;
-        }
-        const periodSel = document.getElementById('ptPeriodSelect');
-        if (periodSel) {
-          const current = periodSel.value;
-          periodSel.innerHTML = '<option value="">— select period —</option>';
-          const periods = Array.isArray(chestPointsData?.periods) ? chestPointsData.periods : [];
-          periods.forEach(p => { const o = document.createElement('option'); o.value = p.periodName; o.textContent = `${p.periodName} (${p.startDate} – ${p.endDate})`; periodSel.appendChild(o); });
-          if (current) periodSel.value = current;
-        }
-      }
-      function renderPointTargetsPanel() {
-        const pt = loadPointTargets();
-        const defInput = document.getElementById('ptDefaultInput');
-        if (defInput) defInput.value = pt.default || 7500;
-        populatePtSelects();
-        const list = document.getElementById('ptOverrideList');
-        if (!list) return;
-        const overrides = pt.overrides || [];
-        if (overrides.length === 0) {
-          list.innerHTML = '<p style="font-size:12px;color:#666;margin:0;">No overrides yet. Select a player and period above to add one.</p>';
-          return;
-        }
-        list.innerHTML = `<table id="ptOverrideTable" data-sortable data-sort-col="0" style="width:100%;border-collapse:collapse;font-size:12px;">
-          <thead><tr>
-            <th style="text-align:left;padding:4px 8px;color:#ffb300;border-bottom:1px solid #333;">Player</th>
-            <th style="text-align:left;padding:4px 8px;color:#ffb300;border-bottom:1px solid #333;">Period</th>
-            <th style="text-align:right;padding:4px 8px;color:#ffb300;border-bottom:1px solid #333;">Penalty pts</th>
-            <th style="text-align:right;padding:4px 8px;color:#ffb300;border-bottom:1px solid #333;">Target pts</th>
-            <th style="padding:4px 8px;border-bottom:1px solid #333;"></th>
-          </tr></thead>
-          <tbody>${overrides.map((o, i) =>
-            `<tr>
-              <td style="padding:4px 8px;color:#e0e0e0;border-bottom:1px solid #2a2a2a;">${escapeHtmlMem(o.player)}</td>
-              <td style="padding:4px 8px;color:#b0b0b0;border-bottom:1px solid #2a2a2a;">${escapeHtmlMem(o.period)}</td>
-              <td style="padding:4px 8px;text-align:right;border-bottom:1px solid #2a2a2a;color:${Number(o.penaltyPoints) > 0 ? '#ef5350' : '#666'};">${Number(o.penaltyPoints) > 0 ? '+' + Number(o.penaltyPoints).toLocaleString() : '—'}</td>
-              <td style="padding:4px 8px;text-align:right;border-bottom:1px solid #2a2a2a;">
-                <input type="number" value="${o.points}" min="0" step="100" data-idx="${i}"
-                  onchange="MembersTab.updatePtOverride(this)"
-                  style="width:80px;padding:2px 5px;border:1px solid #444;border-radius:4px;background:#1a1c1e;color:#e0e0e0;font-size:12px;">
-              </td>
-              <td style="padding:4px 8px;border-bottom:1px solid #2a2a2a;">
-                <button data-remove-idx="${i}" style="background:#c62828;color:#fff;border:none;border-radius:4px;padding:2px 7px;font-size:11px;cursor:pointer;">✕</button>
-              </td>
-            </tr>`
-          ).join('')}</tbody></table>`;
-        list.querySelectorAll('button[data-remove-idx]').forEach(btn => {
-          btn.addEventListener('click', function() { removePtOverride(parseInt(this.getAttribute('data-remove-idx'), 10)); });
-        });
-      }
-      function savePtDefault() {
-        const val = parseInt(document.getElementById('ptDefaultInput').value, 10);
-        if (isNaN(val) || val < 0) return;
-        const pt = loadPointTargets();
-        pt.default = val;
-        savePointTargets(pt);
-        renderChestPointsTable();
-      }
-      function addPtOverride() {
-        const player = (document.getElementById('ptPlayerSelect').value || '').trim();
-        const period = (document.getElementById('ptPeriodSelect').value || '').trim();
-        const pts = parseInt(document.getElementById('ptOverridePoints').value, 10);
-        if (!player || !period || isNaN(pts) || pts < 0) return;
-        const pt = loadPointTargets();
-        const idx = (pt.overrides || []).findIndex(o => o.player.toLowerCase() === player.toLowerCase() && o.period === period);
-        if (idx >= 0) { pt.overrides[idx].points = pts; }
-        else { pt.overrides.push({ player, period, points: pts }); }
-        savePointTargets(pt);
-        document.getElementById('ptOverridePoints').value = '';
-        renderPointTargetsPanel();
-        renderChestPointsTable();
-      }
-      function updatePtOverride(input) {
-        const idx = parseInt(input.getAttribute('data-idx'), 10);
-        const pts = parseInt(input.value, 10);
-        if (isNaN(idx) || isNaN(pts) || pts < 0) return;
-        const pt = loadPointTargets();
-        if (pt.overrides[idx]) { pt.overrides[idx].points = pts; savePointTargets(pt); renderChestPointsTable(); }
-      }
-      function removePtOverride(idx) {
-        const pt = loadPointTargets();
-        pt.overrides.splice(idx, 1);
-        savePointTargets(pt);
-        renderPointTargetsPanel();
-        renderChestPointsTable();
       }
       // ──────────────────────────────────────────────────────────────────────
 
@@ -2374,7 +2241,7 @@
         document.getElementById('memberEmpty').style.display = 'block';
       }
 
-      return { init, toggleJoinedBeforeReset, loadAllData, switchTab, switchGroup, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, togglePointTargetsPanel, savePtDefault, addPtOverride, updatePtOverride, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts, loadSuperiors, toggleSuperior, addSuperiorEmail, updateSuperiorEmail, removeSuperiorEmail, saveSuperiors };
+      return { init, toggleJoinedBeforeReset, loadAllData, switchTab, switchGroup, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts, loadSuperiors, toggleSuperior, addSuperiorEmail, updateSuperiorEmail, removeSuperiorEmail, saveSuperiors };
     })();
   </script>
 </body>
