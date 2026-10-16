@@ -628,7 +628,52 @@
       { title: 'Ragnarok',          firstStart: '2026-04-04', duration: 2, interval: 24, color: 'lime',    category: 'Major Event', description: 'Ragnarok — 2-day event.' },
     ];
 
-    // Expand recurring definitions into concrete EVENTS for the visible window
+    /* ── Voltron's tournament calendar (getVoltronCalendar: stored daily by the chesttracker) ──
+       Its tournaments → the titles above. The page shows game days: a tournament starting at the
+       17:00 UTC reset counts from the next day to its end day (offset 1); Ancients' Towers day is
+       the day Rise of the Ancients starts (offset 0); CoT's two phases are one 2-day event. */
+    var VOLTRON_TITLES = {
+      'doomsday': { title: 'Doomsday' }, "arachne's swarm": { title: 'Arachne\'s Swarm' },
+      'ruthless slaughter': { title: 'Ruthless Slaughter' }, 'rise of the ancients': { title: 'Ancients', offset: 0 },
+      'thirst for battle': { title: 'Thirst for Battle' }, 'the great hunt': { title: 'The Great Hunt' },
+      'clash of kingdoms': { title: 'KvK' }, 'clash for the throne': { title: 'CoT' },
+      'armageddon': { title: 'Armageddon' }, 'dark omens': { title: 'Dark Omens' }, 'shadow invasion': { title: 'Shadow Invasion' },
+      'hellforge': { title: 'HellForge' }, 'trials of olympus': { title: 'Olympus' }, 'ragnarök': { title: 'Ragnarok' }, 'ragnarok': { title: 'Ragnarok' }
+    };
+    var VOLTRON = {};          // title → [{ start: Date, end: Date }] (UTC dates)
+    var VOLTRON_INFO = null;   // { kingdom, syncedAt }
+    function setVoltronCalendar(res) {
+      var raw = {};
+      (res && res.occurrences || []).forEach(function (o) {
+        var map = VOLTRON_TITLES[String(o.name || '').trim().toLowerCase()];
+        if (map && o.end > o.start) (raw[map.title] = raw[map.title] || []).push({ s: o.start, e: o.end, offset: map.offset === undefined ? 1 : map.offset });
+      });
+      var dayOf = function (sec) { var d = new Date(sec * 1000); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()); };
+      var byTitle = {};
+      RECURRING.forEach(function (def) {
+        var list = (raw[def.title] || []).sort(function (a, b) { return a.s - b.s; });
+        var merged = [];
+        list.forEach(function (o) { var last = merged[merged.length - 1]; if (last && o.s <= last.e) last.e = Math.max(last.e, o.e); else merged.push({ s: o.s, e: o.e, offset: o.offset }); });
+        if (!merged.length) return;
+        byTitle[def.title] = merged.map(function (o) {
+          var start = dayOf(o.s) + o.offset * 86400000;
+          var end = Math.max(start, Math.min(dayOf(o.e), start + (def.duration - 1) * 86400000));
+          return { start: new Date(start), end: new Date(end) };
+        });
+      });
+      VOLTRON = byTitle;
+      VOLTRON_INFO = res && res.occurrences && res.occurrences.length ? { kingdom: res.kingdom, syncedAt: res.syncedAt } : null;
+    }
+    function loadVoltronCalendar() {
+      if (!window.GAS_WEB_APP_URL) return;
+      fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'getVoltronCalendar' }) })
+        .then(function (r) { return r.json(); })
+        .then(function (res) { if (res && res.success) { setVoltronCalendar(res); render(); } })
+        .catch(function () { /* no Voltron calendar: the recurring rhythm only */ });
+    }
+
+    // Expand recurring definitions into concrete EVENTS for the visible window.
+    // A title on Voltron's calendar uses its dates, and continues the rhythm after the last one.
     function expandRecurring(rangeStart, rangeEnd) {
       var events = [];
       for (var r = 0; r < RECURRING.length; r++) {
@@ -636,10 +681,24 @@
         var first = parseDate(def.firstStart);
         var dur = def.duration;
         var interval = def.interval;
-        // Find the first occurrence that could overlap with rangeStart
-        var diffDays = Math.floor((rangeStart - first) / 86400000);
-        var skipCount = diffDays > 0 ? Math.floor(diffDays / interval) : 0;
-        var occ = new Date(first.getTime() + skipCount * interval * 86400000);
+        var known = VOLTRON[def.title];
+        var occ;
+        if (known && known.length) {
+          known.forEach(function (o) {
+            if (o.start <= rangeEnd && o.end >= rangeStart) {
+              var vev = { title: def.title, date: fmtDate(o.start), color: def.color, category: def.category,
+                description: def.description + ' Dates from Voltron\'s calendar' + (VOLTRON_INFO && VOLTRON_INFO.kingdom ? ' (kingdom ' + VOLTRON_INFO.kingdom + ')' : '') + '.' };
+              if (o.end > o.start) vev.endDate = fmtDate(o.end);
+              events.push(vev);
+            }
+          });
+          occ = new Date(known[known.length - 1].start.getTime() + interval * 86400000);
+        } else {
+          // Find the first occurrence that could overlap with rangeStart
+          var diffDays = Math.floor((rangeStart - first) / 86400000);
+          var skipCount = diffDays > 0 ? Math.floor(diffDays / interval) : 0;
+          occ = new Date(first.getTime() + skipCount * interval * 86400000);
+        }
         // Generate occurrences until past rangeEnd
         for (var safety = 0; safety < 200; safety++) {
           var occEnd = new Date(occ.getTime() + (dur - 1) * 86400000);
@@ -668,6 +727,7 @@
       viewYear = now.getUTCFullYear();
       viewMonth = now.getUTCMonth();
       render();
+      loadVoltronCalendar();
     }
 
     window.calNav = function(dir) { viewMonth += dir; if (viewMonth < 0) { viewMonth = 11; viewYear--; } else if (viewMonth > 11) { viewMonth = 0; viewYear++; } render(); };
