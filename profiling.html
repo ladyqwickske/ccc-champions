@@ -97,6 +97,14 @@
     .evo-tip .key { display: inline-block; width: 12px; height: 2px; border-radius: 1px; flex-shrink: 0; }
     .evo details summary { cursor: pointer; font-size: 12px; color: #ffb300; margin: 8px 0; }
     .evo td.num, .evo th.num { text-align: right; white-space: nowrap; }
+    .evo-subhead { font-size: 13px; font-weight: 600; color: #e0e0e0; margin: 4px 0 8px; }
+    .evo-subhead span { font-weight: 400; color: #888; font-size: 12px; }
+    .evo-subnote { font-size: 11px; color: #888; font-weight: 400; margin-top: 2px; }
+    .evo-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+    .evo-chip { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; text-align: left; background: #232526; border: 1px solid #444; border-radius: 8px; padding: 6px 10px; cursor: pointer; font: inherit; color: #b0b0b0; font-size: 12px; transition: opacity 0.15s, border-color 0.15s; }
+    .evo-chip:hover { border-color: #ffb300; }
+    .evo-chip.dim { opacity: 0.45; }
+    .evo-chip .c-name { color: #e0e0e0; font-weight: 600; font-size: 13px; }
     .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 16px 0; }
     .info-card { background: #232526; border-radius: 8px; padding: 14px; border: 1px solid #444; }
     .info-card .card-label { font-size: 11px; color: #b0b0b0; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
@@ -369,12 +377,14 @@
           <div class="score-breakdown" id="scoreBreakdown"></div>
         </div>
 
-        <h2>📈 Evolution <span class="section-note">is the member improving? Every norm and chest target by date, next to the rest of the clan</span></h2>
+        <h2>📈 Evolution <span class="section-note">is the member improving, e.g. after a warning? Every norm and chest target by date, next to the rest of the clan</span></h2>
         <div class="evo" id="evoSection">
           <div class="evo-controls">
             <select id="evoDays" onchange="loadEvolution()">
+              <option value="14">Last 2 weeks</option>
+              <option value="30" selected>Last month</option>
               <option value="91">Last 3 months</option>
-              <option value="182" selected>Last 6 months</option>
+              <option value="182">Last 6 months</option>
               <option value="365">Last 12 months</option>
             </select>
             <span class="evo-hint">100% = norm / target reached. Filled = met, hollow = missed. Hover or tap a point for details.</span>
@@ -881,47 +891,86 @@
     }
 
     function evoSigned(n) { return n == null ? '—' : (n > 0 ? '+' : n < 0 ? '−' : '±') + Math.abs(n); }
+    function evoVerdict(v) {
+      const icon = { Improving: '▲', Declining: '▼', Steady: '▬', 'Too early': '⏳' }[v] || '•';
+      const color = { Improving: '#8bc34a', Declining: '#ef5350', Steady: '#b0b0b0' }[v] || '#888';
+      return { text: icon + ' ' + (v || '—'), color: color };
+    }
+    function evoTile(label, value, sub, color) {
+      return '<div class="evo-tile"><div class="t-label">' + label + '</div><div class="t-value"' + (color ? ' style="color:' + color + '"' : '') + '>' + value + '</div>' + (sub ? '<div class="t-sub">' + sub + '</div>' : '') + '</div>';
+    }
+    function evoRange(r) { return r ? cccDate(r[0]) + ' – ' + cccDate(r[1]) : ''; }
+    // One row of four tiles comparing two stretches (a → b)
+    function evoCompareTiles(c, a, b, verdictSub) {
+      const v = evoVerdict(c.verdict);
+      return evoTile('Trend', escapeHtml(v.text), verdictSub, v.color)
+        + evoTile('Avg % reached', (a ? a.average + '%' : '—') + ' → ' + (b ? b.average + '%' : '—'), 'capped at 100% per result')
+        + evoTile('vs clan median', (a && a.vsClan != null ? evoSigned(a.vsClan) : '—') + ' → ' + (b && b.vsClan != null ? evoSigned(b.vsClan) : '—'), 'pts above (+) or below (−) the rest of the clan in the same events')
+        + evoTile('Met', (a ? a.met + '/' + a.count : '—') + ' → ' + (b ? b.met + '/' + b.count : '—'), 'norms + chest targets met');
+    }
 
     function renderEvolution(e) {
       const body = document.getElementById('evoBody');
       const pts = e.events.concat(e.periods);
-      if (!pts.length) { body.innerHTML = '<div class="empty-state" style="padding:20px;"><p>No finished norms or chest targets for this member in this period.</p></div>'; return; }
-      const s = e.summary || {}, f = s.first, sc = s.second;
-      const verdictIcon = { Improving: '▲', Declining: '▼', Steady: '▬' }[s.verdict] || '•';
-      const verdictColor = { Improving: '#8bc34a', Declining: '#ef5350', Steady: '#b0b0b0' }[s.verdict] || '#888';
-      const tile = function(label, value, sub, color) {
-        return '<div class="evo-tile"><div class="t-label">' + label + '</div><div class="t-value"' + (color ? ' style="color:' + color + '"' : '') + '>' + value + '</div>' + (sub ? '<div class="t-sub">' + sub + '</div>' : '') + '</div>';
-      };
-      const range = function(r) { return r ? cccDate(r[0]) + ' – ' + cccDate(r[1]) : ''; };
-      let tiles = tile('Trend', verdictIcon + ' ' + escapeHtml(s.verdict || '—'),
-        s.vsClanChange != null ? 'Compared to the clan: ' + evoSigned(s.vsClanChange) + ' pts' : (s.change != null ? 'Change: ' + evoSigned(s.change) + ' pts' : 'Needs results in both halves'), verdictColor);
-      tiles += tile('Avg % reached', (f ? f.average + '%' : '—') + ' → ' + (sc ? sc.average + '%' : '—'),
-        '1st half ' + range(s.firstRange) + ' → 2nd half ' + range(s.secondRange));
-      tiles += tile('vs clan median', (f && f.vsClan != null ? evoSigned(f.vsClan) : '—') + ' → ' + (sc && sc.vsClan != null ? evoSigned(sc.vsClan) : '—'),
-        'pts above (+) or below (−) the rest of the clan in the same events');
-      tiles += tile('Met', (f ? f.met + '/' + f.count : '—') + ' → ' + (sc ? sc.met + '/' + sc.count : '—'), 'norms + chest targets met, per half');
+      const s = e.summary || {}, w = e.afterWarning;
+      let html = '';
 
-      body.innerHTML = '<div class="evo-tiles">' + tiles + '</div>'
-        + '<div class="evo-chart-box"><svg id="evoSvg" role="img" aria-label="Evolution chart: percent of norm or chest target reached per date"></svg>'
+      // Since the latest warning
+      if (w) {
+        const wd = w.warning;
+        const sub = w.verdict === 'Too early' ? 'No finished norms or chest targets since the warning yet'
+          : (w.vsClanChange != null ? 'Compared to the clan: ' + evoSigned(w.vsClanChange) + ' pts' : 'Change: ' + evoSigned(w.change) + ' pts');
+        html += '<div class="evo-subhead">⚠️ Since the last warning — ' + cccDate(wd.date) + (wd.type ? ' · ' + escapeHtml(wd.type) : '') + (wd.number !== '' ? ' #' + escapeHtml(String(wd.number)) : '')
+          + ' <span>(' + w.daysSince + ' day' + (w.daysSince === 1 ? '' : 's') + ' ago' + (w.warningsTotal > 1 ? ', ' + w.warningsTotal + ' warnings in total' : '') + ')'
+          + (wd.comment ? ' · “' + escapeHtml(wd.comment) + '”' : '') + '</span>'
+          + '<div class="evo-subnote">Before: ' + evoRange(w.beforeRange) + ' → after: ' + evoRange(w.afterRange) + '</div></div>'
+          + '<div class="evo-tiles">' + evoCompareTiles(w, w.before, w.after, sub) + '</div>';
+      }
+      // First half vs second half of the window
+      if (pts.length) {
+        const sub = s.vsClanChange != null ? 'Compared to the clan: ' + evoSigned(s.vsClanChange) + ' pts' : (s.change != null ? 'Change: ' + evoSigned(s.change) + ' pts' : 'Needs results in both halves');
+        html += '<div class="evo-subhead">📊 This period — 1st half → 2nd half <span>(' + evoRange(s.firstRange) + ' → ' + evoRange(s.secondRange) + ')</span></div>'
+          + '<div class="evo-tiles">' + evoCompareTiles(s, s.first, s.second, sub) + '</div>';
+      }
+      if (!pts.length && !(e.warnings || []).length && !(e.away || []).length) {
+        body.innerHTML = html + '<div class="empty-state" style="padding:20px;"><p>No finished norms or chest targets for this member in this period.</p></div>';
+        return;
+      }
+      if ((e.away || []).length) {
+        html += '<div class="evo-subnote" style="margin:-4px 0 8px;">Shaded = not in the clan (' + e.away.map(function(a) { return evoRange([a.start, a.end]) + ', ' + escapeHtml(a.why); }).join('; ') + '): what was missed then doesn’t count.</div>';
+      }
+
+      html += '<div class="evo-chart-box"><svg id="evoSvg" role="img" aria-label="Evolution chart: percent of norm or chest target reached per date"></svg>'
         + '<div class="evo-legend">'
         + '<span><svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="#3987e5"/></svg>Event norm</span>'
         + '<span><svg width="20" height="12"><line x1="1" y1="6" x2="19" y2="6" stroke="#d95926" stroke-width="2" opacity="0.55"/><rect x="5.5" y="1.5" width="9" height="9" rx="1.5" fill="#d95926"/></svg>Chest target (period)</span>'
         + '<span><svg width="20" height="12"><line x1="2" y1="6" x2="18" y2="6" stroke="#199e70" stroke-width="3" stroke-linecap="round"/></svg>Trend (avg of last 5)</span>'
         + '<span><svg width="12" height="12"><circle cx="6" cy="6" r="3" fill="none" stroke="#8a8a8a" stroke-width="1.5"/></svg>Clan median</span>'
-        + '</div><div class="evo-tip" id="evoTip"></div></div>'
-        + '<details><summary>Show as table</summary><div class="period-table-container"><table><thead><tr><th>Date</th><th>What</th><th class="num">Result</th><th class="num">Norm / target</th><th class="num">% reached</th><th class="num">Clan median</th></tr></thead><tbody>'
-        + pts.slice().sort(function(a, b) { return b.date.localeCompare(a.date); }).map(function(x) {
-          const res = x.target === 'Title' ? escapeHtml(x.title || 'No title') : formatNumber(x.achieved);
-          return '<tr><td style="white-space:nowrap;">' + cccDate(x.date) + '</td><td>' + (x.kind === 'chest' ? '📦 ' : '🎯 ') + escapeHtml(x.name) + '</td>'
-            + '<td class="num">' + res + '</td><td class="num">' + (x.target === 'Title' ? 'Title' : formatNumber(x.target)) + '</td>'
-            + '<td class="num"><span class="badge ' + (x.met ? 'badge-green' : 'badge-red') + '">' + x.percent + '%</span></td>'
-            + '<td class="num">' + (x.clanMedian != null ? x.clanMedian + '%' : '—') + '</td></tr>';
-        }).join('') + '</tbody></table></div></details>';
+        + ((e.warnings || []).length ? '<span><svg width="12" height="14"><line x1="6" y1="1" x2="6" y2="13" stroke="#ef5350" stroke-width="1.5"/></svg>⚠️ Warning</span>' : '')
+        + ((e.away || []).length ? '<span><svg width="14" height="12"><rect x="0" y="0" width="14" height="12" fill="#3a3d40"/></svg>Not in the clan</span>' : '')
+        + '</div><div class="evo-tip" id="evoTip"></div></div>';
+      html += evoTypesHtml(e);
+
+      // Table view (newest first), warnings included
+      const rows = pts.map(function(x) {
+        const res = x.target === 'Title' ? escapeHtml(x.title || 'No title') : formatNumber(x.achieved);
+        return { date: x.date, html: '<tr><td style="white-space:nowrap;">' + cccDate(x.date) + '</td><td>' + (x.kind === 'chest' ? '📦 ' : '🎯 ') + escapeHtml(x.name) + '</td>'
+          + '<td class="num">' + res + '</td><td class="num">' + (x.target === 'Title' ? 'Title' : formatNumber(x.target)) + '</td>'
+          + '<td class="num"><span class="badge ' + (x.met ? 'badge-green' : 'badge-red') + '">' + x.percent + '%</span></td>'
+          + '<td class="num">' + (x.clanMedian != null ? x.clanMedian + '%' : '—') + '</td></tr>' };
+      }).concat((e.warnings || []).map(function(wr) {
+        return { date: wr.date + 'z', html: '<tr><td style="white-space:nowrap;">' + cccDate(wr.date) + '</td><td colspan="5">⚠️ Warning' + (wr.type ? ': ' + escapeHtml(wr.type) : '') + (wr.comment ? ' — ' + escapeHtml(wr.comment) : '') + '</td></tr>' };
+      })).sort(function(a, b) { return b.date.localeCompare(a.date); });
+      html += '<details><summary>Show as table</summary><div class="period-table-container"><table><thead><tr><th>Date</th><th>What</th><th class="num">Result</th><th class="num">Norm / target</th><th class="num">% reached</th><th class="num">Clan median</th></tr></thead><tbody>'
+        + rows.map(function(r) { return r.html; }).join('') + '</tbody></table></div></details>';
+      body.innerHTML = html;
       drawEvolutionChart(e);
+      drawEvolutionTypes(e);
     }
 
     function drawEvolutionChart(e) {
       const svg = document.getElementById('evoSvg');
+      if (!svg) return;
       const box = svg.parentNode, tip = document.getElementById('evoTip');
       const NS = 'http://www.w3.org/2000/svg';
       const W = Math.max(320, box.clientWidth - 16), H = W < 520 ? 240 : 300;
@@ -929,46 +978,83 @@
       svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
       svg.innerHTML = '';
       const el = function(tag, attrs, parent) { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); (parent || svg).appendChild(n); return n; };
-      const t0 = Date.parse(e.from), t1 = Date.parse(e.to);
+      const DAY = 86400000;
+      const t0 = Date.parse(e.from), t1 = Date.parse(e.to) + DAY / 2;
       const YMAX = 150;
-      const x = function(d) { return M.l + (Date.parse(d) - t0) / (t1 - t0) * (W - M.l - M.r); };
+      const xt = function(ms) { return M.l + (ms - t0) / (t1 - t0) * (W - M.l - M.r); };
+      const x = function(d) { return xt(Date.parse(d)); };
       const y = function(p) { return M.t + (1 - Math.min(p, YMAX) / YMAX) * (H - M.t - M.b); };
 
+      // not in the clan: shaded stretches
+      (e.away || []).forEach(function(a) {
+        const xa = Math.max(M.l, x(a.start)), xb = Math.min(W - M.r, x(a.end) + 4);
+        if (xb > xa) {
+          el('rect', { x: xa, y: M.t, width: xb - xa, height: H - M.t - M.b, fill: '#3a3d40', opacity: 0.6 });
+          if (xb - xa > 60) el('text', { x: (xa + xb) / 2, y: H - M.b - 8, 'text-anchor': 'middle' }).textContent = 'not in the clan';
+        }
+      });
       // grid + y ticks (100 % = norm / target reached)
       [0, 50, 100, 150].forEach(function(v) {
         el('line', { x1: M.l, x2: W - M.r, y1: y(v), y2: y(v), stroke: v === 100 ? '#5a5d60' : '#34373a', 'stroke-width': 1 });
         el('text', { x: M.l - 6, y: y(v) + 4, 'text-anchor': 'end' }).textContent = v + '%';
       });
-      // month ticks
-      const d0 = new Date(t0); let m = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 1, 1));
+      // x ticks: every 2 days, weekly or monthly depending on the window
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const step = W < 520 && (t1 - t0) > 200 * 86400000 ? 2 : 1;
-      let i = 0;
-      while (m.getTime() <= t1) {
-        if (i++ % step === 0) {
-          const xm = M.l + (m.getTime() - t0) / (t1 - t0) * (W - M.l - M.r);
-          el('line', { x1: xm, x2: xm, y1: H - M.b, y2: H - M.b + 4, stroke: '#5a5d60' });
-          el('text', { x: xm, y: H - 8, 'text-anchor': 'middle' }).textContent = months[m.getUTCMonth()] + (m.getUTCMonth() === 0 ? ' ' + m.getUTCFullYear() : '');
+      const spanDays = (t1 - t0) / DAY;
+      const ticks = [];
+      if (spanDays <= 45) {
+        const every = spanDays <= 16 ? (W < 520 ? 3 : 2) : 7;
+        for (let t = t1 - DAY / 2; t >= t0; t -= every * DAY) ticks.unshift(t);
+        ticks.forEach(function(t) { const d = new Date(t); ticks[ticks.indexOf(t)] = { t: t, label: d.getUTCDate() + ' ' + months[d.getUTCMonth()] }; });
+      } else {
+        const d0 = new Date(t0); let m = Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 1, 1), i = 0;
+        const step = W < 520 && spanDays > 200 ? 2 : 1;
+        while (m <= t1) {
+          const dm = new Date(m);
+          if (i++ % step === 0) ticks.push({ t: m, label: months[dm.getUTCMonth()] + (dm.getUTCMonth() === 0 ? ' ' + dm.getUTCFullYear() : '') });
+          m = Date.UTC(dm.getUTCFullYear(), dm.getUTCMonth() + 1, 1);
         }
-        m = new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + 1, 1));
       }
+      ticks.forEach(function(tk) {
+        const xm = xt(tk.t);
+        el('line', { x1: xm, x2: xm, y1: H - M.b, y2: H - M.b + 4, stroke: '#5a5d60' });
+        el('text', { x: xm, y: H - 8, 'text-anchor': 'middle' }).textContent = tk.label;
+      });
       el('line', { x1: M.l, x2: W - M.r, y1: H - M.b, y2: H - M.b, stroke: '#5a5d60' });
-      // halves divider (the summary tiles compare them)
+      // halves divider (the "This period" tiles compare them)
       if (e.summary && e.summary.firstRange && e.summary.first && e.summary.second) {
         const xs = x(e.summary.firstRange[1]);
         el('line', { x1: xs, x2: xs, y1: M.t, y2: H - M.b, stroke: '#3c3f42', 'stroke-width': 1 });
         el('text', { x: xs - 6, y: M.t + 10, 'text-anchor': 'end' }).textContent = '1st half';
         el('text', { x: xs + 6, y: M.t + 10 }).textContent = '2nd half';
       }
+      // warnings: red hairline + ⚠ at the top
+      const marks = [];
+      (e.warnings || []).forEach(function(wr) {
+        const xw = x(wr.date) + 2;
+        el('line', { x1: xw, x2: xw, y1: M.t, y2: H - M.b, stroke: '#ef5350', 'stroke-width': 1.5 });
+        el('text', { x: xw, y: M.t - 4, 'text-anchor': 'middle', style: 'font-size:12px' }).textContent = '⚠️';
+        marks.push({ w: wr, cx: xw, cy: M.t + 2 });
+      });
 
       // clan median (behind), chest line, trend, then the member's own points on top
       e.events.concat(e.periods).forEach(function(p) {
         if (p.clanMedian != null) el('circle', { cx: x(p.date), cy: y(p.clanMedian), r: 3, fill: 'none', stroke: '#8a8a8a', 'stroke-width': 1.5 });
       });
       const periods = e.periods.slice().sort(function(a, b) { return a.date.localeCompare(b.date); });
-      if (periods.length > 1) el('polyline', { points: periods.map(function(p) { return x(p.date) + ',' + y(p.percent); }).join(' '), fill: 'none', stroke: '#d95926', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: 0.55 });
-      if (e.trend.length > 1) el('polyline', { points: e.trend.map(function(p) { return x(p.date) + ',' + y(p.value); }).join(' '), fill: 'none', stroke: '#199e70', 'stroke-width': 3, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
-      const marks = [];
+      // lines break where the member was away from the clan
+      const awayBetween = function(a, b) { return (e.away || []).some(function(r) { return r.start <= b && r.end >= a; }); };
+      const lines = function(list, val, attrs) {
+        let seg = [];
+        const flush = function() { if (seg.length > 1) el('polyline', Object.assign({ points: seg.join(' '), fill: 'none', 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, attrs)); seg = []; };
+        list.forEach(function(p, i) {
+          if (i && awayBetween(list[i - 1].date, p.date)) flush();
+          seg.push(x(p.date) + ',' + y(val(p)));
+        });
+        flush();
+      };
+      lines(periods, function(p) { return p.percent; }, { stroke: '#d95926', 'stroke-width': 2, opacity: 0.55 });
+      lines(e.trend, function(p) { return p.value; }, { stroke: '#199e70', 'stroke-width': 3 });
       periods.forEach(function(p) {
         const cx = x(p.date), cy = y(p.percent);
         el('rect', { x: cx - 4.5, y: cy - 4.5, width: 9, height: 9, rx: 1.5, fill: p.met ? '#d95926' : '#232526', stroke: p.met ? '#232526' : '#d95926', 'stroke-width': 2 });
@@ -980,11 +1066,191 @@
         marks.push({ p: p, cx: cx, cy: cy, color: '#3987e5' });
       });
       // results above the scale: a small arrow at the top (the tooltip has the real %)
-      marks.forEach(function(mk) { if (mk.p.percent > YMAX) el('text', { x: mk.cx, y: M.t - 6, 'text-anchor': 'middle' }).textContent = '▲'; });
+      marks.forEach(function(mk) { if (mk.p && mk.p.percent > YMAX) el('text', { x: mk.cx, y: M.t - 6, 'text-anchor': 'middle' }).textContent = '▲'; });
 
-      // hover / tap: nearest point within reach
+      // hover / tap: nearest point (or warning marker) within reach
       const hl = el('circle', { r: 8, fill: 'none', stroke: '#e0e0e0', 'stroke-width': 1.5, visibility: 'hidden' });
       const trendAt = {}; e.trend.forEach(function(t) { trendAt[t.date] = t.value; });
+      function hide() { tip.style.display = 'none'; hl.setAttribute('visibility', 'hidden'); }
+      function show(ev) {
+        const r = svg.getBoundingClientRect(), k = W / r.width;
+        const px = (ev.clientX - r.left) * k, py = (ev.clientY - r.top) * k;
+        let best = null, bd = 24 * k;
+        marks.forEach(function(mk) {
+          const dd = mk.w ? Math.abs(mk.cx - px) + (py < M.t + 30 ? 0 : 1000) : Math.hypot(mk.cx - px, mk.cy - py);
+          if (dd < bd) { bd = dd; best = mk; }
+        });
+        if (!best) { hide(); return; }
+        hl.setAttribute('cx', best.cx); hl.setAttribute('cy', best.cy); hl.setAttribute('visibility', 'visible');
+        tip.textContent = '';
+        const add = function(cls, text, key) {
+          const d = document.createElement('div'); d.className = cls;
+          if (key) { const s = document.createElement('span'); s.className = 'key'; s.style.background = key; d.appendChild(s); }
+          d.appendChild(document.createTextNode(text)); tip.appendChild(d); return d;
+        };
+        if (best.w) {
+          add('tv', '⚠️ Warning' + (best.w.number !== '' ? ' #' + best.w.number : ''));
+          add('tn', best.w.type || '');
+          add('tr', cccDate(best.w.date));
+          if (best.w.comment) add('tr', best.w.comment);
+        } else {
+          const p = best.p;
+          add('tv', p.percent + '% ' + (p.met ? '✓ met' : '✗ missed'));
+          add('tn', (p.kind === 'chest' ? 'Chest target · ' : '') + p.name);
+          add('tr', cccDate(p.start) + (p.end && p.end !== p.start ? ' – ' + cccDate(p.end) : ''));
+          add('tr', p.target === 'Title' ? (p.title || 'No title') + ' (norm: a title)' : formatNumber(p.achieved) + ' of ' + formatNumber(p.target), best.color);
+          if (p.clanMedian != null) add('tr', 'Clan median ' + p.clanMedian + '% (' + p.clanCount + ' members)', '#8a8a8a');
+          if (trendAt[p.date] != null) add('tr', 'Trend ' + trendAt[p.date] + '%', '#199e70');
+        }
+        tip.style.display = 'block';
+        const tw = tip.offsetWidth, th = tip.offsetHeight, bx = best.cx / k + 8, by = best.cy / k + 8;
+        tip.style.left = (bx + 14 + tw > box.clientWidth ? Math.max(4, bx - tw - 14) : bx + 14) + 'px';
+        tip.style.top = Math.max(4, Math.min(by - th / 2, box.clientHeight - th - 4)) + 'px';
+      }
+      svg.onpointermove = show; svg.onpointerdown = show; svg.onpointerleave = hide;
+    }
+    window.addEventListener('resize', function() { if (evoData && document.getElementById('evoSvg')) { drawEvolutionChart(evoData); drawEvolutionTypes(evoData); } });
+
+    // ─── Evolution per event type: every event type with a norm in one overview ───
+    // % of the norm reached per event, one line per type (fixed palette order, by type name)
+    const EVO_TYPE_COLORS = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767'];
+    let evoFocusType = null; // legend click: show one type only
+    function evoTypeGroups(e) {
+      const groups = {};
+      e.events.forEach(function(ev) { (groups[ev.type || 'Other'] = groups[ev.type || 'Other'] || []).push(ev); });
+      const names = Object.keys(groups).sort(function(a, b) { return a.localeCompare(b); });
+      return names.map(function(type, i) {
+        const list = groups[type].slice().sort(function(a, b) { return a.date.localeCompare(b.date); });
+        const capped = function(xs) { return xs.length ? Math.round(xs.reduce(function(t, x) { return t + Math.min(100, x.percent); }, 0) / xs.length) : null; };
+        const half = Math.floor(list.length / 2);
+        const early = capped(list.slice(0, half)), late = capped(list.slice(list.length - half));
+        const change = list.length >= 2 && early != null && late != null ? late - early : null;
+        return {
+          type: type, list: list, color: EVO_TYPE_COLORS[i] || '#8a8a8a',
+          met: list.filter(function(x) { return x.met; }).length, avg: capped(list),
+          last: list[list.length - 1], change: change,
+          verdict: change == null ? '' : change >= 10 ? 'up' : change <= -10 ? 'down' : 'flat',
+        };
+      });
+    }
+    function evoTypesHtml(e) {
+      const groups = evoTypeGroups(e);
+      if (!groups.length) return '';
+      if (evoFocusType && !groups.some(function(g) { return g.type === evoFocusType; })) evoFocusType = null;
+      const arrow = { up: '<span style="color:#8bc34a">▲ improving</span>', down: '<span style="color:#ef5350">▼ declining</span>', flat: '<span style="color:#b0b0b0">▬ steady</span>' };
+      return '<div class="evo-subhead" style="margin-top:16px;">🎯 Norms per event type <span>(% of the norm reached in each event · tap a type to show only that one)</span></div>'
+        + '<div class="evo-chips">' + groups.map(function(g) {
+          const col = g.met === g.list.length ? '#8bc34a' : g.met === 0 ? '#ef5350' : '#ff9800';
+          const dim = evoFocusType && evoFocusType !== g.type ? ' dim' : '';
+          return '<button type="button" class="evo-chip' + dim + '" data-type="' + escapeHtml(g.type) + '" onclick="evoToggleType(this.dataset.type)">'
+            + '<svg width="20" height="12" aria-hidden="true"><line x1="1" y1="6" x2="19" y2="6" stroke="' + g.color + '" stroke-width="2"/><circle cx="10" cy="6" r="4" fill="' + g.color + '"/></svg>'
+            + '<span class="c-name">' + escapeHtml(g.type) + '</span>'
+            + '<span class="c-stats"><b style="color:' + col + '">' + g.met + '/' + g.list.length + ' met</b> · avg ' + g.avg + '% · last ' + g.last.percent + '%'
+            + (g.verdict ? ' · ' + arrow[g.verdict] : '') + '</span></button>';
+        }).join('') + '</div>'
+        + '<div class="evo-chart-box"><svg id="evoTypesSvg" role="img" aria-label="Percent of the norm reached per event, one line per event type"></svg>'
+        + '<div class="evo-legend"><span><svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="#9a9a9a"/></svg>met</span>'
+        + '<span><svg width="12" height="12"><circle cx="6" cy="6" r="4" fill="#232526" stroke="#9a9a9a" stroke-width="2"/></svg>missed</span>'
+        + '<span style="color:#888;white-space:normal;">100% = norm reached · ▲ improving / ▼ declining: 2nd half of the events vs the 1st half (±10 pts)</span></div>'
+        + '<div class="evo-tip" id="evoTypesTip"></div></div>';
+    }
+    function evoToggleType(type) {
+      evoFocusType = evoFocusType === type ? null : type;
+      document.querySelectorAll('.evo-chip').forEach(function(c) { c.classList.toggle('dim', !!evoFocusType && c.dataset.type !== evoFocusType); });
+      if (evoData) drawEvolutionTypes(evoData);
+    }
+    function drawEvolutionTypes(e) {
+      const svg = document.getElementById('evoTypesSvg');
+      if (!svg) return;
+      const groups = evoTypeGroups(e);
+      const box = svg.parentNode, tip = document.getElementById('evoTypesTip');
+      const NS = 'http://www.w3.org/2000/svg', DAY = 86400000;
+      const W = Math.max(320, box.clientWidth - 16), H = W < 520 ? 260 : 320;
+      const wide = W >= 640;
+      const M = { l: 40, r: wide ? 170 : 12, t: 14, b: 26 };
+      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+      svg.innerHTML = '';
+      const el = function(tag, attrs) { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); svg.appendChild(n); return n; };
+      const t0 = Date.parse(e.from), t1 = Date.parse(e.to) + DAY / 2, YMAX = 150;
+      const xt = function(ms) { return M.l + (ms - t0) / (t1 - t0) * (W - M.l - M.r); };
+      const x = function(d) { return xt(Date.parse(d)); };
+      const y = function(p) { return M.t + (1 - Math.min(p, YMAX) / YMAX) * (H - M.t - M.b); };
+
+      (e.away || []).forEach(function(a) {
+        const xa = Math.max(M.l, x(a.start)), xb = Math.min(W - M.r, x(a.end) + 4);
+        if (xb > xa) el('rect', { x: xa, y: M.t, width: xb - xa, height: H - M.t - M.b, fill: '#3a3d40', opacity: 0.6 });
+      });
+      [0, 50, 100, 150].forEach(function(v) {
+        el('line', { x1: M.l, x2: W - M.r, y1: y(v), y2: y(v), stroke: v === 100 ? '#5a5d60' : '#34373a', 'stroke-width': 1 });
+        el('text', { x: M.l - 6, y: y(v) + 4, 'text-anchor': 'end' }).textContent = v + '%';
+      });
+      // x ticks: every 2–3 days, weekly or monthly depending on the window
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const spanDays = (t1 - t0) / DAY, ticks = [];
+      if (spanDays <= 45) {
+        const every = spanDays <= 16 ? (W < 520 ? 3 : 2) : 7;
+        for (let t = t1 - DAY / 2; t >= t0; t -= every * DAY) { const d = new Date(t); ticks.unshift({ t: t, label: d.getUTCDate() + ' ' + months[d.getUTCMonth()] }); }
+      } else {
+        const d0 = new Date(t0); let m = Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 1, 1), i = 0;
+        const step = W < 520 && spanDays > 200 ? 2 : 1;
+        while (m <= t1) {
+          const dm = new Date(m);
+          if (i++ % step === 0) ticks.push({ t: m, label: months[dm.getUTCMonth()] + (dm.getUTCMonth() === 0 ? ' ' + dm.getUTCFullYear() : '') });
+          m = Date.UTC(dm.getUTCFullYear(), dm.getUTCMonth() + 1, 1);
+        }
+      }
+      ticks.forEach(function(tk) {
+        const xm = xt(tk.t);
+        el('line', { x1: xm, x2: xm, y1: H - M.b, y2: H - M.b + 4, stroke: '#5a5d60' });
+        el('text', { x: xm, y: H - 8, 'text-anchor': 'middle' }).textContent = tk.label;
+      });
+      el('line', { x1: M.l, x2: W - M.r, y1: H - M.b, y2: H - M.b, stroke: '#5a5d60' });
+      (e.warnings || []).forEach(function(wr) {
+        const xw = x(wr.date) + 2;
+        el('line', { x1: xw, x2: xw, y1: M.t, y2: H - M.b, stroke: '#ef5350', 'stroke-width': 1.5 });
+        el('text', { x: xw, y: M.t - 2, 'text-anchor': 'middle', style: 'font-size:11px' }).textContent = '⚠️';
+      });
+
+      // lines (break while away), then the markers on top; the focused type is drawn last
+      const awayBetween = function(a, b) { return (e.away || []).some(function(r) { return r.start <= b && r.end >= a; }); };
+      const order = groups.slice().sort(function(a, b) { return (a.type === evoFocusType) - (b.type === evoFocusType); });
+      const marks = [];
+      order.forEach(function(g) {
+        const faded = evoFocusType && evoFocusType !== g.type;
+        const op = faded ? 0.12 : 1;
+        let seg = [];
+        const flush = function() { if (seg.length > 1) el('polyline', { points: seg.join(' '), fill: 'none', stroke: g.color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: op * 0.85 }); seg = []; };
+        g.list.forEach(function(p, i) { if (i && awayBetween(g.list[i - 1].date, p.date)) flush(); seg.push(x(p.date) + ',' + y(p.percent)); });
+        flush();
+        g.list.forEach(function(p) {
+          const cx = x(p.date), cy = y(p.percent);
+          el('circle', { cx: cx, cy: cy, r: 4, fill: p.met ? g.color : '#232526', stroke: p.met ? '#232526' : g.color, 'stroke-width': 2, opacity: op });
+          if (p.percent > YMAX && !faded) el('text', { x: cx, y: M.t + 8, 'text-anchor': 'middle' }).textContent = '▲';
+          if (!faded) marks.push({ p: p, g: g, cx: cx, cy: cy });
+        });
+      });
+
+      // direct labels at the right end (wide screens), spread out with a leader line to the last point
+      if (wide) {
+        const labels = groups.filter(function(g) { return !evoFocusType || g.type === evoFocusType; }).map(function(g) {
+          const last = g.list[g.list.length - 1];
+          return { g: g, x0: x(last.date), y0: y(last.percent), y: y(last.percent), text: (g.type.length > 18 ? g.type.slice(0, 17) + '…' : g.type) + '  ' + last.percent + '%' };
+        }).sort(function(a, b) { return a.y - b.y; });
+        const GAP = 14, top = M.t + 6, bottom = H - M.b - 2;
+        labels.forEach(function(l, i) { if (i && l.y < labels[i - 1].y + GAP) l.y = labels[i - 1].y + GAP; });
+        for (let i = labels.length - 1; i >= 0; i--) {
+          const max = i === labels.length - 1 ? bottom : labels[i + 1].y - GAP;
+          if (labels[i].y > max) labels[i].y = max;
+          if (labels[i].y < top) labels[i].y = top;
+        }
+        const lx = W - M.r + 10;
+        labels.forEach(function(l) {
+          el('polyline', { points: l.x0 + ',' + l.y0 + ' ' + (lx - 4) + ',' + l.y, fill: 'none', stroke: l.g.color, 'stroke-width': 1, opacity: 0.7 });
+          el('text', { x: lx, y: l.y + 4, style: 'fill:#c8c8c8;font-size:11px' }).textContent = l.text;
+        });
+      }
+
+      const hl = el('circle', { r: 8, fill: 'none', stroke: '#e0e0e0', 'stroke-width': 1.5, visibility: 'hidden' });
       function hide() { tip.style.display = 'none'; hl.setAttribute('visibility', 'hidden'); }
       function show(ev) {
         const r = svg.getBoundingClientRect(), k = W / r.width;
@@ -998,14 +1264,15 @@
         const add = function(cls, text, key) {
           const d = document.createElement('div'); d.className = cls;
           if (key) { const s = document.createElement('span'); s.className = 'key'; s.style.background = key; d.appendChild(s); }
-          d.appendChild(document.createTextNode(text)); tip.appendChild(d); return d;
+          d.appendChild(document.createTextNode(text)); tip.appendChild(d);
         };
-        add('tv', p.percent + '% ' + (p.met ? '✓ met' : '✗ missed'));
-        add('tn', (p.kind === 'chest' ? 'Chest target · ' : '') + p.name);
+        add('tv', p.percent + '% of the norm ' + (p.met ? '✓ met' : '✗ missed'));
+        add('tr', best.g.type, best.g.color);
+        add('tn', p.name);
         add('tr', cccDate(p.start) + (p.end && p.end !== p.start ? ' – ' + cccDate(p.end) : ''));
-        add('tr', p.target === 'Title' ? (p.title || 'No title') + ' (norm: a title)' : formatNumber(p.achieved) + ' of ' + formatNumber(p.target), best.color);
-        if (p.clanMedian != null) add('tr', 'Clan median ' + p.clanMedian + '% (' + p.clanCount + ' members)', '#8a8a8a');
-        if (trendAt[p.date] != null) add('tr', 'Trend ' + trendAt[p.date] + '%', '#199e70');
+        if (p.target === 'Title') add('tr', 'Norm: a title — got ' + (p.title || 'no title'));
+        else add('tr', formatNumber(p.achieved) + ' of ' + formatNumber(p.target) + (p.met ? '' : ' · short by ' + formatNumber(Math.max(0, p.target - p.achieved))));
+        if (p.clanMedian != null) add('tr', 'Clan median ' + (p.clanMedianAchieved != null && p.target !== 'Title' ? formatNumber(p.clanMedianAchieved) + ' · ' : '') + p.clanMedian + '% (' + p.clanCount + ' members)', '#8a8a8a');
         tip.style.display = 'block';
         const tw = tip.offsetWidth, th = tip.offsetHeight, bx = best.cx / k + 8, by = best.cy / k + 8;
         tip.style.left = (bx + 14 + tw > box.clientWidth ? Math.max(4, bx - tw - 14) : bx + 14) + 'px';
@@ -1013,7 +1280,6 @@
       }
       svg.onpointermove = show; svg.onpointerdown = show; svg.onpointerleave = hide;
     }
-    window.addEventListener('resize', function() { if (evoData && document.getElementById('evoSvg')) drawEvolutionChart(evoData); });
 
     function card(label, value, sub) { return '<div class="info-card"><div class="card-label">' + label + '</div><div class="card-value">' + value + '</div>' + (sub ? '<div class="card-sub">' + sub + '</div>' : '') + '</div>'; }
     function formatNumber(n) { if (n == null) return '—'; return Number(n).toLocaleString(); }
