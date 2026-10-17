@@ -12,8 +12,8 @@
  * Shows, for the period picked (2 weeks … 12 months): a few totals and ONE chart by
  * date — a line per event type with a norm (% of the norm reached per event), a line
  * for the chest targets (% per period) and the overall trend — with warnings and time
- * away from the clan. A button per line (with how that line is doing) shows only that
- * line. No comparisons: just the member's evolution.
+ * away from the clan. At first only the overall trend is drawn; a button per line (with
+ * how that line is doing) adds or removes it. No comparisons: just the member's evolution.
  */
 (function () {
   const THEMES = {
@@ -35,7 +35,7 @@
   const NS = 'http://www.w3.org/2000/svg', DAY = 86400000, YMAX = 150;
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const CHEST = 'Chest target', TREND = 'Overall trend';
-  let opt = null, T = THEMES.dark, data = null, seq = 0, member = '', focus = null;
+  let opt = null, T = THEMES.dark, data = null, seq = 0, member = '', shown = null; // the lines on the chart (names); only the overall trend at first
 
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const num = (n) => (n == null ? '—' : Number(n).toLocaleString());
@@ -92,7 +92,7 @@
     o.el.innerHTML = '<div class="evo-controls"><select class="evo-days">'
       + '<option value="14">Last 2 weeks</option><option value="30" selected>Last month</option>'
       + '<option value="91">Last 3 months</option><option value="182">Last 6 months</option><option value="365">Last 12 months</option>'
-      + '</select><span class="evo-hint">100% = norm / target reached. Filled = met, hollow = missed. Hover or tap a point for details; tap a button to show only that line.</span></div>'
+      + '</select><span class="evo-hint">100% = norm / target reached. Filled = met, hollow = missed. Hover or tap a point for details. At first only the overall trend is shown: tap a button to add or remove a line.</span></div>'
       + '<div class="evo-body"></div>';
     o.el.querySelector('.evo-days').addEventListener('change', () => load(member));
     window.addEventListener('resize', () => { if (data && opt.el.querySelector('.evo-chart')) draw(); });
@@ -104,7 +104,7 @@
     const body = opt.el.querySelector('.evo-body');
     const mine = ++seq;
     if (data && data.member === name) body.style.opacity = '0.5'; // keep the frame while reloading
-    else { body.innerHTML = '<div class="evo-empty">Loading evolution…</div>'; focus = null; }
+    else { body.innerHTML = '<div class="evo-empty">Loading evolution…</div>'; shown = null; }
     try {
       const res = await opt.call({ playerName: name, days: Number(opt.el.querySelector('.evo-days').value) });
       if (mine !== seq) return; // another member was picked meanwhile
@@ -168,13 +168,15 @@
 
     // one button per line, with how that line is doing
     const series = seriesList();
-    if (focus && !series.some((g) => g.name === focus)) focus = null;
+    // at first only the overall trend (or every line when there is no trend yet); tap a button to add / remove a line
+    if (!shown) shown = new Set(series.some((g) => g.trend) ? [TREND] : series.map((g) => g.name));
+    const isOn = (name) => shown.has(name);
     html += '<div class="evo-chips">' + series.map((g) => {
       const mark = g.trend ? '' : g.chest ? '<rect x="5.5" y="1.5" width="9" height="9" rx="1.5" fill="' + g.color + '"/>' : '<circle cx="10" cy="6" r="4" fill="' + g.color + '"/>';
       const stats = g.trend
         ? 'avg of the last 5 results · now ' + g.list[g.list.length - 1].percent + '%'
         : '<b style="color:' + (g.met === g.list.length ? T.good : g.met === 0 ? T.bad : T.mid) + '">' + g.met + '/' + g.list.length + ' met</b> · avg ' + g.avg + '% · last ' + g.last.percent + '%';
-      return '<button type="button" class="evo-chip' + (focus && focus !== g.name ? ' dim' : '') + '" data-name="' + esc(g.name) + '">'
+      return '<button type="button" class="evo-chip' + (isOn(g.name) ? '' : ' dim') + '" aria-pressed="' + isOn(g.name) + '" data-name="' + esc(g.name) + '">'
         + '<svg width="20" height="12" aria-hidden="true"><line x1="1" y1="6" x2="19" y2="6" stroke="' + g.color + '" stroke-width="' + (g.trend ? 3 : 2) + '" stroke-linecap="round"/>' + mark + '</svg>'
         + '<span class="c-name">' + esc(g.name) + '</span><span>' + stats + '</span></button>';
     }).join('') + '</div>';
@@ -203,8 +205,10 @@
       + rows.map((r) => r.html).join('') + '</tbody></table></div></details>';
     body.innerHTML = html;
     body.querySelectorAll('.evo-chip').forEach((c) => c.addEventListener('click', () => {
-      focus = focus === c.dataset.name ? null : c.dataset.name;
-      body.querySelectorAll('.evo-chip').forEach((x) => x.classList.toggle('dim', !!focus && x.dataset.name !== focus));
+      const n = c.dataset.name;
+      if (shown.has(n)) shown.delete(n); else shown.add(n);
+      c.classList.toggle('dim', !shown.has(n));
+      c.setAttribute('aria-pressed', String(shown.has(n)));
       draw();
     }));
     draw();
@@ -266,11 +270,12 @@
       marks.push({ w, cx: xw, cy: M.t + 2 });
     });
 
-    // the lines (break while away), the focused one drawn last, then the markers
+    // the lines that are switched on (break while away), the overall trend on top, then the markers
     const awayBetween = (a, b) => (data.away || []).some((r) => r.start <= b && r.end >= a);
-    const order = series.slice().sort((a, b) => (a.name === focus) - (b.name === focus));
+    const visible = series.filter((g) => shown && shown.has(g.name));
+    const order = visible.slice().sort((a, b) => !!a.trend - !!b.trend);
     order.forEach((g) => {
-      const faded = focus && focus !== g.name, op = faded ? 0.12 : 1;
+      const faded = false, op = 1;
       let seg = [];
       const flush = () => {
         if (seg.length > 1) el('polyline', { points: seg.join(' '), fill: 'none', stroke: g.color, 'stroke-width': g.trend ? 3 : 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: op * (g.trend ? 0.7 : 0.85) });
@@ -278,7 +283,10 @@
       };
       g.list.forEach((p, i) => { if (i && awayBetween(g.list[i - 1].date, p.date)) flush(); seg.push(x(p.date) + ',' + y(p.percent)); });
       flush();
-      if (g.trend) return;
+      if (g.trend) { // small dots so the trend can be hovered too
+        g.list.forEach((p) => { const cx = x(p.date), cy = y(p.percent); el('circle', { cx, cy, r: 2.5, fill: g.color, opacity: 0.8 }); marks.push({ p, g, cx, cy }); });
+        return;
+      }
       g.list.forEach((p) => {
         const cx = x(p.date), cy = y(p.percent);
         const style = { fill: p.met ? g.color : T.surface, stroke: p.met ? T.surface : g.color, 'stroke-width': 2, opacity: op };
@@ -291,7 +299,7 @@
 
     // direct labels at the right end (wide screens), spread out, with a leader line to each line's last point
     if (wide) {
-      const labels = series.filter((g) => !focus || g.name === focus).map((g) => {
+      const labels = visible.map((g) => {
         const last = g.list[g.list.length - 1];
         return { g, x0: x(last.date), y0: y(last.percent), y: y(last.percent), text: (g.name.length > 18 ? g.name.slice(0, 17) + '…' : g.name) + '  ' + last.percent + '%' };
       }).sort((a, b) => a.y - b.y);
@@ -335,6 +343,12 @@
         if (best.w.type) add('tn', best.w.type);
         add('tr', fd(best.w.date));
         if (best.w.comment) add('tr', best.w.comment);
+      } else if (best.g.trend) {
+        add('tv', best.p.percent + '% overall');
+        add('tr', TREND + ' (avg of the last 5 results)', T.trend);
+        add('tr', fd(best.p.date));
+        data.events.concat(data.periods).filter((q) => q.date === best.p.date)
+          .forEach((q) => add('tr', (q.met ? '✓ ' : '✗ ') + q.name + ' · ' + q.percent + '%'));
       } else {
         const p = best.p;
         add('tv', p.percent + '% ' + (p.met ? '✓ met' : '✗ missed'));
