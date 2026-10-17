@@ -76,6 +76,27 @@
     .section-note { font-size: 11px; font-weight: 400; color: #888; margin-left: 4px; }
 
     /* Info Cards */
+    /* Evolution chart (Individual tab) */
+    .evo-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 8px 0 12px; }
+    .evo-controls select { padding: 6px 10px; border: 1px solid #444; border-radius: 6px; font-size: 13px; background: #232526; color: #e0e0e0; }
+    .evo-controls .evo-hint { font-size: 11px; color: #888; }
+    .evo-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
+    .evo-tile { background: #232526; border: 1px solid #444; border-radius: 8px; padding: 10px 12px; }
+    .evo-tile .t-label { font-size: 11px; color: #b0b0b0; margin-bottom: 4px; }
+    .evo-tile .t-value { font-size: 18px; font-weight: 700; color: #e0e0e0; }
+    .evo-tile .t-sub { font-size: 11px; color: #888; margin-top: 2px; }
+    .evo-chart-box { position: relative; background: #232526; border: 1px solid #444; border-radius: 8px; padding: 8px 8px 4px; }
+    .evo-chart-box > svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
+    .evo-chart-box text { font-family: inherit; font-size: 11px; fill: #9a9a9a; font-variant-numeric: tabular-nums; }
+    .evo-legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: #b0b0b0; padding: 6px 4px 2px; }
+    .evo-legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+    .evo-tip { position: absolute; pointer-events: none; background: #1a1b1c; border: 1px solid #555; border-radius: 6px; padding: 8px 10px; font-size: 12px; color: #b0b0b0; min-width: 170px; max-width: 260px; box-shadow: 0 4px 14px rgba(0,0,0,0.4); display: none; z-index: 5; }
+    .evo-tip .tv { color: #f0f0f0; font-weight: 700; font-size: 14px; }
+    .evo-tip .tn { color: #e0e0e0; margin-bottom: 4px; }
+    .evo-tip .tr { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+    .evo-tip .key { display: inline-block; width: 12px; height: 2px; border-radius: 1px; flex-shrink: 0; }
+    .evo details summary { cursor: pointer; font-size: 12px; color: #ffb300; margin: 8px 0; }
+    .evo td.num, .evo th.num { text-align: right; white-space: nowrap; }
     .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 16px 0; }
     .info-card { background: #232526; border-radius: 8px; padding: 14px; border: 1px solid #444; }
     .info-card .card-label { font-size: 11px; color: #b0b0b0; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
@@ -348,6 +369,19 @@
           <div class="score-breakdown" id="scoreBreakdown"></div>
         </div>
 
+        <h2>📈 Evolution <span class="section-note">is the member improving? Every norm and chest target by date, next to the rest of the clan</span></h2>
+        <div class="evo" id="evoSection">
+          <div class="evo-controls">
+            <select id="evoDays" onchange="loadEvolution()">
+              <option value="91">Last 3 months</option>
+              <option value="182" selected>Last 6 months</option>
+              <option value="365">Last 12 months</option>
+            </select>
+            <span class="evo-hint">100% = norm / target reached. Filled = met, hollow = missed. Hover or tap a point for details.</span>
+          </div>
+          <div id="evoBody"></div>
+        </div>
+
         <h2>Chest Statistics <span id="chestStatsNote" class="section-note"></span></h2>
         <div class="info-grid" id="chestStatsInfo"></div>
 
@@ -567,6 +601,7 @@
           document.getElementById('individualEmpty').style.display = 'none';
           renderIndividual(res);
           document.getElementById('individualContent').style.display = 'block';
+          loadEvolution();
         } else {
           document.getElementById('individualEmpty').innerHTML = '<div class="empty-state"><p>Failed to load profile: ' + (res && res.message ? res.message : 'Unknown error') + '</p></div>';
         }
@@ -806,6 +841,164 @@
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(function() { URL.revokeObjectURL(a.href); }, 1000);
     }
+
+    // ─── Evolution (getMemberEvolution): % of norm / chest target per date ───
+    let evoData = null, evoSeq = 0;
+    async function loadEvolution() {
+      const name = document.getElementById('memberSelect').value;
+      const body = document.getElementById('evoBody');
+      if (!name) return;
+      const seq = ++evoSeq;
+      if (evoData && evoData.member === name) body.style.opacity = '0.5'; // keep the frame while reloading
+      else body.innerHTML = '<div class="loading" style="padding:20px;"><div class="spinner"></div><p>Loading evolution…</p></div>';
+      try {
+        const res = await gasCall('getMemberEvolution', { playerName: name, days: Number(document.getElementById('evoDays').value) });
+        if (seq !== evoSeq) return; // another member was picked meanwhile
+        body.style.opacity = '';
+        if (!res || !res.success) { evoData = null; body.innerHTML = '<div class="empty-state" style="padding:20px;"><p>' + escapeHtml((res && (res.message || res.error)) || 'Could not load the evolution.') + '</p></div>'; return; }
+        evoData = res;
+        renderEvolution(res);
+      } catch (e) {
+        if (seq !== evoSeq) return;
+        body.style.opacity = '';
+        body.innerHTML = '<div class="empty-state" style="padding:20px;"><p>Error: ' + escapeHtml(e.message) + '</p></div>';
+      }
+    }
+
+    function evoSigned(n) { return n == null ? '—' : (n > 0 ? '+' : n < 0 ? '−' : '±') + Math.abs(n); }
+
+    function renderEvolution(e) {
+      const body = document.getElementById('evoBody');
+      const pts = e.events.concat(e.periods);
+      if (!pts.length) { body.innerHTML = '<div class="empty-state" style="padding:20px;"><p>No finished norms or chest targets for this member in this period.</p></div>'; return; }
+      const s = e.summary || {}, f = s.first, sc = s.second;
+      const verdictIcon = { Improving: '▲', Declining: '▼', Steady: '▬' }[s.verdict] || '•';
+      const verdictColor = { Improving: '#8bc34a', Declining: '#ef5350', Steady: '#b0b0b0' }[s.verdict] || '#888';
+      const tile = function(label, value, sub, color) {
+        return '<div class="evo-tile"><div class="t-label">' + label + '</div><div class="t-value"' + (color ? ' style="color:' + color + '"' : '') + '>' + value + '</div>' + (sub ? '<div class="t-sub">' + sub + '</div>' : '') + '</div>';
+      };
+      const range = function(r) { return r ? cccDate(r[0]) + ' – ' + cccDate(r[1]) : ''; };
+      let tiles = tile('Trend', verdictIcon + ' ' + escapeHtml(s.verdict || '—'),
+        s.vsClanChange != null ? 'Compared to the clan: ' + evoSigned(s.vsClanChange) + ' pts' : (s.change != null ? 'Change: ' + evoSigned(s.change) + ' pts' : 'Needs results in both halves'), verdictColor);
+      tiles += tile('Avg % reached', (f ? f.average + '%' : '—') + ' → ' + (sc ? sc.average + '%' : '—'),
+        '1st half ' + range(s.firstRange) + ' → 2nd half ' + range(s.secondRange));
+      tiles += tile('vs clan median', (f && f.vsClan != null ? evoSigned(f.vsClan) : '—') + ' → ' + (sc && sc.vsClan != null ? evoSigned(sc.vsClan) : '—'),
+        'pts above (+) or below (−) the rest of the clan in the same events');
+      tiles += tile('Met', (f ? f.met + '/' + f.count : '—') + ' → ' + (sc ? sc.met + '/' + sc.count : '—'), 'norms + chest targets met, per half');
+
+      body.innerHTML = '<div class="evo-tiles">' + tiles + '</div>'
+        + '<div class="evo-chart-box"><svg id="evoSvg" role="img" aria-label="Evolution chart: percent of norm or chest target reached per date"></svg>'
+        + '<div class="evo-legend">'
+        + '<span><svg width="12" height="12"><circle cx="6" cy="6" r="4.5" fill="#3987e5"/></svg>Event norm</span>'
+        + '<span><svg width="20" height="12"><line x1="1" y1="6" x2="19" y2="6" stroke="#d95926" stroke-width="2" opacity="0.55"/><rect x="5.5" y="1.5" width="9" height="9" rx="1.5" fill="#d95926"/></svg>Chest target (period)</span>'
+        + '<span><svg width="20" height="12"><line x1="2" y1="6" x2="18" y2="6" stroke="#199e70" stroke-width="3" stroke-linecap="round"/></svg>Trend (avg of last 5)</span>'
+        + '<span><svg width="12" height="12"><circle cx="6" cy="6" r="3" fill="none" stroke="#8a8a8a" stroke-width="1.5"/></svg>Clan median</span>'
+        + '</div><div class="evo-tip" id="evoTip"></div></div>'
+        + '<details><summary>Show as table</summary><div class="period-table-container"><table><thead><tr><th>Date</th><th>What</th><th class="num">Result</th><th class="num">Norm / target</th><th class="num">% reached</th><th class="num">Clan median</th></tr></thead><tbody>'
+        + pts.slice().sort(function(a, b) { return b.date.localeCompare(a.date); }).map(function(x) {
+          const res = x.target === 'Title' ? escapeHtml(x.title || 'No title') : formatNumber(x.achieved);
+          return '<tr><td style="white-space:nowrap;">' + cccDate(x.date) + '</td><td>' + (x.kind === 'chest' ? '📦 ' : '🎯 ') + escapeHtml(x.name) + '</td>'
+            + '<td class="num">' + res + '</td><td class="num">' + (x.target === 'Title' ? 'Title' : formatNumber(x.target)) + '</td>'
+            + '<td class="num"><span class="badge ' + (x.met ? 'badge-green' : 'badge-red') + '">' + x.percent + '%</span></td>'
+            + '<td class="num">' + (x.clanMedian != null ? x.clanMedian + '%' : '—') + '</td></tr>';
+        }).join('') + '</tbody></table></div></details>';
+      drawEvolutionChart(e);
+    }
+
+    function drawEvolutionChart(e) {
+      const svg = document.getElementById('evoSvg');
+      const box = svg.parentNode, tip = document.getElementById('evoTip');
+      const NS = 'http://www.w3.org/2000/svg';
+      const W = Math.max(320, box.clientWidth - 16), H = W < 520 ? 240 : 300;
+      const M = { l: 40, r: 12, t: 18, b: 26 };
+      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+      svg.innerHTML = '';
+      const el = function(tag, attrs, parent) { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); (parent || svg).appendChild(n); return n; };
+      const t0 = Date.parse(e.from), t1 = Date.parse(e.to);
+      const YMAX = 150;
+      const x = function(d) { return M.l + (Date.parse(d) - t0) / (t1 - t0) * (W - M.l - M.r); };
+      const y = function(p) { return M.t + (1 - Math.min(p, YMAX) / YMAX) * (H - M.t - M.b); };
+
+      // grid + y ticks (100 % = norm / target reached)
+      [0, 50, 100, 150].forEach(function(v) {
+        el('line', { x1: M.l, x2: W - M.r, y1: y(v), y2: y(v), stroke: v === 100 ? '#5a5d60' : '#34373a', 'stroke-width': 1 });
+        el('text', { x: M.l - 6, y: y(v) + 4, 'text-anchor': 'end' }).textContent = v + '%';
+      });
+      // month ticks
+      const d0 = new Date(t0); let m = new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth() + 1, 1));
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const step = W < 520 && (t1 - t0) > 200 * 86400000 ? 2 : 1;
+      let i = 0;
+      while (m.getTime() <= t1) {
+        if (i++ % step === 0) {
+          const xm = M.l + (m.getTime() - t0) / (t1 - t0) * (W - M.l - M.r);
+          el('line', { x1: xm, x2: xm, y1: H - M.b, y2: H - M.b + 4, stroke: '#5a5d60' });
+          el('text', { x: xm, y: H - 8, 'text-anchor': 'middle' }).textContent = months[m.getUTCMonth()] + (m.getUTCMonth() === 0 ? ' ' + m.getUTCFullYear() : '');
+        }
+        m = new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + 1, 1));
+      }
+      el('line', { x1: M.l, x2: W - M.r, y1: H - M.b, y2: H - M.b, stroke: '#5a5d60' });
+      // halves divider (the summary tiles compare them)
+      if (e.summary && e.summary.firstRange && e.summary.first && e.summary.second) {
+        const xs = x(e.summary.firstRange[1]);
+        el('line', { x1: xs, x2: xs, y1: M.t, y2: H - M.b, stroke: '#3c3f42', 'stroke-width': 1 });
+        el('text', { x: xs - 6, y: M.t + 10, 'text-anchor': 'end' }).textContent = '1st half';
+        el('text', { x: xs + 6, y: M.t + 10 }).textContent = '2nd half';
+      }
+
+      // clan median (behind), chest line, trend, then the member's own points on top
+      e.events.concat(e.periods).forEach(function(p) {
+        if (p.clanMedian != null) el('circle', { cx: x(p.date), cy: y(p.clanMedian), r: 3, fill: 'none', stroke: '#8a8a8a', 'stroke-width': 1.5 });
+      });
+      const periods = e.periods.slice().sort(function(a, b) { return a.date.localeCompare(b.date); });
+      if (periods.length > 1) el('polyline', { points: periods.map(function(p) { return x(p.date) + ',' + y(p.percent); }).join(' '), fill: 'none', stroke: '#d95926', 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round', opacity: 0.55 });
+      if (e.trend.length > 1) el('polyline', { points: e.trend.map(function(p) { return x(p.date) + ',' + y(p.value); }).join(' '), fill: 'none', stroke: '#199e70', 'stroke-width': 3, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+      const marks = [];
+      periods.forEach(function(p) {
+        const cx = x(p.date), cy = y(p.percent);
+        el('rect', { x: cx - 4.5, y: cy - 4.5, width: 9, height: 9, rx: 1.5, fill: p.met ? '#d95926' : '#232526', stroke: p.met ? '#232526' : '#d95926', 'stroke-width': 2 });
+        marks.push({ p: p, cx: cx, cy: cy, color: '#d95926' });
+      });
+      e.events.forEach(function(p) {
+        const cx = x(p.date), cy = y(p.percent);
+        el('circle', { cx: cx, cy: cy, r: 4.5, fill: p.met ? '#3987e5' : '#232526', stroke: p.met ? '#232526' : '#3987e5', 'stroke-width': 2 });
+        marks.push({ p: p, cx: cx, cy: cy, color: '#3987e5' });
+      });
+      // results above the scale: a small arrow at the top (the tooltip has the real %)
+      marks.forEach(function(mk) { if (mk.p.percent > YMAX) el('text', { x: mk.cx, y: M.t - 6, 'text-anchor': 'middle' }).textContent = '▲'; });
+
+      // hover / tap: nearest point within reach
+      const hl = el('circle', { r: 8, fill: 'none', stroke: '#e0e0e0', 'stroke-width': 1.5, visibility: 'hidden' });
+      const trendAt = {}; e.trend.forEach(function(t) { trendAt[t.date] = t.value; });
+      function hide() { tip.style.display = 'none'; hl.setAttribute('visibility', 'hidden'); }
+      function show(ev) {
+        const r = svg.getBoundingClientRect(), k = W / r.width;
+        const px = (ev.clientX - r.left) * k, py = (ev.clientY - r.top) * k;
+        let best = null, bd = 24 * k;
+        marks.forEach(function(mk) { const dd = Math.hypot(mk.cx - px, mk.cy - py); if (dd < bd) { bd = dd; best = mk; } });
+        if (!best) { hide(); return; }
+        hl.setAttribute('cx', best.cx); hl.setAttribute('cy', best.cy); hl.setAttribute('visibility', 'visible');
+        const p = best.p;
+        tip.textContent = '';
+        const add = function(cls, text, key) {
+          const d = document.createElement('div'); d.className = cls;
+          if (key) { const s = document.createElement('span'); s.className = 'key'; s.style.background = key; d.appendChild(s); }
+          d.appendChild(document.createTextNode(text)); tip.appendChild(d); return d;
+        };
+        add('tv', p.percent + '% ' + (p.met ? '✓ met' : '✗ missed'));
+        add('tn', (p.kind === 'chest' ? 'Chest target · ' : '') + p.name);
+        add('tr', cccDate(p.start) + (p.end && p.end !== p.start ? ' – ' + cccDate(p.end) : ''));
+        add('tr', p.target === 'Title' ? (p.title || 'No title') + ' (norm: a title)' : formatNumber(p.achieved) + ' of ' + formatNumber(p.target), best.color);
+        if (p.clanMedian != null) add('tr', 'Clan median ' + p.clanMedian + '% (' + p.clanCount + ' members)', '#8a8a8a');
+        if (trendAt[p.date] != null) add('tr', 'Trend ' + trendAt[p.date] + '%', '#199e70');
+        tip.style.display = 'block';
+        const tw = tip.offsetWidth, th = tip.offsetHeight, bx = best.cx / k + 8, by = best.cy / k + 8;
+        tip.style.left = (bx + 14 + tw > box.clientWidth ? Math.max(4, bx - tw - 14) : bx + 14) + 'px';
+        tip.style.top = Math.max(4, Math.min(by - th / 2, box.clientHeight - th - 4)) + 'px';
+      }
+      svg.onpointermove = show; svg.onpointerdown = show; svg.onpointerleave = hide;
+    }
+    window.addEventListener('resize', function() { if (evoData && document.getElementById('evoSvg')) drawEvolutionChart(evoData); });
 
     function card(label, value, sub) { return '<div class="info-card"><div class="card-label">' + label + '</div><div class="card-value">' + value + '</div>' + (sub ? '<div class="card-sub">' + sub + '</div>' : '') + '</div>'; }
     function formatNumber(n) { if (n == null) return '—'; return Number(n).toLocaleString(); }
