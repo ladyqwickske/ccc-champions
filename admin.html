@@ -688,6 +688,7 @@
         <button class="tab" data-group="chestdata" data-tab="removeChestsTab" onclick="AdminTab.switchTab('removeChestsTab', event)">🗑️ Remove Chests</button>
         <button class="tab" data-group="rules" hidden data-tab="chestValuesTab" onclick="AdminTab.switchTab('chestValuesTab', event)">🏷️ Chest Point Values</button>
         <button class="tab" data-group="rules" hidden data-tab="exemptTab" onclick="AdminTab.switchTab('exemptTab', event)">🛡️ Penalty Exemptions</button>
+        <button class="tab" data-group="rules" hidden data-tab="pointTargetsTab" onclick="AdminTab.switchTab('pointTargetsTab', event)">🎯 Point Targets</button>
         <button class="tab" data-group="clans" hidden data-tab="linkFormerTab" onclick="AdminTab.switchTab('linkFormerTab', event)">🔗 Link Former Members</button>
         <button class="tab" data-group="clans" hidden data-tab="transfersTab" id="transfersTabBtn" onclick="AdminTab.switchTab('transfersTab', event)">🔁 Member Transfers</button>
         <button class="tab" data-group="access" hidden data-tab="accountsTab" onclick="AdminTab.switchTab('accountsTab', event)">🔐 Member Login Accounts</button>
@@ -843,6 +844,24 @@
         <div id="exemptSummary" style="font-size:12px; color:#b0b0b0; margin-bottom:8px; text-align:left;"></div>
         <div id="exemptList" style="max-height:50vh; overflow-y:auto; border:1px solid #444; border-radius:8px; padding:10px; background:#232526; text-align:left;"></div>
       </div>
+      <div id="pointTargetsTab" class="tab-content">
+        <h3 style="margin:0 0 12px 0;">Point Targets</h3>
+        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">A member's own chest points target for one period (e.g. a shortfall carried over, or a lower target for a new member). Leave it empty to use the period's target. Only current members are listed; targets of members who left stay as they are.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <label for="ptPeriodSelect" style="margin:0;">Period</label>
+          <select id="ptPeriodSelect" style="width:auto;flex:0 1 auto;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;" onchange="AdminTab.loadPointTargets()"><option value="">Loading periods...</option></select>
+          <input type="text" id="ptSearchInput" placeholder="🔍 Filter members..." style="flex:1;min-width:160px;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;" oninput="AdminTab.renderPointTargets()">
+          <button class="btn" style="margin:0;" onclick="AdminTab.savePointTargets()">💾 Save Point Targets</button>
+          <button class="btn btn-secondary" style="margin:0;" onclick="AdminTab.loadPointTargets()">🔄 Reload</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <label for="ptDefaultInput" style="margin:0;">Default target (a period without its own target)</label>
+          <input type="number" id="ptDefaultInput" min="0" step="100" style="width:110px;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;" oninput="AdminTab.editPtDefault(this)">
+        </div>
+        <div id="ptStatus" class="status" style="display:none;"></div>
+        <div id="ptSummary" style="font-size:12px; color:#b0b0b0; margin-bottom:8px; text-align:left;"></div>
+        <div id="ptTargetsList" style="max-height:55vh; overflow-y:auto; border:1px solid #444; border-radius:8px; padding:10px; background:#232526; text-align:left;"></div>
+      </div>
       <div id="linkFormerTab" class="tab-content">
         <h3 style="margin:0 0 12px 0;">🔗 Link Former Members</h3>
         <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Someone who left and came back (maybe more than once) and was added as a new member? Pick them as the current member and tick their entries on the Former Members list. Their history (chests, troops, heroes, events, warnings, …) then counts for the current member, their old login comes along if they don't have one, and each earlier membership is kept on their profile. Entries under another name are renamed to the current member's name.</p>
@@ -941,6 +960,7 @@
           if (!bundle || bundle.success === false) throw new Error(bundle?.error || bundle?.message || 'Failed to load members');
           membersData = bundle.members || [];
           if (exemptSelection) renderExemptList();
+          renderPointTargets();
         } catch (error) {
           console.error('Error loading members:', error);
         }
@@ -1287,6 +1307,144 @@
           });
       }
 
+      // ── Point Targets ─────────────────────────────────────────────────
+      // PointTargets: { default, overrides: [{ player, period, points, basePoints, penaltyPoints }] }
+      // (getPointTargets / savePointTargets). Only the current members of the
+      // chosen period are listed. Saving replaces the whole list, so it is read
+      // again right before the save and only the edited rows change: the rows of
+      // members who left and of other periods stay as they are.
+      const PT_KEY = 'ccc_point_targets'; // the Dashboard / Members pages' cache
+      let ptPeriods = null;   // period markers, newest first
+      let ptData = null;      // as loaded
+      let ptEdits = {};       // { lowercased member: '' | number } typed since loading
+      let ptDefaultEdit = null;
+
+      const ptAttr = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      const ptPeriodName = () => document.getElementById('ptPeriodSelect').value;
+      const ptFind = (overrides, name, period) => (overrides || []).findIndex(o =>
+        String(o.player || '').trim().toLowerCase() === String(name || '').toLowerCase() && String(o.period || '').trim() === period);
+      function ptPeriodTarget(period) {
+        const marker = (ptPeriods || []).find(p => p.eventName === period);
+        if (marker && Number(marker.targetPoints) > 0) return Number(marker.targetPoints);
+        return (ptData && ptData.default) || 7500;
+      }
+      function ptShowStatus(text, cls) {
+        const status = document.getElementById('ptStatus');
+        if (!status) return;
+        status.textContent = text || '';
+        status.className = 'status' + (cls ? ' ' + cls : '');
+        status.style.display = text ? '' : 'none';
+      }
+
+      async function loadPtPeriods() {
+        const select = document.getElementById('ptPeriodSelect');
+        const result = await postAction({ action: 'getAllEvents' });
+        ptPeriods = (result && Array.isArray(result.events) ? result.events : [])
+          .filter(e => e.participationMethod === 'period-marker' || e.eventType === 'Ruthless Slaughter')
+          .sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')));
+        select.innerHTML = ptPeriods.length ? ptPeriods.map(p => `<option value="${ptAttr(p.eventName)}">${escapeHtml(p.eventName || '')} (${escapeHtml(p.startDate || '')} – ${escapeHtml(p.endDate || '')})${Number(p.targetPoints) > 0 ? ' [period target: ' + Number(p.targetPoints).toLocaleString() + ']' : ''}</option>`).join('') : '<option value="">No periods</option>';
+        // The active period: after 17:00 UTC the next day's period counts (as on the Dashboard)
+        const now = new Date();
+        if (now.getUTCHours() >= 17) now.setUTCDate(now.getUTCDate() + 1);
+        const today = now.toISOString().slice(0, 10);
+        const active = ptPeriods.find(p => p.startDate <= today && p.endDate >= today) || ptPeriods.find(p => p.endDate < today);
+        if (active) select.value = active.eventName;
+      }
+
+      async function loadPointTargets(keepEdits, keepStatus) {
+        const list = document.getElementById('ptTargetsList');
+        if (keepEdits === true && ptPeriods && ptData) { renderPointTargets(); return; }
+        if (!keepStatus) ptShowStatus('');
+        list.innerHTML = '<div style="text-align:center;padding:12px;color:#b0b0b0">Loading...</div>';
+        try {
+          if (!ptPeriods) await loadPtPeriods();
+          const result = await postAction({ action: 'getPointTargets' });
+          if (!result || result.success === false) throw new Error(result?.error || result?.message || 'Could not load the point targets');
+          ptData = { default: result.default || 7500, overrides: Array.isArray(result.overrides) ? result.overrides : [] };
+          ptEdits = {};
+          ptDefaultEdit = null;
+          document.getElementById('ptDefaultInput').value = ptData.default;
+          renderPointTargets();
+        } catch (error) {
+          list.innerHTML = '<div style="color:#ef5350;padding:12px">Error: ' + escapeHtml(error.message) + '</div>';
+        }
+      }
+
+      function renderPointTargets() {
+        const list = document.getElementById('ptTargetsList');
+        const summary = document.getElementById('ptSummary');
+        if (!list || !ptData || !ptPeriods) return;
+        if (membersData.length === 0) { list.innerHTML = '<div style="padding:12px;color:#b0b0b0">Loading members...</div>'; return; }
+        const period = ptPeriodName();
+        const periodTarget = ptPeriodTarget(period);
+        const filter = (document.getElementById('ptSearchInput')?.value || '').toLowerCase().trim();
+        const members = membersData.map(m => m.name).filter(Boolean).sort((a, b) => a.localeCompare(b));
+        const custom = members.filter(n => ptFind(ptData.overrides, n, period) >= 0).length;
+        summary.textContent = `${custom} of ${members.length} current member(s) have their own target in this period · period target: ${periodTarget.toLocaleString()}`;
+        const rows = members.filter(n => !filter || n.toLowerCase().includes(filter));
+        if (rows.length === 0) { list.innerHTML = '<div style="padding:12px;color:#b0b0b0">No matching members.</div>'; return; }
+        list.innerHTML = `<table id="ptTargetsTable" data-sortable data-sort-col="0" data-name-col="0" style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr><th style="text-align:left;padding:6px 8px;position:sticky;top:0;z-index:1;">Member</th><th style="text-align:left;padding:6px 8px;position:sticky;top:0;z-index:1;">Own target</th><th style="text-align:right;padding:6px 8px;position:sticky;top:0;z-index:1;" title="Point penalties included in the target">Penalty pts</th></tr></thead>
+          <tbody>${rows.map(name => {
+            const key = name.toLowerCase();
+            const o = ptData.overrides[ptFind(ptData.overrides, name, period)];
+            const value = key in ptEdits ? ptEdits[key] : (o ? o.points : '');
+            const penalty = o ? Number(o.penaltyPoints) || 0 : 0;
+            return `<tr style="border-bottom:1px solid #2a2a2a;${key in ptEdits ? 'background:#3a2f12;' : ''}">
+              <td style="padding:4px 8px;color:#e0e0e0;">${escapeHtml(name)}</td>
+              <td style="padding:4px 8px;"><input type="number" min="0" step="100" data-member="${ptAttr(name)}" value="${ptAttr(value)}" placeholder="${periodTarget}" oninput="AdminTab.editPointTarget(this)" style="width:120px;padding:4px 8px;border:1px solid #444;border-radius:4px;background:#1a1c1e;color:#e0e0e0;font-size:13px;"></td>
+              <td style="padding:4px 8px;text-align:right;color:${penalty > 0 ? '#ef5350' : '#666'};">${penalty > 0 ? '+' + penalty.toLocaleString() : '—'}</td>
+            </tr>`;
+          }).join('')}</tbody></table>`;
+      }
+
+      function editPointTarget(input) {
+        const name = input.dataset.member || '';
+        const key = name.toLowerCase();
+        if (!key || !ptData) return;
+        const raw = input.value.trim();
+        const value = raw === '' ? '' : parseInt(raw, 10);
+        if (value !== '' && (isNaN(value) || value < 0)) return;
+        const o = ptData.overrides[ptFind(ptData.overrides, name, ptPeriodName())];
+        if ((o ? o.points : '') === value) delete ptEdits[key]; else ptEdits[key] = value;
+        input.closest('tr').style.background = key in ptEdits ? '#3a2f12' : '';
+      }
+
+      function editPtDefault(input) {
+        const value = parseInt(input.value, 10);
+        ptDefaultEdit = (!isNaN(value) && value >= 0 && ptData && value !== ptData.default) ? value : null;
+      }
+
+      async function savePointTargets() {
+        const period = ptPeriodName();
+        const names = Object.keys(ptEdits);
+        if (!period || !ptData) return;
+        if (names.length === 0 && ptDefaultEdit === null) { ptShowStatus('Nothing changed.'); return; }
+        ptShowStatus('Saving...');
+        try {
+          // Start from what is stored now, then apply the edited rows only
+          const fresh = await postAction({ action: 'getPointTargets' });
+          if (!fresh || fresh.success === false) throw new Error(fresh?.error || fresh?.message || 'Could not load the point targets');
+          const targets = { default: ptDefaultEdit !== null ? ptDefaultEdit : (fresh.default || 7500), overrides: Array.isArray(fresh.overrides) ? fresh.overrides.slice() : [] };
+          names.forEach(key => {
+            const name = (membersData.find(m => (m.name || '').toLowerCase() === key) || {}).name || key;
+            const idx = ptFind(targets.overrides, name, period);
+            if (ptEdits[key] === '') { if (idx >= 0) targets.overrides.splice(idx, 1); return; }
+            // basePoints is left out so the server works it out again from the new target and the penalty
+            const penaltyPoints = idx >= 0 ? Number(targets.overrides[idx].penaltyPoints) || 0 : 0;
+            const row = { player: name, period, points: ptEdits[key], penaltyPoints };
+            if (idx >= 0) targets.overrides[idx] = row; else targets.overrides.push(row);
+          });
+          const result = await postAction({ action: 'savePointTargets', targets }, 0);
+          if (!result || result.success === false) throw new Error(result?.error || result?.message || 'Failed to save');
+          try { localStorage.removeItem(PT_KEY); } catch (e) {} // the other pages read it again from the server
+          ptShowStatus(result.message || 'Point targets saved.', 'ok');
+          loadPointTargets(false, true);
+        } catch (error) {
+          ptShowStatus('Error: ' + error.message, 'err');
+        }
+      }
+
       // Groups: a group opens the tab last used there, else its first visible tab.
       // A tab can be opened by link: admin.html#<tab id>.
       const lastTabInGroup = {};
@@ -1316,6 +1474,7 @@
         if (tabId === 'transfersTab' && window.MemberTransfers) window.MemberTransfers.load();
         if (tabId === 'linkFormerTab' && window.LinkFormer) window.LinkFormer.load();
         if (tabId === 'exemptTab') loadExemptMembers();
+        if (tabId === 'pointTargetsTab') loadPointTargets(true);
         if (tabId === 'accountsTab') loadMemberAccounts();
         if (tabId === 'superiorsTab') loadSuperiors();
       }
@@ -1326,7 +1485,7 @@
         return div.innerHTML;
       }
 
-      return { init, switchTab, switchGroup, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts, loadSuperiors, toggleSuperior, addSuperiorEmail, updateSuperiorEmail, removeSuperiorEmail, saveSuperiors };
+      return { init, switchTab, switchGroup, loadPointTargets, renderPointTargets, editPointTarget, editPtDefault, savePointTargets, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts, loadSuperiors, toggleSuperior, addSuperiorEmail, updateSuperiorEmail, removeSuperiorEmail, saveSuperiors };
     })();
   </script>
   <script>

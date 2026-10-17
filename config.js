@@ -112,6 +112,9 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 
 // Global Google Translate hardening: keep widget bottom-only and suppress top banner/page shift.
 (function enforceTranslateLayout() {
+	// Tablets: wider than a phone (the pages' own phone layout stops at 800px), up to 1024px,
+	// or any touch screen up to 1400px wide (a tablet held sideways)
+	const TABLET = '(min-width: 801px) and (max-width: 1024px), (min-width: 801px) and (max-width: 1400px) and (pointer: coarse)';
 	const css = [
 		'html, body { margin-top: 0 !important; top: 0 !important; }',
 		'body.translated-ltr, body.translated-rtl { margin-top: 0 !important; top: 0 !important; }',
@@ -127,13 +130,26 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 		// Phone menu: the same text size and spacing as the Legends / Masters menu
 		// (the pages' own rules use 18px text with 18px 24px padding)
 		'@media (max-width: 800px) { .tab-buttons .tab-btn { font-size: 14.4px !important; padding: 10px 12px !important; } }',
+		// Tablets (801–1024px, or a touch screen up to 1400px, e.g. a tablet held sideways): the
+		// pages switch to the phone menu only up to 800px, so give tablets the same ☰ menu here
+		// (instead of the tall desktop bar with the title, which stayed stuck over the page)
+		'@media ' + TABLET + ' {'
+			+ ' .tab-nav .hamburger { display: flex !important; }'
+			+ ' .tab-nav .tab-buttons { display: none !important; flex-direction: column !important; background: #232526 !important; }'
+			+ ' .tab-nav .tab-buttons.open { display: flex !important; }'
+			+ ' .tab-nav .tab-btn { display: flex !important; align-items: center !important; justify-content: flex-start !important; border-bottom: 1px solid #444 !important; font-size: 14.4px !important; padding: 10px 12px !important; height: auto !important; }'
+			+ ' .tab-nav .tab-btn:last-child { border-bottom: none !important; }'
+			+ ' .tab-nav .tab-label.mobile-only { display: inline !important; }'
+			+ ' .tab-nav .tab-icon.desktop-only { display: none !important; }'
+			+ ' .tab-nav .tab-btn[title]:hover::after { display: none !important; }'
+			+ ' }',
 		'#goog-gt-tt, .goog-te-balloon-frame { display: none !important; visibility: hidden !important; }',
 		'.goog-text-highlight { background: transparent !important; box-shadow: none !important; }',
 		'#google_translate_element, #translateToggleBtn { top: auto !important; right: 8px !important; bottom: 8px !important; }',
-		// Phones (≤ 800px): one thin bar at the very top, as on the Legends / Masters sites —
+		// Phones (≤ 800px) and tablets: one thin bar at the very top, as on the Legends / Masters sites —
 		// ☰ on the left, the e-mail and Logout on the right, the menu as a full list below it.
 		// (The bar used to sit 56px lower, under Google's translate bar, which is hidden now.)
-		'@media (max-width: 800px) {'
+		'@media (max-width: 800px), ' + TABLET + ' {'
 			+ ' body { padding-top: max(52px, calc(env(safe-area-inset-top) + 52px)) !important; padding-bottom: max(70px, calc(env(safe-area-inset-bottom) + 70px)) !important; }'
 			+ ' .tab-nav { position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; width: 100% !important; z-index: 9999 !important; padding-top: env(safe-area-inset-top); max-height: 100vh; overflow-y: auto; }'
 			+ ' .tab-nav-container { max-width: 100% !important; width: 100% !important; box-sizing: border-box !important; flex-wrap: wrap !important; align-items: center !important; padding: 2px 8px !important; min-height: 48px; }'

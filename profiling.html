@@ -541,7 +541,7 @@
 
       function rankingCardHtml(m, rank) {
         const rankClass = rank === 1 ? 'top1' : rank === 2 ? 'top2' : rank === 3 ? 'top3' : '';
-        const medal = rank <= 3 ? ['🥇','🥈','🥉'][rank - 1] + ' ' : '';
+        const medal = rank && rank <= 3 ? ['🥇','🥈','🥉'][rank - 1] + ' ' : '';
         const barHtml = (rankingsData.parts || []).map(function(p) {
           var sc = m.parts ? m.parts[p.key] : null;
           return { score: sc, color: partColor(p, sc), title: p.label };
@@ -554,7 +554,7 @@
         if (m.joinDate) metaParts.push('Joined ' + cccDate(m.joinDate));
         if (m.warnings > 0) metaParts.push('⚠️ ' + m.warnings + ' warning' + (m.warnings > 1 ? 's' : ''));
         return '<div class="ranking-card">'
-          + '<div class="ranking-rank ' + rankClass + '">#' + rank + '</div>'
+          + '<div class="ranking-rank ' + rankClass + '"' + (rank ? '>#' + rank : ' title="Not ranked yet: new member, or nothing to score yet">🆕') + '</div>'
           + '<div class="ranking-info">'
           + '<div class="ranking-name" onclick="jumpToProfile(\'' + escapeAttr(m.member) + '\')">' + medal + escapeHtml(m.member) + '</div>'
           + '<div class="ranking-meta">' + metaParts.join(' · ') + '</div>'
@@ -562,24 +562,39 @@
           + '<div class="ranking-score-pill" style="background:' + scoreBg(m.score) + ';color:' + scoreColor(m.score) + ';">' + m.score + '</div></div>';
       }
 
-      const HIGHLIGHT = 5, NEW_DAYS = 14, today = new Date();
-      const seasoned = sorted.filter(function(m) { if (!m.joinDate) return true; var jd = cccParse(cccDate(m.joinDate, '')); if (!jd) return true; return (today - jd) / 86400000 >= NEW_DAYS; });
+      // New members (joined in the last 7 days) and members with nothing to score yet aren't ranked (the Worker marks them notRanked)
+      const HIGHLIGHT = 5, NEW_DAYS = 7, today = new Date();
+      const isNew = function(m) {
+        if (m.notRanked !== undefined) return !!m.notRanked;
+        if (m.newMember !== undefined) return !!m.newMember;
+        if (!m.joinDate) return false;
+        var jd = cccParse(cccDate(m.joinDate, ''));
+        return !!jd && (today - jd) / 86400000 < NEW_DAYS;
+      };
+      const seasoned = sorted.filter(function(m) { return !isNew(m); });
+      const newcomers = sorted.filter(isNew);
       const top = seasoned.slice(0, HIGHLIGHT);
       const bottom = seasoned.length > HIGHLIGHT ? seasoned.slice(-HIGHLIGHT).reverse() : [];
 
       let html = '<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">';
       html += '<div style="flex:1;min-width:280px;"><div class="ranking-section-title">🏆 Top Performers' + metaNote + eventNote + '</div>';
-      top.forEach(function(m) { html += rankingCardHtml(m, sorted.indexOf(m) + 1); });
+      top.forEach(function(m) { html += rankingCardHtml(m, seasoned.indexOf(m) + 1); });
       html += '</div>';
       if (bottom.length > 0) {
         html += '<div style="flex:1;min-width:280px;"><div class="ranking-section-title">⚠️ Needs Attention</div>';
-        bottom.forEach(function(m) { html += rankingCardHtml(m, sorted.indexOf(m) + 1); });
+        bottom.forEach(function(m) { html += rankingCardHtml(m, seasoned.indexOf(m) + 1); });
         html += '</div>';
       }
       html += '</div>';
-      html += '<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:14px;font-weight:600;color:#ffb300;padding:8px 0;">📋 Full Rankings (' + sorted.length + ' members)</summary><div style="margin-top:8px;">';
-      sorted.forEach(function(m, i) { html += rankingCardHtml(m, i + 1); });
+      html += '<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:14px;font-weight:600;color:#ffb300;padding:8px 0;">📋 Full Rankings (' + seasoned.length + ' members)</summary><div style="margin-top:8px;">';
+      seasoned.forEach(function(m, i) { html += rankingCardHtml(m, i + 1); });
       html += '</div></details>';
+      if (newcomers.length) {
+        html += '<details style="margin-top:8px;"><summary style="cursor:pointer;font-size:14px;font-weight:600;color:#ffb300;padding:8px 0;">🆕 Not ranked yet (' + newcomers.length + ')</summary>'
+          + '<div style="font-size:12px;color:#888;margin:4px 0 8px;">New members (joined in the last ' + NEW_DAYS + ' days) and members with nothing to score yet, for example exempt the whole time.</div><div>';
+        newcomers.forEach(function(m) { html += rankingCardHtml(m, null); });
+        html += '</div></details>';
+      }
       document.getElementById('rankingsContent').innerHTML = html;
     }
 
@@ -766,7 +781,7 @@
         + ' · ' + withMisses + ' of ' + all.length + ' members missed at least one norm or chest target'
         + ' · ' + missedData.eventsChecked + ' events with a norm'
         + ' · Calculated live: ' + cccDateTime(missedData.calculated)
-        + '<br>Exempt members are left out. Events still running and periods not finished yet are not judged. Worst first: most misses, then the lowest average % of target reached.';
+        + '<br>Permanently exempt members are left out; what a member missed during a temporary exemption is ignored. Events still running and periods not finished yet are not judged. Worst first: most misses, then the lowest average % of target reached.';
       const rows = missedNormsRows();
       if (!rows.length) { content.innerHTML = '<div class="empty-state"><p>Nobody to show — no missed norms or chest targets.</p></div>'; return; }
       const openFirst = rows.length <= 10;
@@ -778,7 +793,7 @@
           m.zeroChestPeriods ? '<span class="badge badge-orange">' + m.zeroChestPeriods + ' period' + (m.zeroChestPeriods > 1 ? 's' : '') + ' without chests</span>' : '',
           m.warnings ? '<span class="badge badge-orange">⚠️ ' + m.warnings + ' warning' + (m.warnings > 1 ? 's' : '') + '</span>' : '',
         ].join('');
-        const meta = ['Score ' + m.score];
+        const meta = [(m.newMember ? '🆕 New member · ' : '') + 'Score ' + m.score];
         if (m.joinDate) meta.push('Joined ' + cccDate(m.joinDate));
         if (m.penaltyTotal) meta.push('Penalties on these norms: ' + formatNumber(m.penaltyTotal));
 

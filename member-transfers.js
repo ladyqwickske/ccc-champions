@@ -606,6 +606,16 @@
     return '<details' + (open ? ' open' : '') + ' style="margin:8px 0;"><summary style="cursor:pointer;font-weight:600;">' + title + '</summary><div style="padding:6px 0 0 4px;">' + body + '</div></details>';
   };
 
+  /** Norms and chest targets made / missed: a coloured chip with the counts and the share met. */
+  function scoreChip(label, c) {
+    if (!c || !c.checked) return '<span style="display:inline-block;margin:2px 6px 2px 0;padding:4px 10px;border-radius:12px;font-size:12px;' + box + '">' + label + ': <i>nothing to judge</i></span>';
+    var pct = Math.round(c.met / c.checked * 100);
+    var col = pct >= 90 ? '#2e7d32' : pct >= 70 ? '#1565c0' : pct >= 50 ? '#ef6c00' : '#c62828';
+    return '<span style="display:inline-block;margin:2px 6px 2px 0;padding:4px 10px;border-radius:12px;font-size:12px;border:1px solid ' + col + ';background:' + col + '22;">'
+      + label + ': <b style="color:' + col + ';">' + c.met + ' made</b> · <b style="color:#c62828;">' + c.missed + ' missed</b> <span style="' + muted + '">(' + pct + '% of ' + c.checked + ')</span></span>';
+  }
+  var mark = function (met) { return met ? '<span style="color:#2e7d32;font-weight:700;white-space:nowrap;">✅ made</span>' : '<span style="color:#c62828;font-weight:700;white-space:nowrap;">❌ missed</span>'; };
+
   function profileHtml(p) {
     var statusText = { current: 'current member', former: 'former member', unknown: 'not found' }[p.status] || p.status;
     var latest = p.troops && p.troops.latest || {};
@@ -625,14 +635,37 @@
       + (hero ? '🦸 Hero level: <b>' + esc(hero.level) + '</b> <span style="font-size:11px;' + muted + '">(' + esc(fmtDate(hero.date)) + ')</span><br>' : '')
       + '📦 Chest points: <b>' + totalPts.toLocaleString() + '</b> over ' + (p.chests || []).length + ' period(s) · 🎯 ' + (p.events || []).length + ' event(s) · ⚠️ ' + (p.warnings || []).length + ' warning(s)'
       + '</div>';
+    // Overall: how many norms and chest targets were made / missed (snapshots from before this have none)
+    var perf = p.performance;
+    if (perf && !perf.error) {
+      h += '<div style="margin:8px 0 2px;">' + scoreChip('🎯 Event norms', perf.norms) + scoreChip('📦 Chest targets', perf.chests) + '</div>';
+    }
     h += section('📅 Memberships', table(['Name', 'Joined', 'Left', 'Reason', 'Came back'], (p.stints || []).map(function (s) {
       return [esc(s.name), esc(fmtDate(s.joined)), esc(fmtDate(s.left)), esc(s.reason), esc(fmtDate(s.rejoined || ''))];
     }).concat(p.status === 'current' ? [[esc(p.member), esc(fmtDate(p.joinDate)), '<i>now</i>', '', '']] : [])), true);
+    if (perf && !perf.error) {
+      var normRows = (perf.norms.list || []).map(function (n) {
+        var res = n.target === 'Title' ? esc(n.title || 'No title') : Number(n.achieved).toLocaleString();
+        return [esc(n.event) + '<div style="font-size:11px;' + muted + '">' + esc(n.type) + '</div>', esc(fmtDate(n.start)) + (n.end && n.end !== n.start ? ' → ' + esc(fmtDate(n.end)) : ''),
+          res, n.target === 'Title' ? 'Title' : Number(n.target).toLocaleString(), mark(n.met)];
+      });
+      var chestRows = (perf.chests.list || []).map(function (c) {
+        return [esc(c.period), esc(fmtDate(c.start)) + ' → ' + esc(fmtDate(c.end)), Number(c.points).toLocaleString(), Number(c.target).toLocaleString(), mark(c.met)];
+      });
+      h += section('🎯 Norms & chest targets (' + (perf.norms.met + perf.chests.met) + ' made, ' + (perf.norms.missed + perf.chests.missed) + ' missed)',
+        '<div style="font-size:12px;font-weight:600;margin:4px 0;">Event norms</div>' + table(['Event', 'Date', 'Result', 'Norm', ''], normRows)
+        + '<div style="font-size:12px;font-weight:600;margin:10px 0 4px;">Chest targets per period</div>' + table(['Period', 'Dates', 'Points', 'Target', ''], chestRows)
+        + '<p style="font-size:11px;' + muted + 'margin:6px 0 0;">Same norms and rules as the profiling: events with a target for their troop level or a flat target; misses during a temporary exemption are left out.</p>', true);
+    }
+    // Events: the norm result next to each event that has one
+    var normOf = {};
+    ((perf && perf.norms && perf.norms.list) || []).forEach(function (n) { normOf[n.event] = n; });
     h += section('📦 Chest points per period', table(['Period', 'Chests', 'Points'], (p.chests || []).slice().reverse().map(function (c) {
       return [esc(fmtDate(c.start)) + (c.end ? ' → ' + esc(fmtDate(c.end)) : '') + (c.active ? ' <i>(active)</i>' : ''), esc(c.chests), esc(Number(c.points).toLocaleString())];
     })));
-    h += section('🎯 Events', table(['Event', 'Details', 'Their result'], (p.events || []).map(function (e) {
-      return [esc(e.event), pairs(e.info), pairs(e.fields)];
+    h += section('🎯 Events', table(['Event', 'Details', 'Their result', 'Norm'], (p.events || []).map(function (e) {
+      var n = normOf[e.event];
+      return [esc(e.event), pairs(e.info), pairs(e.fields), n ? mark(n.met) : '<span style="' + muted + '">—</span>'];
     })));
     h += section('⚠️ Warnings', table(['Warning'], (p.warnings || []).map(function (w) { return [pairs(w)]; })));
     h += section('⚔️ Troop level history', table(['Date', 'Type', 'Level', 'Notes'], ((p.troops && p.troops.history) || []).slice().reverse().map(function (t) {
