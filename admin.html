@@ -685,7 +685,7 @@
         <button class="tab" data-group="chestdata" data-tab="manualChestsTab" id="manualChestsTabBtn" style="display:none" onclick="AdminTab.switchTab('manualChestsTab', event)">➕ Manual Chests</button>
         <button class="tab active" data-group="chestdata" data-tab="chestNameFixTab" onclick="AdminTab.switchTab('chestNameFixTab', event)">🔧 Fix Chest Names</button>
         <button class="tab" data-group="chestdata" data-tab="ocrTab" onclick="AdminTab.switchTab('ocrTab', event)">🔤 OCR Corrections</button>
-        <button class="tab" data-group="chestdata" data-tab="removeChestsTab" onclick="AdminTab.switchTab('removeChestsTab', event)">🗑️ Remove Chests</button>
+        <button class="tab" data-group="chestdata" data-tab="removeChestsTab" onclick="AdminTab.switchTab('removeChestsTab', event)">🛠️ Manage Chest Data</button>
         <button class="tab" data-group="rules" hidden data-tab="chestValuesTab" onclick="AdminTab.switchTab('chestValuesTab', event)">🏷️ Chest Point Values</button>
         <button class="tab" data-group="rules" hidden data-tab="exemptTab" onclick="AdminTab.switchTab('exemptTab', event)">🛡️ Penalty Exemptions</button>
         <button class="tab" data-group="rules" hidden data-tab="pointTargetsTab" onclick="AdminTab.switchTab('pointTargetsTab', event)">🎯 Point Targets</button>
@@ -752,8 +752,8 @@
         <div id="ocrList"></div>
       </div>
       <div id="removeChestsTab" class="tab-content">
-        <h3 style="margin:0 0 12px 0;">Remove Chests</h3>
-        <p style="font-size:0.82em;color:#b0b0b0;margin-bottom:12px;text-align:left;">Every chest of the active or previous period, one by one. Remove the ones that shouldn't count — e.g. chests read under <b>Inactive Player</b>, under a name that is no clan member, or chests that aren't in the chest points list. Removed chests are kept under <b>Recent removals</b> and can be put back.</p>
+        <h3 style="margin:0 0 12px 0;">Manage Chest Data</h3>
+        <p style="font-size:0.82em;color:#b0b0b0;margin-bottom:12px;text-align:left;">Every chest of the active or previous period, one by one. <b>Remove</b> the ones that shouldn't count — e.g. chests read under <b>Inactive Player</b>, under a name that is no clan member, or chests that aren't in the chest points list. Removed chests are kept under <b>Recent removals</b> and can be put back. A chest read with the wrong type, chest name or level? Select it and <b>correct</b> it: it is scored again against the chest points list, and the correction can be undone under <b>Recent corrections</b>.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
           <select id="rcPeriod" style="width:auto;flex:0 1 auto;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;" onchange="RemoveChests.load()"><option value="active">Active period</option><option value="previous">Previous period</option></select>
           <select id="rcWho" style="width:auto;flex:0 1 auto;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;" onchange="RemoveChests.render()">
@@ -762,7 +762,7 @@
             <option value="unknown">Players: unknown names</option>
             <option value="former">Players: former members</option>
             <option value="member">Players: members</option>
-            <option value="all">Players: everyone</option>
+            <option value="all" selected>Players: everyone</option>
           </select>
           <select id="rcChestStatus" style="width:auto;flex:0 1 auto;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;" onchange="RemoveChests.render()">
             <option value="all">Chests: all</option>
@@ -790,14 +790,29 @@
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px;">
           <span id="rcSelected" style="font-size:0.85em;color:#b0b0b0;">0 selected</span>
-          <input type="text" id="rcReason" maxlength="200" placeholder="Reason (optional), e.g. Inactive Player" style="flex:1;min-width:200px;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;">
+          <input type="text" id="rcReason" maxlength="200" placeholder="Reason (optional), e.g. Inactive Player or misread type" style="flex:1;min-width:200px;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;">
           <button class="btn" id="rcRemoveBtn" style="margin:0;" onclick="RemoveChests.remove()" disabled>🗑️ Remove selected</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;">
+          <span style="font-size:0.85em;color:#b0b0b0;">Correct to:</span>
+          <input type="text" id="rcType" list="rcTypeOptions" maxlength="200" placeholder="Chest type (empty = keep)" style="flex:1;min-width:170px;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;">
+          <input type="text" id="rcName" list="rcNameOptions" maxlength="200" placeholder="Chest name (empty = keep)" style="flex:1;min-width:170px;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;">
+          <input type="number" id="rcLevel" min="0" step="1" placeholder="Level (empty = keep)" style="width:175px;flex:0 1 auto;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;">
+          <button class="btn" id="rcCorrectBtn" style="margin:0;" onclick="RemoveChests.correct()" disabled>✏️ Correct selected</button>
+          <datalist id="rcTypeOptions"></datalist><datalist id="rcNameOptions"></datalist>
         </div>
         <h4 style="margin:16px 0 6px;text-align:left;">Recent removals</h4>
         <div style="overflow:auto;border:1px solid #444;border-radius:8px;background:#232526;">
           <table style="width:100%;border-collapse:collapse;font-size:0.85em;text-align:left;">
             <thead><tr><th style="padding:6px 8px;">When</th><th style="padding:6px 8px;">By</th><th style="padding:6px 8px;">Period</th><th style="padding:6px 8px;">Players</th><th style="padding:6px 8px;text-align:right;">Chests</th><th style="padding:6px 8px;text-align:right;">Points</th><th style="padding:6px 8px;">Reason</th><th style="width:110px;"></th></tr></thead>
             <tbody id="rcRemovals"><tr><td colspan="8" style="padding:8px;color:#b0b0b0;">—</td></tr></tbody>
+          </table>
+        </div>
+        <h4 style="margin:16px 0 6px;text-align:left;">Recent corrections</h4>
+        <div style="overflow:auto;border:1px solid #444;border-radius:8px;background:#232526;">
+          <table style="width:100%;border-collapse:collapse;font-size:0.85em;text-align:left;">
+            <thead><tr><th style="padding:6px 8px;">When</th><th style="padding:6px 8px;">By</th><th style="padding:6px 8px;">Period</th><th style="padding:6px 8px;">Players</th><th style="padding:6px 8px;">Change</th><th style="padding:6px 8px;text-align:right;">Chests</th><th style="padding:6px 8px;text-align:right;">Points</th><th style="padding:6px 8px;">Reason</th><th style="width:110px;"></th></tr></thead>
+            <tbody id="rcCorrections"><tr><td colspan="9" style="padding:8px;color:#b0b0b0;">—</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1945,8 +1960,9 @@
     })();
   </script>
   <script>
-    // 🗑️ Remove Chests: a period's chests one by one; remove the chosen ones, or put a
-    // removal back (database only: getPeriodChests / removeChests / restoreRemovedChests).
+    // 🛠️ Manage Chest Data: a period's chests one by one; remove the chosen ones or put a
+    // removal back, correct their type / name / level or undo a correction (database only:
+    // getPeriodChests / removeChests / restoreRemovedChests / correctChests / undoChestCorrection).
     window.RemoveChests = (function () {
       let data = null;
       const selected = new Set();
@@ -1989,8 +2005,13 @@
         selected.clear();
         const p = r.period;
         $('rcPeriodInfo').textContent = `${p.which === 'previous' ? 'Previous' : 'Active'} period ${p.start} – ${p.end || '…'}: ${r.chests.length} chests.`;
+        const opts = r.options || {};
+        const fill = (id, list) => { $(id).innerHTML = (list || []).map(v => `<option value="${esc(v)}"></option>`).join(''); };
+        fill('rcTypeOptions', opts.types);
+        fill('rcNameOptions', opts.names);
         render();
         renderRemovals();
+        renderCorrections();
       }
       function render() {
         if (!data) return;
@@ -2023,6 +2044,7 @@
         const points = chosen.reduce((t, c) => t + (Number(c.points) || 0), 0);
         $('rcSelected').textContent = `${chosen.length} selected` + (chosen.length ? ` (${points} points)` : '');
         $('rcRemoveBtn').disabled = !chosen.length;
+        $('rcCorrectBtn').disabled = !chosen.length;
       }
       function toggle(id, on) { if (on) selected.add(id); else selected.delete(id); updateSelected(); }
       function toggleAll(on) {
@@ -2066,7 +2088,55 @@
           status(r.message, true);
         } catch (e) { status(e.message, false); btn.disabled = false; }
       }
-      return { load, render, toggle, toggleAll, pick, remove, undo };
+      async function correct() {
+        const chosen = data.chests.filter(c => selected.has(c.id));
+        if (!chosen.length) return;
+        const type = $('rcType').value.trim(), name = $('rcName').value.trim(), level = $('rcLevel').value.trim();
+        if (!type && !name && !level) { status('Enter the correct chest type, chest name or level first.', false); return; }
+        const to = [type && `type "${type}"`, name && `chest name "${name}"`, level && `level ${level}`].filter(Boolean).join(', ');
+        if (!confirm(`Give ${chosen.length} chest(s) ${to}?\n\nThey are scored again against the chest points list. The correction can be undone under "Recent corrections".`)) return;
+        $('rcCorrectBtn').disabled = true;
+        status('Correcting…', true);
+        try {
+          const r = await post({ action: 'correctChests', period: $('rcPeriod').value, ids: chosen.map(c => c.id), type, name, level, reason: $('rcReason').value });
+          if (!r || !r.success) { status((r && (r.message || r.error)) || 'Correcting failed', false); updateSelected(); return; }
+          $('rcReason').value = ''; $('rcType').value = ''; $('rcName').value = ''; $('rcLevel').value = '';
+          show(r);
+          status(r.message, true);
+        } catch (e) { status(e.message, false); updateSelected(); }
+      }
+      function describe(ch) {
+        const parts = [];
+        if (ch.from.type !== ch.to.type) parts.push(`${ch.from.type || '—'} → ${ch.to.type || '—'}`);
+        if (ch.from.name !== ch.to.name) parts.push(`${ch.from.name || '—'} → ${ch.to.name || '—'}`);
+        if (String(ch.from.level) !== String(ch.to.level)) parts.push(`level ${ch.from.level} → ${ch.to.level}`);
+        return parts.join(', ');
+      }
+      function renderCorrections() {
+        const list = (data && data.corrections) || [];
+        $('rcCorrections').innerHTML = list.length ? list.map(x => {
+          const changes = (x.changes || []).slice(0, 3).map(describe).join('<br>') + ((x.changes || []).length > 3 ? '<br>…' : '');
+          const pts = Number(x.pointsChange) || 0;
+          return `<tr style="border-top:1px solid rgba(128,128,128,0.25);">
+          <td style="padding:4px 8px;white-space:nowrap;">${esc(when(x.at))}</td><td style="padding:4px 8px;">${esc(x.by || '')}</td>
+          <td style="padding:4px 8px;">${esc(x.period)}</td><td style="padding:4px 8px;">${esc(x.players)}</td>
+          <td style="padding:4px 8px;">${changes.split('<br>').map(esc).join('<br>')}</td>
+          <td style="padding:4px 8px;text-align:right;">${esc(x.chests)}</td><td style="padding:4px 8px;text-align:right;">${pts > 0 ? '+' : ''}${pts}</td>
+          <td style="padding:4px 8px;">${esc(x.reason || '')}</td>
+          <td style="padding:4px 8px;">${x.undoneAt ? `<span title="by ${esc(x.undoneBy || '')}">undone</span>` : `<button type="button" class="btn btn-secondary" style="margin:0;padding:3px 10px;" data-id="${esc(x.id)}" onclick="RemoveChests.undoCorrection(this.dataset.id, this)">↩️ Undo</button>`}</td></tr>`;
+        }).join('') : '<tr><td colspan="9" style="padding:8px;">No corrections yet.</td></tr>';
+      }
+      async function undoCorrection(correctionId, btn) {
+        if (!confirm('Put the old type, chest name and level back on these chests?')) return;
+        btn.disabled = true;
+        try {
+          const r = await post({ action: 'undoChestCorrection', correctionId, period: $('rcPeriod').value });
+          if (!r || !r.success) { status((r && (r.message || r.error)) || 'Undo failed', false); btn.disabled = false; return; }
+          show(r);
+          status(r.message, true);
+        } catch (e) { status(e.message, false); btn.disabled = false; }
+      }
+      return { load, render, toggle, toggleAll, pick, remove, undo, correct, undoCorrection };
     })();
   </script>
 </body>
