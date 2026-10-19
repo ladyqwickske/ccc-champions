@@ -637,6 +637,7 @@
         <button class="tab" onclick="EventsTab.switchTab('chestEventsTab', event)">📊 Chest Events</button>
         <button class="tab" onclick="EventsTab.switchTab('manualEventsTab', event)">✏️ Manual Events</button>
         <button class="tab" onclick="EventsTab.switchTab('troopEventsTab', event)">🎖️ Troop Events</button>
+        <button class="tab" onclick="EventsTab.switchTab('heroEventsTab', event)">🦸 Hero Events</button>
         <button class="tab" onclick="EventsTab.switchTab('createTab', event)">➕ Create Event</button>
         <button class="tab" onclick="EventsTab.switchTab('eventTypesTab', event)">⚙️ Event Types</button>
       </div>
@@ -746,6 +747,24 @@
         </div>
       </div>
 
+      <!-- HERO EVENTS TAB -->
+      <div id="heroEventsTab" class="tab-content">
+        <h3 style="margin:0 0 12px 0;">Hero Level Events</h3>
+        <p style="margin-bottom:12px; color:#e0e0e0;">Did each member's hero level go up enough during the event? The level at the start is the latest hero level entered before the start date; at the end, the latest one entered up to 1 day after the end date. Without those entries a member shows <strong>No data</strong> (no penalty). Calculated automatically once that extra day is over.</p>
+        <div style="margin-bottom:12px;"><label for="heroEventSelect">Select Event</label><select id="heroEventSelect" onchange="EventsTab.onHeroEventSelected()" style="max-width:400px;"><option value="">-- Select Hero Event --</option></select></div>
+        <div id="heroEventActions" style="display:none; margin-bottom:12px;">
+          <p id="heroEventInfo" style="color:#e0e0e0; font-size:13px; margin-bottom:12px;"></p>
+          <button class="btn" onclick="EventsTab.calculateHeroLevelEvent()">🔄 Calculate</button>
+          <button class="btn btn-secondary" onclick="EventsTab.calculatePenalties()">🧮 Calculate Penalties</button>
+          <button class="btn btn-secondary" onclick="EventsTab.recalculatePenalties()">⚖️ Apply Penalties</button>
+          <div id="heroCalcStatus" class="status"></div>
+        </div>
+        <div id="heroParticipationData" style="display:none; margin-top:12px;">
+          <h4 style="margin:0 0 12px 0;">Hero Level Results</h4>
+          <div id="heroLoadingIndicator" class="loading">Loading results...</div>
+          <div class="table-container"><table><thead id="heroParticipationTableHead"></thead><tbody id="heroParticipationTableBody"></tbody></table></div>
+        </div>
+      </div>
 
       <!-- CREATE EVENT TAB -->
       <div id="createTab" class="tab-content">
@@ -822,7 +841,7 @@
         <h3 style="margin:0 0 12px 0;">Manage Event Types</h3>
         <div class="event-type-form">
           <h4 style="margin:0 0 8px 0;">Add New Event Type</h4>
-          <div class="form-grid"><div><label for="newEventTypeName">Event Type Name</label><input type="text" id="newEventTypeName" placeholder="e.g., Alliance War"></div><div><label for="newEventTypeMethod">Tracking Method</label><select id="newEventTypeMethod" onchange="EventsTab.updateEventTypeMethod()"><option value="" selected>-- Select Method --</option><option value="chest-based">Chest-Based</option><option value="chest-troop">Chest-Based (Troop Targets)</option><option value="manual-entry">Manual Entry</option><option value="troop-based">Troop-Based</option><option value="resource-troop">Resource (Troop Targets)</option><option value="resource-manual">Resource (Flat Target)</option><option value="period-marker">Period Marker (No Tracking)</option></select></div></div>
+          <div class="form-grid"><div><label for="newEventTypeName">Event Type Name</label><input type="text" id="newEventTypeName" placeholder="e.g., Alliance War"></div><div><label for="newEventTypeMethod">Tracking Method</label><select id="newEventTypeMethod" onchange="EventsTab.updateEventTypeMethod()"><option value="" selected>-- Select Method --</option><option value="chest-based">Chest-Based</option><option value="chest-troop">Chest-Based (Troop Targets)</option><option value="manual-entry">Manual Entry</option><option value="troop-based">Troop-Based</option><option value="resource-troop">Resource (Troop Targets)</option><option value="resource-manual">Resource (Flat Target)</option><option value="hero-increase">Hero Level Increase</option><option value="hero-reach">Hero Level Reached</option><option value="period-marker">Period Marker (No Tracking)</option></select></div></div>
           <div id="chestTypeSection" style="display:none; margin-bottom:12px;"><label>Chest Types for This Event Type</label><div id="chestTypesList" style="max-height:200px; overflow-y:auto; border:1px solid #444; border-radius:6px; padding:8px; background:#232526;"><div class="loading" style="padding:20px; text-align:center; color:#e0e0e0;">Loading chest types...</div></div><div class="note">Select which chest types count for this event type.</div></div>
           <div id="troopTargetSection" style="display:none; margin-bottom:12px;">
             <label style="display:block; margin-bottom:8px;">Category Targets</label>
@@ -947,13 +966,24 @@
             typeData = found;
           }
         }
-        // If period-marker or resource-based, always enable and require dates, show target points
-        if (method === 'period-marker' || method === 'resource-troop' || method === 'resource-manual') {
+        // Hero level events: the target is a number of hero levels (default + per troop category)
+        const isHero = method === 'hero-increase' || method === 'hero-reach';
+        const targetLabel = document.querySelector('label[for="eventTargetPoints"]');
+        const targetInput = document.getElementById('eventTargetPoints');
+        if (targetLabel) targetLabel.textContent = isHero ? (method === 'hero-reach' ? 'Default Target (hero level)' : 'Default Target (hero levels gained)') : 'Target Points';
+        if (targetInput) targetInput.placeholder = isHero ? (method === 'hero-reach' ? 'e.g., 45' : 'e.g., 2') : 'e.g., 4000 (blank = use global default)';
+        const troopHint = troopTargetSection ? troopTargetSection.querySelector('p') : null;
+        if (troopHint) {
+          if (!troopHint.dataset.defaultHtml) troopHint.dataset.defaultHtml = troopHint.innerHTML;
+          troopHint.innerHTML = isHero ? 'Optional: the hero levels expected from each troop category. Members without a category target use the default target above.' : troopHint.dataset.defaultHtml;
+        }
+        // If period-marker, resource-based or hero level, always enable and require dates, show target points
+        if (method === 'period-marker' || method === 'resource-troop' || method === 'resource-manual' || isHero) {
           startDateInput.disabled = false;
           endDateInput.disabled = false;
           startDateInput.required = true;
           endDateInput.required = true;
-          if (targetPointsGroup) targetPointsGroup.style.display = (method === 'resource-manual' || method === 'period-marker') ? '' : 'none';
+          if (targetPointsGroup) targetPointsGroup.style.display = (method === 'resource-manual' || method === 'period-marker' || isHero) ? '' : 'none';
           // A new Active Period event starts with the event type's points as its target
           const targetPointsInput = document.getElementById('eventTargetPoints');
           if (method === 'period-marker' && !editingEventName && targetPointsInput && !targetPointsInput.value && Number(typeData?.threshold) > 0) {
@@ -966,7 +996,7 @@
         }
         // Show/hide troop targets for resource-troop, troop-based, and chest-troop methods
         if (troopTargetSection) {
-          const showTroop = (method === 'resource-troop' || method === 'troop-based' || method === 'chest-troop');
+          const showTroop = (method === 'resource-troop' || method === 'troop-based' || method === 'chest-troop' || isHero);
           troopTargetSection.style.display = showTroop ? 'block' : 'none';
           if (showTroop && typeData && typeData.troopTargets && !editingEventName) {
             // Pre-populate from event type defaults (only for new events)
@@ -1006,6 +1036,7 @@
         if (tabId === 'chestEventsTab') populateChestEventSelect();
         if (tabId === 'manualEventsTab') populateManualEventSelect();
         if (tabId === 'troopEventsTab') populateTroopEventSelect();
+        if (tabId === 'heroEventsTab') populateHeroEventSelect();
         if (tabId === 'resourceEventsTab') populateResourceEventSelect();
         if (tabId === 'eventTypesTab') loadEventTypes();
       }
@@ -1285,6 +1316,8 @@
             methodBadge = '<span class="badge resource">Resource (Troop)</span>';
           } else if (event.participationMethod === 'resource-manual') {
             methodBadge = '<span class="badge resource">Resource (Flat)</span>';
+          } else if (event.participationMethod === 'hero-increase' || event.participationMethod === 'hero-reach') {
+            methodBadge = '<span class="badge" style="background:#00695c;color:#e0f2f1;">' + (event.participationMethod === 'hero-reach' ? 'Hero (Reached)' : 'Hero (Increase)') + '</span>';
           } else {
             methodBadge = '<span class="badge">' + escapeHtml(event.participationMethod || 'Unknown') + '</span>';
           }
@@ -1993,6 +2026,7 @@
         if (method === 'chest-based' || method === 'chest-troop') return document.getElementById('chestCalcStatus');
         if (method === 'resource-troop' || method === 'resource-manual') return document.getElementById('resourceCalcStatus');
         if (method === 'troop-based') return document.getElementById('troopEntryStatus');
+        if (method === 'hero-increase' || method === 'hero-reach') return document.getElementById('heroCalcStatus');
         return document.getElementById('manualEntryStatus');
       }
 
@@ -2002,6 +2036,7 @@
         if (method === 'chest-based' || method === 'chest-troop') loadChestParticipationData(selectedEvent.eventName);
         else if (method === 'troop-based') loadTroopParticipationData(selectedEvent.eventName);
         else if (method === 'resource-troop' || method === 'resource-manual') loadResourceParticipationData(selectedEvent.eventName);
+        else if (method === 'hero-increase' || method === 'hero-reach') loadHeroParticipationData(selectedEvent.eventName);
         else loadManualParticipationData(selectedEvent.eventName);
       }
 
@@ -2011,6 +2046,7 @@
         if (method === 'chest-based' || method === 'chest-troop') renderChestParticipationData();
         else if (method === 'troop-based') renderTroopParticipationData();
         else if (method === 'resource-troop' || method === 'resource-manual') renderResourceParticipationData();
+        else if (method === 'hero-increase' || method === 'hero-reach') renderHeroParticipationData();
         else renderManualParticipationData();
       }
 
@@ -2559,10 +2595,13 @@
       function updateEventTypeMethod() {
         const method = document.getElementById('newEventTypeMethod').value;
         document.getElementById('chestTypeSection').style.display = (method === 'chest-based' || method === 'chest-troop') ? 'block' : 'none';
-        document.getElementById('troopTargetSection').style.display = (method === 'troop-based' || method === 'resource-troop' || method === 'chest-troop') ? 'block' : 'none';
+        const isHeroType = method === 'hero-increase' || method === 'hero-reach';
+        document.getElementById('troopTargetSection').style.display = (method === 'troop-based' || method === 'resource-troop' || method === 'chest-troop' || isHeroType) ? 'block' : 'none';
         document.getElementById('resourceNameSection').style.display = (method === 'resource-troop' || method === 'resource-manual') ? 'block' : 'none';
         const hint = document.getElementById('troopTargetSectionHint');
-        if (hint) hint.textContent = method === 'chest-troop'
+        if (hint) hint.textContent = isHeroType
+          ? "Hero level events: the number of hero levels (increase) or the hero level (reached) expected from each troop category. Optional: members without a category target use the default — the event's target, else this type's Threshold."
+          : method === 'chest-troop'
           ? 'Set the number of chests expected from each troop category (G7, G8, T8, G9, T9).'
           : 'Set target points for each troop category (G7, G8, T8, G9, T9), or choose Title: the member has to earn a tournament title (Winner, Podium, Top 10 or Badge, from the Voltron import).';
       }
@@ -2590,6 +2629,7 @@
           troopTargets = getTroopTargets();
           if (!troopTargets) { status.textContent = 'Please add at least one category target.'; status.classList.add('err'); return; }
         }
+        if (method === 'hero-increase' || method === 'hero-reach') troopTargets = getTroopTargets(); // optional: the default covers the rest
         if (method === 'resource-troop' || method === 'resource-manual') {
           resourceName = (document.getElementById('newEventTypeResource').value || '').trim();
           if (!resourceName) { status.textContent = 'Please enter a resource name.'; status.classList.add('err'); return; }
@@ -2735,7 +2775,8 @@
         document.getElementById('cancelEditTypeBtn').style.display = 'inline-block';
         updateEventTypeMethod();
         if (eventType.trackingMethod === 'chest-based') setSelectedChestTypes(eventType.chestTypes);
-        else if (eventType.trackingMethod === 'troop-based' || eventType.trackingMethod === 'resource-troop') setTimeout(() => { setTroopTargets(eventType.troopTargets); }, 50);
+        else if (eventType.trackingMethod === 'troop-based' || eventType.trackingMethod === 'resource-troop'
+          || eventType.trackingMethod === 'hero-increase' || eventType.trackingMethod === 'hero-reach') setTimeout(() => { setTroopTargets(eventType.troopTargets); }, 50);
         else if (eventType.trackingMethod === 'chest-troop') {
           setSelectedChestTypes(eventType.chestTypes);
           setTimeout(() => { setTroopTargets(eventType.troopTargets); }, 50);
@@ -2812,6 +2853,8 @@
             case 'troop-based': methodBadge = '<span class="badge" style="background:#9c27b0;color:#f3e5f5;">Troop</span>'; break;
             case 'resource-troop': methodBadge = '<span class="badge resource">Resource (Troop)</span>'; break;
             case 'resource-manual': methodBadge = '<span class="badge resource">Resource (Flat)</span>'; break;
+            case 'hero-increase': methodBadge = '<span class="badge" style="background:#00695c;color:#e0f2f1;">Hero (Increase)</span>'; break;
+            case 'hero-reach': methodBadge = '<span class="badge" style="background:#00695c;color:#e0f2f1;">Hero (Reached)</span>'; break;
             case 'period-marker': methodBadge = '<span class="badge" style="background:#616161;color:#eee;">Period</span>'; break;
             default: methodBadge = '<span class="badge manual">Manual</span>';
           }
@@ -2897,12 +2940,110 @@
           populateTroopEventSelect();
           document.getElementById('troopEventSelect').value = eventName;
           EventsTab.onTroopEventSelected();
+        } else if (evt.participationMethod === 'hero-increase' || evt.participationMethod === 'hero-reach') {
+          switchTab('heroEventsTab');
+          populateHeroEventSelect();
+          document.getElementById('heroEventSelect').value = eventName;
+          EventsTab.onHeroEventSelected();
         } else {  // manual entry (and old resource-based events: the Resource Events tab was removed)
           switchTab('manualEventsTab');
           populateManualEventSelect();
           document.getElementById('manualEventSelect').value = eventName;
           EventsTab.onManualEventSelected();
         }
+      }
+
+      // ===========================
+      // HERO LEVEL EVENTS (calculateHeroLevelParticipation on the database)
+      // ===========================
+      function populateHeroEventSelect() {
+        const select = document.getElementById('heroEventSelect');
+        if (!select) return;
+        const heroEvents = (eventsData || []).filter(e => e.participationMethod === 'hero-increase' || e.participationMethod === 'hero-reach');
+        if (heroEvents.length === 0) { select.innerHTML = '<option value="">-- No hero level events --</option>'; return; }
+        select.innerHTML = buildGroupedOptions(heroEvents, '-- Select Hero Event --');
+      }
+
+      function onHeroEventSelected() {
+        const eventName = document.getElementById('heroEventSelect').value;
+        if (!eventName) { document.getElementById('heroEventActions').style.display = 'none'; document.getElementById('heroParticipationData').style.display = 'none'; return; }
+        selectedEvent = eventsData.find(e => e.eventName === eventName);
+        currentParticipationEventName = eventName;
+        if (!selectedEvent) return;
+        document.getElementById('heroEventActions').style.display = 'block';
+        const reach = selectedEvent.participationMethod === 'hero-reach';
+        let targets = null;
+        try { targets = selectedEvent.troopTargets ? JSON.parse(selectedEvent.troopTargets) : null; } catch (e) { targets = null; }
+        const typeConfig = eventTypesData.find(et => et.name === selectedEvent.eventType);
+        const def = Number(selectedEvent.targetPoints) || Number(typeConfig?.threshold) || 0;
+        const parts = [`Norm: ${reach ? 'reach hero level' : 'gain hero levels'} — default <strong>${def || '—'}</strong>`];
+        if (targets && Object.keys(targets).length) parts.push('per troop category: ' + Object.entries(targets).map(([c, n]) => `<strong>${escapeHtml(c)}</strong>=${escapeHtml(String(n))}`).join(', '));
+        document.getElementById('heroEventInfo').innerHTML = parts.join('; ');
+        loadHeroParticipationData(eventName);
+      }
+
+      function calculateHeroLevelEvent() {
+        if (!selectedEvent) return;
+        const status = document.getElementById('heroCalcStatus');
+        status.textContent = 'Calculating...';
+        status.className = 'status';
+        fetch(window.GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'calculateHeroLevelParticipation', eventName: selectedEvent.eventName })
+        }).then(res => res.json()).then(result => {
+          status.textContent = result?.message || (result?.success ? 'Calculated.' : 'Failed.');
+          status.classList.add(result?.success ? 'ok' : 'err');
+          if (result?.success) { penaltyPreviewByMember = {}; loadHeroParticipationData(selectedEvent.eventName); }
+        }).catch(error => { status.textContent = 'Error: ' + error.message; status.classList.add('err'); });
+      }
+
+      function loadHeroParticipationData(eventName) {
+        const loading = document.getElementById('heroLoadingIndicator');
+        const tbody = document.getElementById('heroParticipationTableBody');
+        document.getElementById('heroParticipationData').style.display = 'block';
+        document.getElementById('heroParticipationTableHead').innerHTML = '';
+        tbody.innerHTML = '';
+        loading.style.display = 'block';
+        fetch(window.GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'getEventParticipation', eventName })
+        }).then(res => res.json()).then(result => {
+          loading.style.display = 'none';
+          if (result && result.success && result.data && result.data.length > 0) {
+            participationRawData = result.data;
+            ensurePenaltyExemptionsLoaded().then(() => renderHeroParticipationData());
+          } else {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px; color:#7f8c8d;">Not calculated yet. Click "Calculate" above (or wait for the automatic calculation the day after the event).</td></tr>';
+          }
+        }).catch(error => {
+          loading.style.display = 'none';
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:40px; color:#ff5252;">Error: ' + escapeHtml(error.message) + '</td></tr>';
+        });
+      }
+
+      function renderHeroParticipationData() {
+        const thead = document.getElementById('heroParticipationTableHead');
+        const tbody = document.getElementById('heroParticipationTableBody');
+        const showPenalty = penaltyEnabledForSelectedEvent();
+        const reach = selectedEvent?.participationMethod === 'hero-reach';
+        const labels = ['Member Name', 'Category', 'Start Level', 'End Level', reach ? 'Level' : 'Gained', 'Target', 'Result'];
+        if (showPenalty) labels.push('Penalty');
+        thead.innerHTML = '<tr>' + labels.map(l => `<th>${escapeHtml(l)}</th>`).join('') + '</tr>';
+        const order = { 'No': 0, 'No data': 1, 'Yes': 2 };
+        const rows = [...participationRawData].sort((a, b) => ((order[a.value3] ?? 3) - (order[b.value3] ?? 3)) || String(a.memberName).localeCompare(String(b.memberName)));
+        const cell = (v) => (v === '' || v === null || v === undefined ? '<span style="color:#666;">—</span>' : escapeHtml(String(v)));
+        tbody.innerHTML = rows.map(p => {
+          const status = String(p.value3 || '');
+          const badge = status === 'Yes' ? '<span style="color:#4caf50;">✓ Yes</span>'
+            : status === 'No' ? '<span style="color:#f44336;">✕ No</span>'
+            : status === 'No data' ? '<span class="badge" style="background:#5c4b18;color:#fff3cd;" title="No hero level entered before the start, or none since: an officer decides">No data</span>'
+            : '<span class="badge" style="background:#1b5e20;color:#c8e6c9;" title="' + escapeHtml(status) + '">Exempt</span>';
+          const penaltyCell = showPenalty ? `<td style="text-align:center;">${penaltyCellHtml(p.memberName, p.penalty, p.penaltyStatus)}</td>` : '';
+          const gained = reach ? p.value1 : (p.value1 === '' ? '' : (Number(p.value1) >= 0 ? '+' : '') + p.value1);
+          return `<tr><td>${escapeHtml(p.memberName)}</td><td style="text-align:center;">${cell(p.value2 || '')}</td><td style="text-align:center;">${cell(p.startLevel)}</td><td style="text-align:center;">${cell(p.endLevel)}</td><td style="text-align:center;">${cell(gained)}</td><td style="text-align:center;">${cell(p.target)}</td><td style="text-align:center;">${penaltyExemptBadge(p.memberName) || badge}</td>${penaltyCell}</tr>`;
+        }).join('');
       }
 
       // ===========================
@@ -3298,7 +3439,7 @@
         }).catch(error => { status.textContent = 'Error: ' + error.message; status.classList.add('err'); });
       }
 
-      return { init, switchTab, loadEvents, loadEventsBundle, generateEvents, toggleAllGenTypes, onChestEventSelected, onManualEventSelected, onTroopEventSelected, onResourceEventSelected, submitManualEntry, submitTroopEntry, calculateManualNonParticipants, calculateTroopNonParticipants, calculateChestParticipation, calculateResourceEvent, submitCreateEvent, updateEventTypeMethod, submitAddEventType, renderEventTypesTable, cancelEditEventType, addTroopTargetRow, removeTroopTargetRow, addEventTroopTargetRow, removeEventTroopTargetRow, editEventType, editEvent, deleteEvent, deleteEventType, viewEventParticipation, sortTable, sortManualTable, setEventFilter, setEventTypeFilter, toggleBatchTroopEntry, saveBatchTroopEntries, addToBatchEntry, removeBatchEntry, toggleManualBatchEntry, addToManualBatch, removeManualBatchEntry, saveManualBatchEntries, onPenaltyEnabledChange, savePenalty, waivePenalty, resetPenalty, calculatePenalties, recalculatePenalties, copyOutcome };
+      return { init, switchTab, loadEvents, loadEventsBundle, generateEvents, toggleAllGenTypes, onChestEventSelected, onManualEventSelected, onTroopEventSelected, onResourceEventSelected, submitManualEntry, submitTroopEntry, calculateManualNonParticipants, calculateTroopNonParticipants, calculateChestParticipation, calculateResourceEvent, submitCreateEvent, updateEventTypeMethod, submitAddEventType, renderEventTypesTable, cancelEditEventType, addTroopTargetRow, removeTroopTargetRow, addEventTroopTargetRow, removeEventTroopTargetRow, editEventType, editEvent, deleteEvent, deleteEventType, viewEventParticipation, sortTable, sortManualTable, setEventFilter, setEventTypeFilter, toggleBatchTroopEntry, saveBatchTroopEntries, addToBatchEntry, removeBatchEntry, toggleManualBatchEntry, addToManualBatch, removeManualBatchEntry, saveManualBatchEntries, onPenaltyEnabledChange, savePenalty, waivePenalty, resetPenalty, calculatePenalties, recalculatePenalties, copyOutcome, onHeroEventSelected, calculateHeroLevelEvent };
     })();
   </script>
 </body>
