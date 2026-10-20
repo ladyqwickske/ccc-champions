@@ -1492,7 +1492,7 @@
           .catch(() => { troopSummaryMap = {}; });
       }
 
-      // Penalty exemptions (Admin → 🛡️ Penalty Exemptions), loaded once: an Exempt label next to the
+      // Penalty exemptions (Admin → 🛡️ Exemptions; vacations aren't exemptions), loaded once: an Exempt label next to the
       // member's name, and those members left out of the results, as the penalties leave them out.
       let penaltyExemptions = null;   // lower-case name → { name, reason, startDate, endDate }
 
@@ -1518,7 +1518,7 @@
       /** The member's exemption when it covers the selected event's dates (no dates = always), else null. */
       function penaltyExemptionOf(memberName) {
         const entry = (penaltyExemptions || {})[normalizeName(memberName)];
-        if (!entry) return null;
+        if (!entry || entry.vacation) return null;
         const from = cccDate(entry.startDate, ''), until = cccDate(entry.endDate, '');
         const eventStart = cccDate(selectedEvent?.startDate || selectedEvent?.endDate, '');
         const eventEnd = cccDate(selectedEvent?.endDate || selectedEvent?.startDate, '');
