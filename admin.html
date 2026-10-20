@@ -687,7 +687,7 @@
         <button class="tab" data-group="chestdata" data-tab="ocrTab" onclick="AdminTab.switchTab('ocrTab', event)">🔤 OCR Corrections</button>
         <button class="tab" data-group="chestdata" data-tab="removeChestsTab" onclick="AdminTab.switchTab('removeChestsTab', event)">🛠️ Manage Chest Data</button>
         <button class="tab" data-group="rules" hidden data-tab="chestValuesTab" onclick="AdminTab.switchTab('chestValuesTab', event)">🏷️ Chest Point Values</button>
-        <button class="tab" data-group="rules" hidden data-tab="exemptTab" onclick="AdminTab.switchTab('exemptTab', event)">🛡️ Penalty Exemptions</button>
+        <button class="tab" data-group="rules" hidden data-tab="exemptTab" onclick="AdminTab.switchTab('exemptTab', event)">🛡️ Exemptions</button>
         <button class="tab" data-group="rules" hidden data-tab="pointTargetsTab" onclick="AdminTab.switchTab('pointTargetsTab', event)">🎯 Point Targets</button>
         <button class="tab" data-group="clans" hidden data-tab="linkFormerTab" onclick="AdminTab.switchTab('linkFormerTab', event)">🔗 Link Former Members</button>
         <button class="tab" data-group="clans" hidden data-tab="transfersTab" id="transfersTabBtn" onclick="AdminTab.switchTab('transfersTab', event)">🔁 Member Transfers</button>
@@ -848,8 +848,8 @@
         <details style="margin-top:12px;text-align:left;"><summary style="cursor:pointer;color:#b0b0b0;font-size:13px;">Recent changes</summary><div id="cpvLog" style="font-size:12px;color:#b0b0b0;padding:6px 4px;"></div></details>
       </div>
       <div id="exemptTab" class="tab-content">
-        <h3 style="margin:0 0 12px 0;">Penalty Exemptions</h3>
-        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Members ticked here never receive an event penalty and are left out of the period-end underperformer report (crypting norm). Use this for utility accounts and leadership alts.</p>
+        <h3 style="margin:0 0 12px 0;">Exemptions</h3>
+        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">Members ticked here never receive an event penalty and are left out of the period-end underperformer report (crypting norm), during the dates given (no dates = always). Use this for utility accounts and leadership alts. <b>Vacation</b>: tick it (with the vacation dates) for a member who goes on vacation. They are <b>not</b> exempt from penalties, but the chest points they score above their target in the period before the vacation carry over in full (normally only what is above 150% of the period's target carries over), so they can crypt ahead.</p>
         <div class="controls" style="margin-bottom:10px;">
           <div class="search-box"><input type="text" id="exemptSearchInput" placeholder="🔍 Filter members..."></div>
           <button class="btn" onclick="AdminTab.saveExemptMembers()">💾 Save Exemptions</button>
@@ -953,7 +953,7 @@
       AdminTab.switchTab(tab && document.querySelector(`#members .tab[data-tab="${tab}"]`) ? tab : 'chestNameFixTab');
     });
 
-    // The Admin page's tabs (Penalty Exemptions, Member Login Accounts, Superiors,
+    // The Admin page's tabs (Exemptions, Member Login Accounts, Superiors,
     // Link Former Members, Member Transfers) — the same code as on the Members page
     // before; this page only loads the members' names, which those tabs need.
     const AdminTab = (() => {
@@ -998,7 +998,7 @@
         }
       }
 
-      // ── Penalty Exemptions ────────────────────────────────────────────
+      // ── Exemptions (penalty exemptions and vacations) ─────────────────
       let exemptSelection = null;   // Set of lowercased member names
       let exemptMeta = {};
 
@@ -1018,7 +1018,8 @@
                 name: entry.name || key,
                 reason: entry.reason || '',
                 startDate: entry.startDate || '',
-                endDate: entry.endDate || ''
+                endDate: entry.endDate || '',
+                vacation: !!entry.vacation
               };
             });
             if (status) { status.textContent = ''; status.className = 'status'; }
@@ -1045,11 +1046,7 @@
           .sort((a, b) => a.localeCompare(b));
 
         if (summary) {
-          const datedCount = [...exemptSelection].filter(key => {
-            const meta = exemptMeta[key] || {};
-            return !!(meta.startDate || meta.endDate);
-          }).length;
-          summary.textContent = `${exemptSelection.size} member(s) exempt from penalties (${datedCount} date-limited).`;
+          summary.textContent = exemptSummaryText();
         }
 
         if (rows.length === 0) {
@@ -1058,7 +1055,7 @@
         }
 
         container.innerHTML = `<table id="exemptTable" data-sortable data-sort-col="1" data-name-col="1" style="width:100%; background:transparent;">
-          <thead><tr><th style="text-align:center;padding:6px 8px;width:70px;">Exempt</th><th style="text-align:left;padding:6px 8px;">Member</th><th style="text-align:left;padding:6px 8px;">Reason</th><th style="text-align:left;padding:6px 8px;">Start</th><th style="text-align:left;padding:6px 8px;">End</th></tr></thead>
+          <thead><tr><th style="text-align:center;padding:6px 8px;width:70px;" title="On the list: exempt from penalties during these dates, unless Vacation is ticked">Listed</th><th style="text-align:left;padding:6px 8px;">Member</th><th style="text-align:left;padding:6px 8px;">Reason</th><th style="text-align:left;padding:6px 8px;">Start</th><th style="text-align:left;padding:6px 8px;">End</th><th style="text-align:center;padding:6px 8px;width:80px;" title="Going on vacation: not exempt from penalties, but the surplus of the period before carries over in full">Vacation</th></tr></thead>
           <tbody>${rows.map(name => {
           const key = name.toLowerCase();
           const checked = exemptSelection.has(key) ? ' checked' : '';
@@ -1070,6 +1067,7 @@
             <td style="padding:4px 8px;"><input type="text" placeholder="Reason" value="${escapeHtml(meta.reason || '')}" data-exempt="${escapeHtml(name)}" data-field="reason" onchange="AdminTab.updateExemptField(this)" style="width:100%; padding:6px; font-size:12px;"></td>
             <td style="padding:4px 8px; width:135px;"><input type="date" value="${escapeHtml(meta.startDate || '')}" data-exempt="${escapeHtml(name)}" data-field="startDate" onchange="AdminTab.updateExemptField(this)" title="Start date (blank = always)" style="width:100%; padding:6px; font-size:12px;"></td>
             <td style="padding:4px 8px; width:135px;"><input type="date" value="${escapeHtml(meta.endDate || '')}" data-exempt="${escapeHtml(name)}" data-field="endDate" onchange="AdminTab.updateExemptField(this)" title="End date (blank = always)" style="width:100%; padding:6px; font-size:12px;"></td>
+            <td style="padding:4px 8px; text-align:center;"><input type="checkbox" style="width:auto; margin:0; cursor:pointer;" data-exempt="${escapeHtml(name)}"${meta.vacation ? ' checked' : ''} onchange="AdminTab.toggleExemptVacation(this)" title="Going on vacation (fill in the dates)"></td>
           </tr>`;
         }).join('')}</tbody></table>`;
       }
@@ -1080,8 +1078,26 @@
         if (input.checked) exemptSelection.add(key); else exemptSelection.delete(key);
         exemptMeta[key] = exemptMeta[key] || { name, reason: '', startDate: '', endDate: '' };
         exemptMeta[key].name = name;
-        const summary = document.getElementById('exemptSummary');
-        if (summary) summary.textContent = `${exemptSelection.size} member(s) exempt from penalties.`;
+        if (!input.checked) exemptMeta[key].vacation = false;
+        renderExemptList();
+      }
+
+      // Vacation: listed (ticked) as well, but no exemption from penalties
+      function toggleExemptVacation(input) {
+        const name = input.getAttribute('data-exempt') || '';
+        const key = name.toLowerCase();
+        exemptMeta[key] = exemptMeta[key] || { name, reason: '', startDate: '', endDate: '' };
+        exemptMeta[key].name = name;
+        exemptMeta[key].vacation = input.checked;
+        if (input.checked) exemptSelection.add(key);
+        renderExemptList();
+      }
+
+      function exemptSummaryText() {
+        const metas = [...exemptSelection].map(key => exemptMeta[key] || {});
+        const exempt = metas.filter(m => !m.vacation), vacation = metas.length - exempt.length;
+        const dated = exempt.filter(m => m.startDate || m.endDate).length;
+        return `${exempt.length} member(s) exempt from penalties (${dated} date-limited)` + (vacation ? `, ${vacation} on vacation.` : '.');
       }
 
       function updateExemptField(input) {
@@ -1103,8 +1119,14 @@
           name: byKey[key] || (exemptMeta[key] && exemptMeta[key].name) || key,
           reason: (exemptMeta[key] && exemptMeta[key].reason) || '',
           startDate: (exemptMeta[key] && exemptMeta[key].startDate) || '',
-          endDate: (exemptMeta[key] && exemptMeta[key].endDate) || ''
+          endDate: (exemptMeta[key] && exemptMeta[key].endDate) || '',
+          vacation: !!(exemptMeta[key] && exemptMeta[key].vacation)
         }));
+        const undated = members.filter(m => m.vacation && !(m.startDate && m.endDate)).map(m => m.name);
+        if (undated.length) {
+          if (status) { status.textContent = 'Fill in the start and end date of the vacation of ' + undated.join(', ') + '.'; status.className = 'status err'; }
+          return;
+        }
         if (status) { status.textContent = 'Saving...'; status.className = 'status'; }
         fetch(window.GAS_WEB_APP_URL, {
           method: 'POST',
@@ -1500,7 +1522,7 @@
         return div.innerHTML;
       }
 
-      return { init, switchTab, switchGroup, loadPointTargets, renderPointTargets, editPointTarget, editPtDefault, savePointTargets, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts, loadSuperiors, toggleSuperior, addSuperiorEmail, updateSuperiorEmail, removeSuperiorEmail, saveSuperiors };
+      return { init, switchTab, switchGroup, loadPointTargets, renderPointTargets, editPointTarget, editPtDefault, savePointTargets, loadExemptMembers, toggleExemptMember, toggleExemptVacation, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts, loadSuperiors, toggleSuperior, addSuperiorEmail, updateSuperiorEmail, removeSuperiorEmail, saveSuperiors };
     })();
   </script>
   <script>
