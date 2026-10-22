@@ -110,23 +110,12 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 	};
 })();
 
-// Global Google Translate hardening: keep widget bottom-only and suppress top banner/page shift.
-(function enforceTranslateLayout() {
+// Phone and tablet menu layout, the same on every page.
+(function enforceMenuLayout() {
 	// Tablets: wider than a phone (the pages' own phone layout stops at 800px), up to 1024px,
 	// or any touch screen up to 1400px wide (a tablet held sideways)
 	const TABLET = '(min-width: 801px) and (max-width: 1024px), (min-width: 801px) and (max-width: 1400px) and (pointer: coarse)';
 	const css = [
-		'html, body { margin-top: 0 !important; top: 0 !important; }',
-		'body.translated-ltr, body.translated-rtl { margin-top: 0 !important; top: 0 !important; }',
-		'.goog-te-banner-frame, iframe.goog-te-banner-frame, .goog-te-banner-frame.skiptranslate { display: none !important; visibility: hidden !important; height: 0 !important; }',
-		// Google's current top bar (an iframe in a .skiptranslate block straight inside
-		// <body>), which covered the menu on phones; the language menu is left alone
-		'iframe.VIpgJd-ZVi9od-ORHb-OEVmcd, body > .skiptranslate:has(> iframe.VIpgJd-ZVi9od-ORHb-OEVmcd) { display: none !important; visibility: hidden !important; height: 0 !important; }',
-		'.VIpgJd-ZVi9od-aZ2wEe-wOHMyf { display: none !important; visibility: hidden !important; }',
-		// "↺ Original" (in place of the hidden bar): only while the page is translated
-		'#translateResetBtn { position: fixed; right: 8px; bottom: 52px; z-index: 7001; display: none; align-items: center; height: 34px; padding: 0 10px;'
-			+ ' border: 1px solid #444; border-radius: 8px; background: #232526; color: #ffb300; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.25); }',
-		'html.translated-ltr #translateResetBtn, html.translated-rtl #translateResetBtn { display: inline-flex; }',
 		// Phone menu: the same text size and spacing as the Legends / Masters menu
 		// (the pages' own rules use 18px text with 18px 24px padding)
 		'@media (max-width: 800px) { .tab-buttons .tab-btn { font-size: 14.4px !important; padding: 10px 12px !important; } }',
@@ -143,12 +132,8 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 			+ ' .tab-nav .tab-icon.desktop-only { display: none !important; }'
 			+ ' .tab-nav .tab-btn[title]:hover::after { display: none !important; }'
 			+ ' }',
-		'#goog-gt-tt, .goog-te-balloon-frame { display: none !important; visibility: hidden !important; }',
-		'.goog-text-highlight { background: transparent !important; box-shadow: none !important; }',
-		'#google_translate_element, #translateToggleBtn { top: auto !important; right: 8px !important; bottom: 8px !important; }',
 		// Phones (≤ 800px) and tablets: one thin bar at the very top, as on the Legends / Masters sites —
 		// ☰ on the left, the e-mail and Logout on the right, the menu as a full list below it.
-		// (The bar used to sit 56px lower, under Google's translate bar, which is hidden now.)
 		'@media (max-width: 800px), ' + TABLET + ' {'
 			+ ' body { padding-top: max(52px, calc(env(safe-area-inset-top) + 52px)) !important; padding-bottom: max(70px, calc(env(safe-area-inset-bottom) + 70px)) !important; }'
 			+ ' .tab-nav { position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; width: 100% !important; z-index: 9999 !important; padding-top: env(safe-area-inset-top); max-height: 100vh; overflow-y: auto; }'
@@ -162,100 +147,19 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 	].join('\n');
 
 	const injectStyle = function () {
-		if (document.getElementById('global-translate-hardening-style')) return;
+		if (document.getElementById('global-menu-layout-style')) return;
 		const style = document.createElement('style');
-		style.id = 'global-translate-hardening-style';
+		style.id = 'global-menu-layout-style';
 		style.textContent = css;
 		document.head.appendChild(style);
 	};
 
-	// Back to English now that Google's top bar is hidden: Google keeps the chosen
-	// language in the "googtrans" cookie (on this address and on its parent domain);
-	// remove it and reload.
-	const addResetButton = function () {
-		if (!document.body || document.getElementById('translateResetBtn')) return;
-		const btn = document.createElement('button');
-		btn.id = 'translateResetBtn';
-		btn.type = 'button';
-		btn.className = 'notranslate';
-		btn.title = 'Show the page in English again';
-		btn.textContent = '\u21BA Original';
-		btn.addEventListener('click', function () {
-			const expired = 'googtrans=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
-			const host = location.hostname;
-			const parts = host.split('.');
-			document.cookie = expired;
-			document.cookie = expired + '; domain=' + host;
-			document.cookie = expired + '; domain=.' + host;
-			if (parts.length > 2) document.cookie = expired + '; domain=.' + parts.slice(-2).join('.');
-			location.reload();
-		});
-		document.body.appendChild(btn);
-	};
-
-	const normalizeTopOffset = function () {
-		if (document.documentElement) document.documentElement.style.top = '0px';
-		if (document.body) {
-			document.body.style.top = '0px';
-			document.body.style.marginTop = '0px';
-		}
-		const banner = document.querySelector('iframe.goog-te-banner-frame, .goog-te-banner-frame.skiptranslate, .goog-te-banner-frame, iframe.VIpgJd-ZVi9od-ORHb-OEVmcd');
-		if (banner) {
-			banner.style.display = 'none';
-			banner.style.visibility = 'hidden';
-			banner.style.height = '0';
-		}
-		fixMenuFramePosition();
-	};
-
-	// The Google Translate language dropdown (.goog-te-menu-frame) computes its own
-	// position/height assuming a normally-flowed anchor. Our widget uses position:fixed,
-	// so on some browsers the frame ends up clipped/off-screen with no way to scroll to
-	// the remaining languages. Force it to a viewport-anchored, capped, scrollable box.
-	const fixMenuFramePosition = function () {
-		const frame = document.querySelector('iframe.goog-te-menu-frame');
-		const anchor = document.getElementById('google_translate_element');
-		if (!frame || !anchor) return;
-		const rect = anchor.getBoundingClientRect();
-		const margin = 8;
-		const maxHeight = Math.max(120, rect.top - margin * 2);
-		const maxWidth = Math.min(320, window.innerWidth - margin * 2);
-		frame.style.setProperty('position', 'fixed', 'important');
-		frame.style.setProperty('top', 'auto', 'important');
-		frame.style.setProperty('bottom', (window.innerHeight - rect.top + margin) + 'px', 'important');
-		frame.style.setProperty('left', 'auto', 'important');
-		frame.style.setProperty('right', margin + 'px', 'important');
-		frame.style.setProperty('max-height', maxHeight + 'px', 'important');
-		frame.style.setProperty('max-width', maxWidth + 'px', 'important');
-		frame.style.setProperty('overflow-y', 'auto', 'important');
-		frame.style.setProperty('overflow-x', 'hidden', 'important');
-	};
-
-	const startObserver = function () {
-		if (!document.body || window.__translateLayoutObserverStarted) return;
-		window.__translateLayoutObserverStarted = true;
-		const observer = new MutationObserver(normalizeTopOffset);
-		observer.observe(document.documentElement, { attributes: true, childList: true, subtree: true });
-		normalizeTopOffset();
-	};
-
-	if (document.readyState === 'loading') {
-		document.addEventListener('DOMContentLoaded', function () {
-			injectStyle();
-			addResetButton();
-			startObserver();
-			window.addEventListener('resize', normalizeTopOffset);
-		});
-	} else {
-		injectStyle();
-		addResetButton();
-		startObserver();
-		window.addEventListener('resize', normalizeTopOffset);
-	}
+	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', injectStyle);
+	else injectStyle();
 })();
 
 // Staging marker: a small fixed label on every page, so the staging copy is
-// never mistaken for the live site. Bottom-left, clear of the translate widget.
+// never mistaken for the live site. Bottom-left.
 (function stagingBadge() {
 	if (!window.IS_STAGING_SITE) return;
 	const add = function () {
