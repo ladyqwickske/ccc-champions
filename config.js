@@ -132,6 +132,19 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 			+ ' .tab-nav .tab-icon.desktop-only { display: none !important; }'
 			+ ' .tab-nav .tab-btn[title]:hover::after { display: none !important; }'
 			+ ' }',
+		// Desktop (everything wider than the phone and tablet menus): the page name next to its
+		// icon, as on the Legends / Masters sites (the pages' own rules show 40px icons only)
+		'@media (min-width: 1025px) and (pointer: fine), (min-width: 1401px) {'
+			+ ' .tab-nav .tab-nav-container { max-width: 1760px !important; }'
+			+ ' .tab-nav .tab-buttons { height: auto !important; padding: 6px 0; gap: 2px !important; flex-wrap: wrap; overflow: visible !important; }'
+			+ ' .tab-nav .tab-btn { display: inline-flex !important; align-items: center !important; gap: 5px; font-size: 14px !important; padding: 10px 8px !important; }'
+			+ ' .tab-nav .tab-btn .tab-icon.desktop-only { display: inline-block !important; height: 20px !important; width: auto !important; margin: 0 !important; }'
+			+ ' .tab-nav .tab-label.mobile-only { display: inline !important; }'
+			+ ' .tab-nav .tab-btn[title]:hover::after { display: none !important; }'
+			+ ' }',
+		// ... and up to 1700px only the logo of the clan name, and no signed-in e-mail next to Logout,
+		// so the menu stays on one line
+		'@media (min-width: 1025px) and (max-width: 1700px) and (pointer: fine) { .tab-nav .nav-brand { font-size: 0 !important; margin-right: 12px !important; } .tab-nav .login-bar .user-email { display: none !important; } }',
 		// Phones (≤ 800px) and tablets: one thin bar at the very top, as on the Legends / Masters sites —
 		// ☰ on the left, the e-mail and Logout on the right, the menu as a full list below it.
 		'@media (max-width: 800px), ' + TABLET + ' {'
