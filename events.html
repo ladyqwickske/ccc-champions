@@ -779,6 +779,19 @@
           </div>
         </div>
         <div style="margin-bottom:12px;"><span id="generateStatus" style="font-size:13px;"></span></div>
+
+        <hr style="border:none; border-top:1px solid #444; margin:24px 0;">
+        <h3 style="margin:0 0 12px 0;">🧹 Clean Up Generated Events</h3>
+        <p style="margin-bottom:12px; color:#aaa; font-size:13px;">Removes generated events (named like "Tin Man Points (Apr 3, 2026)") that have no participation data yet, for the event types ticked above. Events with data, events you named yourself and Active Period events are never removed.</p>
+        <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; align-items:center;">
+          <button class="btn btn-secondary" id="cleanupEventsBtn" onclick="EventsTab.previewCleanupEvents()">🔍 Preview Cleanup</button>
+          <select id="cleanupRangeSelect" style="padding:8px; border-radius:4px; border:1px solid #444; background:#2a2a2e; color:#e0e0e0; font-size:13px;">
+            <option value="all" selected>Past and upcoming</option>
+            <option value="upcoming">Upcoming only</option>
+          </select>
+          <button class="btn" id="cleanupConfirmBtn" onclick="EventsTab.runCleanupEvents()" style="display:none; background:#c62828;">🗑️ Delete</button>
+        </div>
+        <div style="margin-bottom:12px;"><span id="cleanupStatus" style="font-size:13px;"></span></div>
       </div>
 
       <!-- EVENT TYPES TAB -->
@@ -2837,6 +2850,91 @@
         });
       }
 
+      // Clean up generated events (only the ones without participation data; the Worker checks again on delete)
+      function cleanupRequest(dryRun) {
+        const allTypes = document.getElementById('genSelectAll').checked;
+        const eventTypes = allTypes ? [] : Array.from(document.querySelectorAll('.gen-type-cb:checked')).map(cb => cb.value);
+        const fromDate = document.getElementById('cleanupRangeSelect').value === 'upcoming' ? new Date().toISOString().slice(0, 10) : '';
+        return fetch(window.GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'cleanupGeneratedEvents', dryRun, eventTypes, fromDate })
+        }).then(res => res.json());
+      }
+
+      const cleanupList = (items) => items.map(x => escapeHtml(x.name)).join(', ');
+
+      function previewCleanupEvents() {
+        const btn = document.getElementById('cleanupEventsBtn');
+        const confirmBtn = document.getElementById('cleanupConfirmBtn');
+        const status = document.getElementById('cleanupStatus');
+        if (!document.getElementById('genSelectAll').checked && !document.querySelector('.gen-type-cb:checked')) {
+          status.textContent = '⚠️ Please select at least one event type.';
+          status.style.color = '#ffb300';
+          return;
+        }
+        btn.disabled = true;
+        btn.textContent = '⏳ Checking...';
+        confirmBtn.style.display = 'none';
+        status.textContent = '';
+        status.style.color = '';
+        cleanupRequest(true)
+        .then(result => {
+          if (result && result.success) {
+            const parts = [];
+            if (result.deleted.length > 0) parts.push('🗑️ Would delete ' + result.deleted.length + ': ' + cleanupList(result.deleted));
+            else parts.push('Nothing to clean up: no generated events without data.');
+            if (result.keptWithData.length > 0) parts.push('🔒 Kept (have participation data): ' + result.keptWithData.length);
+            status.innerHTML = parts.join('<br>');
+            status.style.color = '#e0e0e0';
+            if (result.deleted.length > 0) {
+              confirmBtn.textContent = '🗑️ Delete ' + result.deleted.length + ' event(s)';
+              confirmBtn.style.display = '';
+            }
+          } else {
+            status.textContent = '❌ ' + (result?.message || 'Preview failed.');
+            status.style.color = '#ff5252';
+          }
+        })
+        .catch(error => {
+          status.textContent = '❌ Error: ' + error.message;
+          status.style.color = '#ff5252';
+        })
+        .finally(() => {
+          btn.disabled = false;
+          btn.textContent = '🔍 Preview Cleanup';
+        });
+      }
+
+      function runCleanupEvents() {
+        const confirmBtn = document.getElementById('cleanupConfirmBtn');
+        const status = document.getElementById('cleanupStatus');
+        if (!confirm('Delete these generated events without participation data? This cannot be undone.')) return;
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = '⏳ Deleting...';
+        cleanupRequest(false)
+        .then(result => {
+          if (result && result.success) {
+            const parts = ['✅ Deleted ' + result.deleted.length + (result.deleted.length ? ': ' + cleanupList(result.deleted) : '')];
+            if (result.errors.length > 0) parts.push('❌ ' + result.errors.length + ' error(s): ' + result.errors.map(e => escapeHtml(e.name + ': ' + e.error)).join(', '));
+            status.innerHTML = parts.join('<br>');
+            status.style.color = result.errors.length > 0 ? '#ff5252' : '#4CAF50';
+            loadEvents();
+          } else {
+            status.textContent = '❌ ' + (result?.message || 'Cleanup failed.');
+            status.style.color = '#ff5252';
+          }
+        })
+        .catch(error => {
+          status.textContent = '❌ Error: ' + error.message;
+          status.style.color = '#ff5252';
+        })
+        .finally(() => {
+          confirmBtn.disabled = false;
+          confirmBtn.style.display = 'none';
+        });
+      }
+
       function viewEventParticipation(eventName) {
         const evt = eventsData.find(e => e.eventName === eventName);
         if (!evt) return;
@@ -3162,7 +3260,7 @@
         }).catch(error => { status.textContent = 'Error: ' + error.message; status.classList.add('err'); });
       }
 
-      return { init, switchTab, loadEvents, loadEventsBundle, generateEvents, toggleAllGenTypes, onChestEventSelected, onManualEventSelected, onTroopEventSelected, submitManualEntry, submitTroopEntry, calculateManualNonParticipants, calculateTroopNonParticipants, calculateChestParticipation, submitCreateEvent, updateEventTypeMethod, submitAddEventType, renderEventTypesTable, cancelEditEventType, addTroopTargetRow, removeTroopTargetRow, addEventTroopTargetRow, removeEventTroopTargetRow, editEventType, editEvent, deleteEvent, deleteEventType, viewEventParticipation, sortTable, sortManualTable, setEventFilter, setEventTypeFilter, toggleBatchTroopEntry, saveBatchTroopEntries, addToBatchEntry, removeBatchEntry, toggleManualBatchEntry, addToManualBatch, removeManualBatchEntry, saveManualBatchEntries, onPenaltyEnabledChange, savePenalty, waivePenalty, resetPenalty, calculatePenalties, recalculatePenalties, copyOutcome, onHeroEventSelected, calculateHeroLevelEvent };
+      return { init, switchTab, loadEvents, loadEventsBundle, generateEvents, toggleAllGenTypes, previewCleanupEvents, runCleanupEvents, onChestEventSelected, onManualEventSelected, onTroopEventSelected, submitManualEntry, submitTroopEntry, calculateManualNonParticipants, calculateTroopNonParticipants, calculateChestParticipation, submitCreateEvent, updateEventTypeMethod, submitAddEventType, renderEventTypesTable, cancelEditEventType, addTroopTargetRow, removeTroopTargetRow, addEventTroopTargetRow, removeEventTroopTargetRow, editEventType, editEvent, deleteEvent, deleteEventType, viewEventParticipation, sortTable, sortManualTable, setEventFilter, setEventTypeFilter, toggleBatchTroopEntry, saveBatchTroopEntries, addToBatchEntry, removeBatchEntry, toggleManualBatchEntry, addToManualBatch, removeManualBatchEntry, saveManualBatchEntries, onPenaltyEnabledChange, savePenalty, waivePenalty, resetPenalty, calculatePenalties, recalculatePenalties, copyOutcome, onHeroEventSelected, calculateHeroLevelEvent };
     })();
   </script>
 </body>
