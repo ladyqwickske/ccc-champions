@@ -13,6 +13,7 @@
   <script src="portal-shim.js"></script>
   <script src="portal-auth.js"></script>
   <script src="member-transfers.js"></script>
+  <script src="captains.js"></script>
   <script>
   // Dates are read and shown in UTC with the shared helpers (ccc-dates.js).
   function parseDateUTC(str) {
@@ -757,6 +758,8 @@
           <tr>
             <th class="sortable" data-column="name">Name</th>
             <th class="sortable" data-column="heroLevel" title="Latest recorded hero level">Hero</th>
+            <th class="sortable captain-col" data-column="helen" title="Helen: stars · level (from Voltron)" hidden>Helen</th>
+            <th class="sortable captain-col" data-column="epic" title="Epic captains owned (Hercules, Heimdall, Beowulf, Skadi) · their stars together (from Voltron); hover a cell for each" hidden>Epic</th>
             <th class="sortable" data-column="joinDate">Joined</th>
             <th class="sortable" data-column="category" title="Troop Category">Cat</th>
             <th class="sortable" data-column="troops" title="Guardsmen / Monsters / Specialists / Eng. Corps / Carter">G/M/S/E/C</th>
@@ -812,6 +815,7 @@
       let membersData = [];
       let troopData = {};    // { lowerName: { G, M, S, E, C } }
       let heroData = {};     // { lowerName: { level, timestamp } }
+      let captainData = null; // { lowerName: { Helen: { stars, level, date }, … } }; null: no captain data (columns hidden)
       let loadedTroopLevels = {};
       let filteredData = [];
       let currentSort = { column: null, direction: 'asc' };
@@ -1182,6 +1186,7 @@
         showLoading();
         try {
           const t0 = performance.now();
+          const captainsLoad = CCCCaptains.loadAll();
           const res = await fetch(window.GAS_WEB_APP_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1219,6 +1224,9 @@
             const name = (entry.playerName || '').trim();
             if (name) heroData[name.toLowerCase()] = { level: entry.level, timestamp: entry.timestamp };
           });
+
+          captainData = await captainsLoad;
+          document.querySelectorAll('#membersTable th.captain-col').forEach(th => { th.hidden = !captainData; });
 
           filteredData = [...membersData];
           filteredData.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -1378,6 +1386,10 @@
             case 'joinDate': aVal = parseDateUTC(a.joinDate); bVal = parseDateUTC(b.joinDate); break;
             case 'heroLevel':
               aVal = hA ? hA.level : -1; bVal = hB ? hB.level : -1; break;
+            case 'helen':
+              aVal = CCCCaptains.helenSort((captainData || {})[keyA]); bVal = CCCCaptains.helenSort((captainData || {})[keyB]); break;
+            case 'epic':
+              aVal = CCCCaptains.epicSort((captainData || {})[keyA]); bVal = CCCCaptains.epicSort((captainData || {})[keyB]); break;
             case 'category':
               aVal = CATEGORY_ORDER.indexOf(determineTroopCategory(tA.G, tA.M, tA.S));
               bVal = CATEGORY_ORDER.indexOf(determineTroopCategory(tB.G, tB.M, tB.S));
@@ -1410,7 +1422,9 @@
             ? `<span style="display:inline-block;padding:1px 5px;border-radius:8px;font-size:10px;font-weight:700;background:${getHeroBg(hero.level)};color:${getHeroFg(hero.level)};" title="Updated: ${hero.timestamp ? cccDateTime(hero.timestamp) : '?'}">${hero.level}</span>`
             : '<span style="color:#666">—</span>';
           const cat = determineTroopCategory(troops.G, troops.M, troops.S);
-          row.innerHTML = `<td class="member-name">${escapeHtml(member.name)}</td><td style="text-align:center;">${heroHtml}</td><td class="date-value" style="white-space:nowrap;">${formatDate(member.joinDate)}<br><button type="button" class="reset-toggle" style="white-space:nowrap;margin-top:3px;padding:1px 7px;font-size:11px;border-radius:8px;border:1px solid ${member.beforeReset ? '#ffb300' : '#555'};background:${member.beforeReset ? 'rgba(255,179,0,0.15)' : 'transparent'};color:${member.beforeReset ? '#ffb300' : '#999'};cursor:pointer;" title="Joined before or after the daily reset (17:00 UTC) on the join day. Before: takes part in the events starting that day. Click to change." onclick="MembersTab.toggleJoinedBeforeReset('${escapeAttr(member.name)}')">${member.beforeReset ? '🌅 before reset' : 'after reset'}</button></td><td style="text-align:center">${categoryBadge(cat)}</td><td style="text-align:center;white-space:nowrap;">${troopCell(troops)}</td>`;
+          const caps = captainData ? captainData[key] : null;
+          const captainHtml = captainData ? `<td style="text-align:center;">${CCCCaptains.helenCell(caps)}</td><td style="text-align:center;">${CCCCaptains.epicCell(caps)}</td>` : '';
+          row.innerHTML = `<td class="member-name">${escapeHtml(member.name)}</td><td style="text-align:center;">${heroHtml}</td>${captainHtml}<td class="date-value" style="white-space:nowrap;">${formatDate(member.joinDate)}<br><button type="button" class="reset-toggle" style="white-space:nowrap;margin-top:3px;padding:1px 7px;font-size:11px;border-radius:8px;border:1px solid ${member.beforeReset ? '#ffb300' : '#555'};background:${member.beforeReset ? 'rgba(255,179,0,0.15)' : 'transparent'};color:${member.beforeReset ? '#ffb300' : '#999'};cursor:pointer;" title="Joined before or after the daily reset (17:00 UTC) on the join day. Before: takes part in the events starting that day. Click to change." onclick="MembersTab.toggleJoinedBeforeReset('${escapeAttr(member.name)}')">${member.beforeReset ? '🌅 before reset' : 'after reset'}</button></td><td style="text-align:center">${categoryBadge(cat)}</td><td style="text-align:center;white-space:nowrap;">${troopCell(troops)}</td>`;
           tbody.appendChild(row);
         });
       }

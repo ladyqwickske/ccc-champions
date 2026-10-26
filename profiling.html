@@ -12,6 +12,7 @@
   <script src="portal-shim.js"></script>
   <script src="portal-auth.js"></script>
   <script src="evolution.js?v=2026-10-17c"></script>
+  <script src="captains.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -351,6 +352,11 @@
         <h2>🦸 Hero Level <span class="section-note">hero level history and hero level events (superiors only)</span></h2>
         <div id="heroHistorySection"></div>
 
+        <div data-captain-section style="display:none;">
+          <h2>🛡️ Captains <span class="section-note">Helen and the epic captains, from Voltron (superiors only)</span></h2>
+          <div id="captainSection"></div>
+        </div>
+
         <h2>Chest Statistics <span id="chestStatsNote" class="section-note"></span></h2>
         <div class="info-grid" id="chestStatsInfo"></div>
 
@@ -587,6 +593,7 @@
           document.getElementById('individualContent').style.display = 'block';
           CCCEvolution.load(name);
           loadHeroHistory(name);
+          CCCCaptains.renderMember(document.getElementById('captainSection'), name, () => document.getElementById('memberSelect').value === name);
         } else {
           document.getElementById('individualEmpty').innerHTML = '<div class="empty-state"><p>Failed to load profile: ' + (res && res.message ? res.message : 'Unknown error') + '</p></div>';
         }
