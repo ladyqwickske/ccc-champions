@@ -16,7 +16,7 @@
  *  MemberTransfers  🔁 Member Transfers tab: ask another cCc clan for a
  *                   player's profile, answer the other clans' requests, view
  *                   / print a received profile and copy its troop and hero
- *                   levels into our records.
+ *                   levels and captain history into our records.
  */
 (function () {
   'use strict';
@@ -458,7 +458,7 @@
           + '<button class="' + secondaryBtn + '" data-mt-cancel="' + esc(r.id) + '">' + (r.status === 'waiting' ? '✖ Withdraw' : '🗑️ Remove') + '</button></div></div>';
         if (r.profile && MT.open[r.id]) {
           html += '<div style="margin-top:10px;">' + profileHtml(r.profile)
-            + '<div style="margin-top:10px;' + box + '"><b>Copy the latest troop and hero levels into our records</b>'
+            + '<div style="margin-top:10px;' + box + '"><b>Copy the latest troop and hero levels and the captain history into our records</b>'
             + (r.levelsCopiedAt ? ' <span style="font-size:12px;' + muted + '">(copied before, ' + esc(fmtDate(r.levelsCopiedAt)) + ')</span>' : '')
             + '<div class="form-grid" style="grid-template-columns:2fr 1fr;margin:8px 0 0;align-items:end;"><div><label>For our member</label><select data-mt-copyto="' + esc(r.id) + '"><option value="">— pick —</option>'
             + memberOptions(d.members, function (m) { return m.status === 'current'; }) + '</select></div>'
@@ -547,7 +547,7 @@
         var id = b.getAttribute('data-mt-copy');
         var name = q('data-mt-copyto', id).value;
         if (!name) { rowStatus(id, 'Pick our member first.', false); return; }
-        if (!confirm('Add the received troop and hero levels to "' + name + '" (dated today)?')) return;
+        if (!confirm('Add the received troop and hero levels (dated today) and captain history (with its own dates) to "' + name + '"?')) return;
         rowStatus(id, 'Copying…');
         post({ action: 'copyTransferLevels', id: id, memberName: name }).then(function (r) {
           rowStatus(id, (r && (r.message || r.error)) || 'Failed.', !!(r && r.success));
@@ -623,6 +623,12 @@
       return '<b>' + t + '</b> ' + esc(latest[t].level) + ' <span style="font-size:11px;' + muted + '">(' + esc(fmtDate(latest[t].date)) + ')</span>';
     }).join(' · ');
     var hero = p.heroes && p.heroes.latest;
+    var caps = (p.captains && p.captains.latest) || {};
+    var captainLine = ['Helen', 'Hercules', 'Heimdall', 'Beowulf', 'Skadi'].concat(Object.keys(caps).filter(function (c) { return ['Helen', 'Hercules', 'Heimdall', 'Beowulf', 'Skadi'].indexOf(c) === -1; }))
+      .filter(function (c) { return caps[c]; }).map(function (c) {
+        return '<b>' + esc(c) + '</b> ' + (caps[c].stars != null ? '★' + esc(caps[c].stars) + ' ' : '') + (caps[c].level != null ? 'Lv ' + esc(caps[c].level) : '')
+          + ' <span style="font-size:11px;' + muted + '">(' + esc(fmtDate(caps[c].date)) + ')</span>';
+      }).join(' · ');
     var totalPts = (p.chests || []).reduce(function (s, c) { return s + (Number(c.points) || 0); }, 0);
     var h = '<div style="' + box + 'text-align:left;">'
       + '<div style="font-size:16px;font-weight:700;">' + esc(p.member) + ' <span style="font-size:13px;font-weight:400;' + muted + '">— ' + esc(p.clan) + ', ' + esc(statusText) + '</span></div>'
@@ -633,6 +639,7 @@
       + (p.googleAccount ? '🔐 Login: ' + esc(p.googleAccount) + '<br>' : '')
       + (troopLine ? '⚔️ Troops: ' + troopLine + '<br>' : '')
       + (hero ? '🦸 Hero level: <b>' + esc(hero.level) + '</b> <span style="font-size:11px;' + muted + '">(' + esc(fmtDate(hero.date)) + ')</span><br>' : '')
+      + (captainLine ? '🛡️ Captains: ' + captainLine + '<br>' : '')
       + '📦 Chest points: <b>' + totalPts.toLocaleString() + '</b> over ' + (p.chests || []).length + ' period(s) · 🎯 ' + (p.events || []).length + ' event(s) · ⚠️ ' + (p.warnings || []).length + ' warning(s)'
       + '</div>';
     // Overall: how many norms and chest targets were made / missed (snapshots from before this have none)
@@ -673,6 +680,9 @@
     })));
     h += section('🦸 Hero level history', table(['Date', 'Level'], ((p.heroes && p.heroes.history) || []).slice().reverse().map(function (t) {
       return [esc(fmtDate(t.date)), esc(t.level)];
+    })));
+    if (p.captains) h += section('🛡️ Captain history', table(['Date', 'Captain', 'Stars', 'Level'], (p.captains.history || []).slice().reverse().map(function (c) {
+      return [esc(fmtDate(c.date)), esc(c.captain), c.stars != null ? '★' + esc(c.stars) : '—', c.level != null ? esc(c.level) : '—'];
     })));
     return h + '</div>';
   }
