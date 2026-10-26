@@ -432,6 +432,12 @@
       }
       .hamburger { display: none; }
     }
+      /* 🗓️ Schedule tab */
+    .sched-in { background: var(--bg-card-soft, #2a2a2e); color: var(--text, #e0e0e0); border: 1px solid var(--border, #444); border-radius: 6px; padding: 5px 6px; font-size: 0.85em; }
+    .sched-in:disabled { opacity: 0.5; }
+    .sched-note { font-size: 0.82em; color: var(--text-muted, #aaa); margin-bottom: 6px; }
+    .sched-table td { padding: 4px 6px; vertical-align: middle; }
+    .sched-x { padding: 2px 8px !important; font-size: 0.8em; }
   </style>
 </head>
 <body>
@@ -585,6 +591,7 @@
         <button class="tab" onclick="EventsTab.switchTab('heroEventsTab', event)">🦸 Hero Events</button>
         <button class="tab" onclick="EventsTab.switchTab('createTab', event)">➕ Create Event</button>
         <button class="tab" onclick="EventsTab.switchTab('eventTypesTab', event)">⚙️ Event Types</button>
+        <button class="tab" onclick="EventsTab.switchTab('scheduleTab', event); Schedule.open()">🗓️ Schedule</button>
       </div>
 
       <!-- MANAGE EVENTS TAB -->
@@ -740,7 +747,7 @@
 
         <hr style="border:none; border-top:1px solid #444; margin:24px 0;">
         <h3 style="margin:0 0 12px 0;">📅 Generate Upcoming Events from Calendar</h3>
-        <p style="margin-bottom:12px; color:#aaa; font-size:13px;">Automatically create events based on the recurring calendar schedule.</p>
+        <p style="margin-bottom:12px; color:#aaa; font-size:13px;">Automatically create events based on the clan's schedule (🗓️ Schedule tab).</p>
         <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; align-items:center;">
           <button class="btn" id="generateEventsBtn" onclick="EventsTab.generateEvents()" style="background:#4CAF50;">📅 Generate Events</button>
           <select id="generateDaysSelect" style="padding:8px; border-radius:4px; border:1px solid #444; background:#2a2a2e; color:#e0e0e0; font-size:13px;">
@@ -779,6 +786,29 @@
           </div>
         </div>
         <div style="margin-bottom:12px;"><span id="generateStatus" style="font-size:13px;"></span></div>
+
+        <hr style="border:none; border-top:1px solid #444; margin:24px 0;">
+        <h3 style="margin:0 0 12px 0;">🧹 Clean Up Generated Events</h3>
+        <p style="margin-bottom:12px; color:#aaa; font-size:13px;">Removes generated events (named like "Tin Man Points (Apr 3, 2026)") that have no participation data yet, for the event types ticked above. The preview lists them: untick any you want to keep. Events with data, events you named yourself and Active Period events are never removed.</p>
+        <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; align-items:center;">
+          <button class="btn btn-secondary" id="cleanupEventsBtn" onclick="EventsTab.previewCleanupEvents()">🔍 Preview Cleanup</button>
+          <select id="cleanupRangeSelect" style="padding:8px; border-radius:4px; border:1px solid #444; background:#2a2a2e; color:#e0e0e0; font-size:13px;">
+            <option value="all" selected>Past and upcoming</option>
+            <option value="upcoming">Upcoming only</option>
+            <option value="past">Past only (already ended)</option>
+          </select>
+          <button class="btn" id="cleanupConfirmBtn" onclick="EventsTab.runCleanupEvents()" style="display:none; background:#c62828;">🗑️ Delete</button>
+        </div>
+        <div style="margin-bottom:4px;"><span id="cleanupStatus" style="font-size:13px;"></span></div>
+        <div id="cleanupList"></div>
+      </div>
+
+      <!-- SCHEDULE TAB -->
+      <div id="scheduleTab" class="tab-content">
+        <h3 style="margin:0 0 12px 0;">🗓️ Event Schedule</h3>
+        <p class="sched-note">Which tournaments come back when, and which events <b>📅 Generate Events</b> makes for each. Saved for this clan only; the Calendar page shows it too.</p>
+        <div id="scheduleEditor"><div class="loading" style="padding:20px; text-align:center;">Loading schedule...</div></div>
+        <div id="scheduleStatus" style="font-size:13px; margin-top:8px;"></div>
       </div>
 
       <!-- EVENT TYPES TAB -->
@@ -854,6 +884,242 @@
     window.addEventListener('DOMContentLoaded', () => {
       EventsTab.init();
     });
+
+    // The Worker, { action, ...fields } style
+    window.scheduleCall = (fn, fields) => fetch(window.GAS_WEB_APP_URL, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: fn, ...fields })
+    }).then(res => res.json());
+    // ── 🗓️ SCHEDULE: this clan's event schedule (the Worker's getEventSchedule / saveEventSchedule) ──
+    // Which tournaments come back when, and which events Generate Events makes for each. Stored in
+    // the clan's own database; the Calendar page shows it too. "Generate for" lists its event types.
+    // window.scheduleCall(fn, fields, args) talks to the Worker (set above for this page's style).
+    window.Schedule = (function () {
+      const DAY = 86400000;
+      const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      let info = null;    // the last getEventSchedule answer
+      let state = null;   // { recurring, eventMap } as edited
+      let dirty = false;
+      const $ = (id) => document.getElementById(id);
+      const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+      const copy = (o) => JSON.parse(JSON.stringify(o));
+      const ymd = (d) => d.toISOString().slice(0, 10);
+      const dayOf = (s) => Date.parse(s + 'T00:00:00Z');
+      const today = () => ymd(new Date());
+
+      function status(html, color) {
+        const el = $('scheduleStatus');
+        if (el) { el.innerHTML = html; el.style.color = color || ''; }
+      }
+
+      // "Generate for": one checkbox per event type in the schedule
+      function renderGenerateTypes(schedule) {
+        const box = $('genEventTypes');
+        if (!box) return;
+        const sample = box.querySelector('label');
+        const style = sample ? sample.getAttribute('style') || '' : '';
+        const types = [...new Set(schedule.eventMap.map(m => m.eventType))];
+        box.innerHTML = types.length
+          ? types.map(t => `<label style="${esc(style)}"><input type="checkbox" class="gen-type-cb" value="${esc(t)}" checked> ${esc(t)}</label>`).join('')
+          : '<span style="opacity:0.7;">No events in the schedule yet (🗓️ Schedule tab).</span>';
+        const all = $('genSelectAll');
+        if (all) all.checked = true;
+      }
+
+      async function load() {
+        try {
+          const res = await window.scheduleCall('getEventSchedule', {}, []);
+          if (!res || !res.success) throw new Error((res && (res.message || res.error)) || 'no answer');
+          info = res;
+          state = copy(res.schedule);
+          dirty = false;
+          renderGenerateTypes(res.schedule);
+          render();
+        } catch (e) {
+          const ed = $('scheduleEditor');
+          if (ed) ed.innerHTML = '<div class="sched-note">⚠️ The schedule could not be loaded: ' + esc(e.message) + '</div>';
+        }
+      }
+
+      // Opening the tab picks up new event types, unless there are unsaved changes
+      function open() { if (!dirty) load(); }
+
+      function sourceText() {
+        if (info.source === 'saved') {
+          const when = info.savedAt ? new Date(info.savedAt).toLocaleString() : '';
+          return '✅ This clan\'s own schedule' + (info.savedBy || when ? ' (saved' + (info.savedBy ? ' by ' + esc(info.savedBy) : '') + (when ? ' on ' + esc(when) : '') + ')' : '') + '.';
+        }
+        return 'ℹ️ The default schedule' + (info.profile ? ' ("' + esc(info.profile) + '")' : '') + '. Change it and save to give this clan its own.';
+      }
+
+      function render() {
+        const ed = $('scheduleEditor');
+        if (!ed || !state) return;
+        const voltron = new Set((info.voltronTitles || []).map(t => t.toLowerCase()));
+        const types = [...new Set([...(info.eventTypes || []), ...state.eventMap.map(m => m.eventType)])].sort((a, b) => a.localeCompare(b));
+        const known = new Set((info.eventTypes || []).map(t => t.toLowerCase()));
+        const tours = state.recurring.map((r, i) => `
+          <tr>
+            <td><input class="sched-in" style="min-width:140px;" value="${esc(r.title)}" onchange="Schedule.setTour(${i}, 'title', this.value)"></td>
+            <td><input class="sched-in" type="date" value="${esc(r.firstStart)}" onchange="Schedule.setTour(${i}, 'firstStart', this.value)"></td>
+            <td><input class="sched-in" type="number" min="1" max="30" style="width:64px;" value="${esc(r.duration)}" onchange="Schedule.setTour(${i}, 'duration', this.value)"></td>
+            <td><input class="sched-in" type="number" min="1" max="366" style="width:64px;" value="${esc(r.interval)}" onchange="Schedule.setTour(${i}, 'interval', this.value)"></td>
+            <td style="text-align:center;">${voltron.has(String(r.title).toLowerCase()) ? '<span title="Uses Voltron\'s dates when the chesttracker has stored its calendar">✔️</span>' : ''}</td>
+            <td><button class="btn secondary btn-secondary sched-x" title="Remove" onclick="Schedule.removeTour(${i})">✕</button></td>
+          </tr>`).join('');
+        const events = state.eventMap.map((m, i) => {
+          const tour = state.recurring.find(r => r.title === m.calendarTitle);
+          const len = tour ? Number(tour.duration) || 1 : 1;
+          const dayOpts = ['<option value="">Whole tournament</option>']
+            .concat(Array.from({ length: len }, (_, d) => `<option value="${d}"${m.dayOffset === d ? ' selected' : ''}>From day ${d + 1}</option>`)).join('');
+          return `
+          <tr>
+            <td><select class="sched-in" onchange="Schedule.setEvent(${i}, 'calendarTitle', this.value)">${state.recurring.map(r => `<option${r.title === m.calendarTitle ? ' selected' : ''}>${esc(r.title)}</option>`).join('')}${tour ? '' : '<option selected value="">(pick one)</option>'}</select></td>
+            <td><select class="sched-in" onchange="Schedule.setEvent(${i}, 'eventType', this.value)">${m.eventType ? '' : '<option value="" selected>(pick one)</option>'}${types.map(t => `<option${t === m.eventType ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select>${m.eventType && !known.has(m.eventType.toLowerCase()) ? ' <span title="This event type doesn\'t exist yet: create it on the Event Types tab">⚠️</span>' : ''}</td>
+            <td><select class="sched-in" onchange="Schedule.setEvent(${i}, 'dayOffset', this.value)">${dayOpts}</select></td>
+            <td><input class="sched-in" type="number" min="1" max="30" style="width:64px;" value="${m.dayOffset === null ? '' : esc(m.daySpan || 1)}" ${m.dayOffset === null ? 'disabled placeholder="all"' : ''} onchange="Schedule.setEvent(${i}, 'daySpan', this.value)"></td>
+            <td><button class="btn secondary btn-secondary sched-x" title="Remove" onclick="Schedule.removeEvent(${i})">✕</button></td>
+          </tr>`;
+        }).join('');
+        ed.innerHTML = `
+          <div class="sched-note" style="margin-bottom:10px;">${sourceText()}${dirty ? ' <b>Unsaved changes.</b>' : ''}</div>
+          <h4 style="margin:12px 0 6px;">Tournaments</h4>
+          <div class="sched-note">The <b>first date</b> is a day the tournament starts at the 17:00 UTC reset; its first game day is the day after. The <b>length</b> counts calendar days from that start, so a tournament of 1 game day is 2 days long. ✔️ = the dates come from Voltron's calendar when it is available (${esc((info.voltronTitles || []).join(', '))}).</div>
+          <div class="table-container" style="overflow-x:auto;"><table class="sched-table">
+            <thead><tr><th>Tournament</th><th>First date</th><th>Length (days)</th><th>Repeats every (days)</th><th>Voltron</th><th></th></tr></thead>
+            <tbody>${tours}</tbody></table></div>
+          <button class="btn secondary btn-secondary" style="margin-top:6px;" onclick="Schedule.addTour()">+ Add tournament</button>
+          <h4 style="margin:16px 0 6px;">Events made for each tournament</h4>
+          <div class="sched-note">Generate Events makes these events, named like "Tin Man (Apr 3, 2026)". "From day 2" with 2 days = the 2nd and 3rd day of the tournament's window (Ancients: day 1 is the Towers day).</div>
+          <div class="table-container" style="overflow-x:auto;"><table class="sched-table">
+            <thead><tr><th>Tournament</th><th>Event type</th><th>Starts</th><th>Days</th><th></th></tr></thead>
+            <tbody>${events}</tbody></table></div>
+          <button class="btn secondary btn-secondary" style="margin-top:6px;" onclick="Schedule.addEvent()">+ Add event</button>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:16px;">
+            <button class="btn" onclick="Schedule.save()">💾 Save Schedule</button>
+            <button class="btn secondary btn-secondary" onclick="Schedule.preview()">🔍 Preview next 30 days</button>
+            ${dirty ? '<button class="btn secondary btn-secondary" onclick="Schedule.load()">↶ Discard changes</button>' : ''}
+            ${info.source === 'saved' ? '<button class="btn secondary btn-secondary" onclick="Schedule.reset()">↩️ Back to the default schedule</button>' : ''}
+          </div>
+          <div id="schedulePreview" style="margin-top:10px;"></div>`;
+      }
+
+      function changed() { dirty = true; status(''); render(); }
+
+      function setTour(i, field, value) {
+        const r = state.recurring[i];
+        if (field === 'title') {
+          const old = r.title;
+          r.title = String(value).trim();
+          state.eventMap.forEach(m => { if (m.calendarTitle === old) m.calendarTitle = r.title; });
+        } else if (field === 'firstStart') {
+          r.firstStart = value;
+        } else {
+          r[field] = Number(value);
+          if (field === 'duration') {
+            state.eventMap.forEach(m => {
+              if (m.calendarTitle === r.title && m.dayOffset !== null && m.dayOffset >= r.duration) m.dayOffset = Math.max(0, r.duration - 1);
+            });
+          }
+        }
+        changed();
+      }
+
+      function setEvent(i, field, value) {
+        const m = state.eventMap[i];
+        if (field === 'dayOffset') {
+          m.dayOffset = value === '' ? null : Number(value);
+          m.daySpan = m.dayOffset === null ? null : (m.daySpan || 1);
+        } else if (field === 'daySpan') {
+          m.daySpan = Number(value) || 1;
+        } else {
+          m[field] = value;
+          if (field === 'calendarTitle') m.dayOffset = m.daySpan = null;
+        }
+        changed();
+      }
+
+      function addTour() {
+        state.recurring.push({ title: 'New tournament', firstStart: today(), duration: 2, interval: 6 });
+        changed();
+      }
+
+      function removeTour(i) {
+        const r = state.recurring[i];
+        const n = state.eventMap.filter(m => m.calendarTitle === r.title).length;
+        if (n && !confirm(`Remove ${r.title} and its ${n} event(s) from the schedule?`)) return;
+        state.eventMap = state.eventMap.filter(m => m.calendarTitle !== r.title);
+        state.recurring.splice(i, 1);
+        changed();
+      }
+
+      function addEvent() {
+        if (!state.recurring.length) { status('⚠️ Add a tournament first.', 'var(--danger, #ff5252)'); return; }
+        state.eventMap.push({ calendarTitle: state.recurring[state.recurring.length - 1].title, eventType: '', dayOffset: null, daySpan: null });
+        changed();
+      }
+
+      function removeEvent(i) { state.eventMap.splice(i, 1); changed(); }
+
+      // The events the next 30 days would get on this rhythm (Voltron's dates can move the
+      // tournaments it knows; Generate Events uses those)
+      function label(s, e) {
+        const a = new Date(s + 'T00:00:00Z'), b = new Date(e + 'T00:00:00Z');
+        const sl = MONTHS[a.getUTCMonth()] + ' ' + a.getUTCDate();
+        if (s === e) return `${sl}, ${a.getUTCFullYear()}`;
+        const el = a.getUTCMonth() === b.getUTCMonth() ? String(b.getUTCDate()) : MONTHS[b.getUTCMonth()] + ' ' + b.getUTCDate();
+        return `${sl}–${el}${a.getUTCFullYear() === b.getUTCFullYear() ? `, ${a.getUTCFullYear()}` : `, ${a.getUTCFullYear()}–${b.getUTCFullYear()}`}`;
+      }
+      function preview() {
+        const start = dayOf(today()), end = start + 30 * DAY;
+        const out = [];
+        for (const r of state.recurring) {
+          const first = dayOf(r.firstStart), every = Number(r.interval), len = Number(r.duration);
+          if (isNaN(first) || !(every > 0) || !(len > 0)) continue;
+          const skip = start > first ? Math.floor((start - first) / DAY / every) : 0;
+          for (let occ = first + skip * every * DAY, n = 0; occ <= end && n < 200; occ += every * DAY, n++) {
+            if (occ + (len - 1) * DAY < start) continue;
+            for (const m of state.eventMap.filter(x => x.calendarTitle === r.title && x.eventType)) {
+              const s = m.dayOffset === null ? occ : occ + m.dayOffset * DAY;
+              const e = m.dayOffset === null ? occ + (len - 1) * DAY : s + ((m.daySpan || 1) - 1) * DAY;
+              out.push({ s: ymd(new Date(s)), name: `${m.eventType} (${label(ymd(new Date(s)), ymd(new Date(e)))})` });
+            }
+          }
+        }
+        out.sort((a, b) => a.s.localeCompare(b.s) || a.name.localeCompare(b.name));
+        $('schedulePreview').innerHTML = out.length
+          ? '<div class="sched-note">' + out.length + ' event(s) in the next 30 days on this rhythm (Voltron\'s dates can move the tournaments it knows):</div><ul style="margin:6px 0 0 18px; columns:2; font-size:0.85em;">'
+            + out.map(o => '<li>' + esc(o.name) + '</li>').join('') + '</ul>'
+          : '<div class="sched-note">No events in the next 30 days.</div>';
+      }
+
+      async function save() {
+        status('⏳ Saving...');
+        try {
+          const res = await window.scheduleCall('saveEventSchedule', { schedule: state }, [{ schedule: state }]);
+          if (!res || !res.success) { status('❌ ' + esc((res && (res.message || res.error)) || 'Saving failed.'), 'var(--danger, #ff5252)'); return; }
+          await load();
+          status('✅ ' + esc(res.message), res.missingTypes && res.missingTypes.length ? 'var(--accent-deep, #ffb300)' : 'var(--success, #4CAF50)');
+        } catch (e) {
+          status('❌ Error: ' + esc(e.message), 'var(--danger, #ff5252)');
+        }
+      }
+
+      async function reset() {
+        if (!confirm('Go back to the default schedule? This clan\'s own schedule is removed.')) return;
+        status('⏳ Resetting...');
+        try {
+          const res = await window.scheduleCall('saveEventSchedule', { reset: true }, [{ reset: true }]);
+          if (!res || !res.success) { status('❌ ' + esc((res && (res.message || res.error)) || 'Reset failed.'), 'var(--danger, #ff5252)'); return; }
+          await load();
+          status('✅ ' + esc(res.message), 'var(--success, #4CAF50)');
+        } catch (e) {
+          status('❌ Error: ' + esc(e.message), 'var(--danger, #ff5252)');
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', load);
+      return { load, open, setTour, setEvent, addTour, removeTour, addEvent, removeEvent, preview, save, reset };
+    })();
 
     const EventsTab = (() => {
       let eventsData = [];
@@ -2837,6 +3103,130 @@
         });
       }
 
+      // Clean up generated events: the preview lists the generated events without participation data,
+      // each with a checkbox; only the ticked ones are deleted (the Worker checks again on delete)
+      let cleanupCandidates = [];   // the events the last preview listed
+
+      function cleanupRequest(dryRun, eventNames) {
+        const allTypes = document.getElementById('genSelectAll').checked;
+        const eventTypes = allTypes ? [] : Array.from(document.querySelectorAll('.gen-type-cb:checked')).map(cb => cb.value);
+        const range = document.getElementById('cleanupRangeSelect').value;
+        const today = new Date().toISOString().slice(0, 10);
+        // upcoming: starting today or later; past: ended before today
+        const fromDate = range === 'upcoming' ? today : '';
+        const endBefore = range === 'past' ? today : '';
+        return fetch(window.GAS_WEB_APP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'cleanupGeneratedEvents', dryRun, eventTypes, fromDate, endBefore, eventNames })
+        }).then(res => res.json());
+      }
+
+      const cleanupDates = (x) => x.startDate === x.endDate ? escapeHtml(x.startDate) : escapeHtml(x.startDate) + ' → ' + escapeHtml(x.endDate);
+
+      function renderCleanupList() {
+        const box = document.getElementById('cleanupList');
+        if (!cleanupCandidates.length) { box.innerHTML = ''; return; }
+        box.innerHTML = '<div style="max-height:360px; overflow-y:auto; margin:8px 0 12px;"><table>'
+          + '<thead><tr><th style="width:32px;"><input type="checkbox" id="cleanupAll" checked onchange="EventsTab.toggleAllCleanup(this.checked)" title="Select all / none"></th><th>Event</th><th>Type</th><th>Dates</th></tr></thead><tbody>'
+          + cleanupCandidates.map((x, i) => '<tr><td><input type="checkbox" class="cleanup-cb" value="' + i + '" checked onchange="EventsTab.updateCleanupSelection()"></td>'
+            + '<td>' + escapeHtml(x.name) + '</td><td>' + escapeHtml(x.type) + '</td><td>' + cleanupDates(x) + '</td></tr>').join('')
+          + '</tbody></table></div>';
+        updateCleanupSelection();
+      }
+
+      function selectedCleanupNames() {
+        return Array.from(document.querySelectorAll('.cleanup-cb:checked')).map(cb => cleanupCandidates[Number(cb.value)].name);
+      }
+
+      function updateCleanupSelection() {
+        const n = selectedCleanupNames().length;
+        const confirmBtn = document.getElementById('cleanupConfirmBtn');
+        confirmBtn.textContent = '🗑️ Delete ' + n + ' selected';
+        confirmBtn.disabled = n === 0;
+        confirmBtn.style.display = cleanupCandidates.length ? '' : 'none';
+        const all = document.getElementById('cleanupAll');
+        if (all) { all.checked = n === cleanupCandidates.length; all.indeterminate = n > 0 && n < cleanupCandidates.length; }
+      }
+
+      function toggleAllCleanup(checked) {
+        document.querySelectorAll('.cleanup-cb').forEach(cb => { cb.checked = checked; });
+        updateCleanupSelection();
+      }
+
+      function previewCleanupEvents() {
+        const btn = document.getElementById('cleanupEventsBtn');
+        const status = document.getElementById('cleanupStatus');
+        if (!document.getElementById('genSelectAll').checked && !document.querySelector('.gen-type-cb:checked')) {
+          status.textContent = '⚠️ Please select at least one event type.';
+          status.style.color = '#ffb300';
+          return;
+        }
+        btn.disabled = true;
+        btn.textContent = '⏳ Checking...';
+        cleanupCandidates = [];
+        renderCleanupList();
+        updateCleanupSelection();
+        status.textContent = '';
+        status.style.color = '';
+        cleanupRequest(true)
+        .then(result => {
+          if (result && result.success) {
+            cleanupCandidates = result.deleted;
+            const parts = [cleanupCandidates.length
+              ? '🗑️ ' + cleanupCandidates.length + ' generated event(s) without participation data. Untick the ones to keep.'
+              : 'Nothing to clean up: no generated events without data.'];
+            if (result.keptWithData.length > 0) parts.push('🔒 Kept (have participation data): ' + result.keptWithData.length);
+            status.innerHTML = parts.join('<br>');
+            status.style.color = '#e0e0e0';
+            renderCleanupList();
+          } else {
+            status.textContent = '❌ ' + (result?.message || 'Preview failed.');
+            status.style.color = '#ff5252';
+          }
+        })
+        .catch(error => {
+          status.textContent = '❌ Error: ' + error.message;
+          status.style.color = '#ff5252';
+        })
+        .finally(() => {
+          btn.disabled = false;
+          btn.textContent = '🔍 Preview Cleanup';
+        });
+      }
+
+      function runCleanupEvents() {
+        const confirmBtn = document.getElementById('cleanupConfirmBtn');
+        const status = document.getElementById('cleanupStatus');
+        const names = selectedCleanupNames();
+        if (!names.length) return;
+        if (!confirm('Delete ' + names.length + ' generated event(s) without participation data? This cannot be undone.')) return;
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = '⏳ Deleting...';
+        cleanupRequest(false, names)
+        .then(result => {
+          if (result && result.success) {
+            const parts = ['✅ Deleted ' + result.deleted.length + (result.deleted.length ? ': ' + result.deleted.map(x => escapeHtml(x.name)).join(', ') : '')];
+            if (result.keptWithData.length > 0) parts.push('🔒 Not deleted, they have participation data by now: ' + result.keptWithData.map(x => escapeHtml(x.name)).join(', '));
+            if (result.errors.length > 0) parts.push('❌ ' + result.errors.length + ' error(s): ' + result.errors.map(e => escapeHtml(e.name + ': ' + e.error)).join(', '));
+            status.innerHTML = parts.join('<br>');
+            status.style.color = result.errors.length > 0 ? '#ff5252' : '#4CAF50';
+            const gone = new Set(result.deleted.map(x => x.name));
+            cleanupCandidates = cleanupCandidates.filter(x => !gone.has(x.name));
+            renderCleanupList();
+            loadEvents();
+          } else {
+            status.textContent = '❌ ' + (result?.message || 'Cleanup failed.');
+            status.style.color = '#ff5252';
+          }
+        })
+        .catch(error => {
+          status.textContent = '❌ Error: ' + error.message;
+          status.style.color = '#ff5252';
+        })
+        .finally(() => updateCleanupSelection());
+      }
+
       function viewEventParticipation(eventName) {
         const evt = eventsData.find(e => e.eventName === eventName);
         if (!evt) return;
@@ -3162,7 +3552,7 @@
         }).catch(error => { status.textContent = 'Error: ' + error.message; status.classList.add('err'); });
       }
 
-      return { init, switchTab, loadEvents, loadEventsBundle, generateEvents, toggleAllGenTypes, onChestEventSelected, onManualEventSelected, onTroopEventSelected, submitManualEntry, submitTroopEntry, calculateManualNonParticipants, calculateTroopNonParticipants, calculateChestParticipation, submitCreateEvent, updateEventTypeMethod, submitAddEventType, renderEventTypesTable, cancelEditEventType, addTroopTargetRow, removeTroopTargetRow, addEventTroopTargetRow, removeEventTroopTargetRow, editEventType, editEvent, deleteEvent, deleteEventType, viewEventParticipation, sortTable, sortManualTable, setEventFilter, setEventTypeFilter, toggleBatchTroopEntry, saveBatchTroopEntries, addToBatchEntry, removeBatchEntry, toggleManualBatchEntry, addToManualBatch, removeManualBatchEntry, saveManualBatchEntries, onPenaltyEnabledChange, savePenalty, waivePenalty, resetPenalty, calculatePenalties, recalculatePenalties, copyOutcome, onHeroEventSelected, calculateHeroLevelEvent };
+      return { init, switchTab, loadEvents, loadEventsBundle, generateEvents, toggleAllGenTypes, previewCleanupEvents, runCleanupEvents, toggleAllCleanup, updateCleanupSelection, onChestEventSelected, onManualEventSelected, onTroopEventSelected, submitManualEntry, submitTroopEntry, calculateManualNonParticipants, calculateTroopNonParticipants, calculateChestParticipation, submitCreateEvent, updateEventTypeMethod, submitAddEventType, renderEventTypesTable, cancelEditEventType, addTroopTargetRow, removeTroopTargetRow, addEventTroopTargetRow, removeEventTroopTargetRow, editEventType, editEvent, deleteEvent, deleteEventType, viewEventParticipation, sortTable, sortManualTable, setEventFilter, setEventTypeFilter, toggleBatchTroopEntry, saveBatchTroopEntries, addToBatchEntry, removeBatchEntry, toggleManualBatchEntry, addToManualBatch, removeManualBatchEntry, saveManualBatchEntries, onPenaltyEnabledChange, savePenalty, waivePenalty, resetPenalty, calculatePenalties, recalculatePenalties, copyOutcome, onHeroEventSelected, calculateHeroLevelEvent };
     })();
   </script>
 </body>
