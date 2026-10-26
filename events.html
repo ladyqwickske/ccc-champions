@@ -789,16 +789,18 @@
 
         <hr style="border:none; border-top:1px solid #444; margin:24px 0;">
         <h3 style="margin:0 0 12px 0;">🧹 Clean Up Generated Events</h3>
-        <p style="margin-bottom:12px; color:#aaa; font-size:13px;">Removes generated events (named like "Tin Man Points (Apr 3, 2026)") that have no participation data yet, for the event types ticked above. Events with data, events you named yourself and Active Period events are never removed.</p>
+        <p style="margin-bottom:12px; color:#aaa; font-size:13px;">Removes generated events (named like "Tin Man Points (Apr 3, 2026)") that have no participation data yet, for the event types ticked above. The preview lists them: untick any you want to keep. Events with data, events you named yourself and Active Period events are never removed.</p>
         <div style="display:flex; gap:8px; margin-bottom:8px; flex-wrap:wrap; align-items:center;">
           <button class="btn btn-secondary" id="cleanupEventsBtn" onclick="EventsTab.previewCleanupEvents()">🔍 Preview Cleanup</button>
           <select id="cleanupRangeSelect" style="padding:8px; border-radius:4px; border:1px solid #444; background:#2a2a2e; color:#e0e0e0; font-size:13px;">
             <option value="all" selected>Past and upcoming</option>
             <option value="upcoming">Upcoming only</option>
+            <option value="past">Past only (already ended)</option>
           </select>
           <button class="btn" id="cleanupConfirmBtn" onclick="EventsTab.runCleanupEvents()" style="display:none; background:#c62828;">🗑️ Delete</button>
         </div>
-        <div style="margin-bottom:12px;"><span id="cleanupStatus" style="font-size:13px;"></span></div>
+        <div style="margin-bottom:4px;"><span id="cleanupStatus" style="font-size:13px;"></span></div>
+        <div id="cleanupList"></div>
       </div>
 
       <!-- SCHEDULE TAB -->
@@ -3101,23 +3103,59 @@
         });
       }
 
-      // Clean up generated events (only the ones without participation data; the Worker checks again on delete)
-      function cleanupRequest(dryRun) {
+      // Clean up generated events: the preview lists the generated events without participation data,
+      // each with a checkbox; only the ticked ones are deleted (the Worker checks again on delete)
+      let cleanupCandidates = [];   // the events the last preview listed
+
+      function cleanupRequest(dryRun, eventNames) {
         const allTypes = document.getElementById('genSelectAll').checked;
         const eventTypes = allTypes ? [] : Array.from(document.querySelectorAll('.gen-type-cb:checked')).map(cb => cb.value);
-        const fromDate = document.getElementById('cleanupRangeSelect').value === 'upcoming' ? new Date().toISOString().slice(0, 10) : '';
+        const range = document.getElementById('cleanupRangeSelect').value;
+        const today = new Date().toISOString().slice(0, 10);
+        // upcoming: starting today or later; past: ended before today
+        const fromDate = range === 'upcoming' ? today : '';
+        const endBefore = range === 'past' ? today : '';
         return fetch(window.GAS_WEB_APP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'cleanupGeneratedEvents', dryRun, eventTypes, fromDate })
+          body: JSON.stringify({ action: 'cleanupGeneratedEvents', dryRun, eventTypes, fromDate, endBefore, eventNames })
         }).then(res => res.json());
       }
 
-      const cleanupList = (items) => items.map(x => escapeHtml(x.name)).join(', ');
+      const cleanupDates = (x) => x.startDate === x.endDate ? escapeHtml(x.startDate) : escapeHtml(x.startDate) + ' → ' + escapeHtml(x.endDate);
+
+      function renderCleanupList() {
+        const box = document.getElementById('cleanupList');
+        if (!cleanupCandidates.length) { box.innerHTML = ''; return; }
+        box.innerHTML = '<div style="max-height:360px; overflow-y:auto; margin:8px 0 12px;"><table>'
+          + '<thead><tr><th style="width:32px;"><input type="checkbox" id="cleanupAll" checked onchange="EventsTab.toggleAllCleanup(this.checked)" title="Select all / none"></th><th>Event</th><th>Type</th><th>Dates</th></tr></thead><tbody>'
+          + cleanupCandidates.map((x, i) => '<tr><td><input type="checkbox" class="cleanup-cb" value="' + i + '" checked onchange="EventsTab.updateCleanupSelection()"></td>'
+            + '<td>' + escapeHtml(x.name) + '</td><td>' + escapeHtml(x.type) + '</td><td>' + cleanupDates(x) + '</td></tr>').join('')
+          + '</tbody></table></div>';
+        updateCleanupSelection();
+      }
+
+      function selectedCleanupNames() {
+        return Array.from(document.querySelectorAll('.cleanup-cb:checked')).map(cb => cleanupCandidates[Number(cb.value)].name);
+      }
+
+      function updateCleanupSelection() {
+        const n = selectedCleanupNames().length;
+        const confirmBtn = document.getElementById('cleanupConfirmBtn');
+        confirmBtn.textContent = '🗑️ Delete ' + n + ' selected';
+        confirmBtn.disabled = n === 0;
+        confirmBtn.style.display = cleanupCandidates.length ? '' : 'none';
+        const all = document.getElementById('cleanupAll');
+        if (all) { all.checked = n === cleanupCandidates.length; all.indeterminate = n > 0 && n < cleanupCandidates.length; }
+      }
+
+      function toggleAllCleanup(checked) {
+        document.querySelectorAll('.cleanup-cb').forEach(cb => { cb.checked = checked; });
+        updateCleanupSelection();
+      }
 
       function previewCleanupEvents() {
         const btn = document.getElementById('cleanupEventsBtn');
-        const confirmBtn = document.getElementById('cleanupConfirmBtn');
         const status = document.getElementById('cleanupStatus');
         if (!document.getElementById('genSelectAll').checked && !document.querySelector('.gen-type-cb:checked')) {
           status.textContent = '⚠️ Please select at least one event type.';
@@ -3126,22 +3164,22 @@
         }
         btn.disabled = true;
         btn.textContent = '⏳ Checking...';
-        confirmBtn.style.display = 'none';
+        cleanupCandidates = [];
+        renderCleanupList();
+        updateCleanupSelection();
         status.textContent = '';
         status.style.color = '';
         cleanupRequest(true)
         .then(result => {
           if (result && result.success) {
-            const parts = [];
-            if (result.deleted.length > 0) parts.push('🗑️ Would delete ' + result.deleted.length + ': ' + cleanupList(result.deleted));
-            else parts.push('Nothing to clean up: no generated events without data.');
+            cleanupCandidates = result.deleted;
+            const parts = [cleanupCandidates.length
+              ? '🗑️ ' + cleanupCandidates.length + ' generated event(s) without participation data. Untick the ones to keep.'
+              : 'Nothing to clean up: no generated events without data.'];
             if (result.keptWithData.length > 0) parts.push('🔒 Kept (have participation data): ' + result.keptWithData.length);
             status.innerHTML = parts.join('<br>');
             status.style.color = '#e0e0e0';
-            if (result.deleted.length > 0) {
-              confirmBtn.textContent = '🗑️ Delete ' + result.deleted.length + ' event(s)';
-              confirmBtn.style.display = '';
-            }
+            renderCleanupList();
           } else {
             status.textContent = '❌ ' + (result?.message || 'Preview failed.');
             status.style.color = '#ff5252';
@@ -3160,16 +3198,22 @@
       function runCleanupEvents() {
         const confirmBtn = document.getElementById('cleanupConfirmBtn');
         const status = document.getElementById('cleanupStatus');
-        if (!confirm('Delete these generated events without participation data? This cannot be undone.')) return;
+        const names = selectedCleanupNames();
+        if (!names.length) return;
+        if (!confirm('Delete ' + names.length + ' generated event(s) without participation data? This cannot be undone.')) return;
         confirmBtn.disabled = true;
         confirmBtn.textContent = '⏳ Deleting...';
-        cleanupRequest(false)
+        cleanupRequest(false, names)
         .then(result => {
           if (result && result.success) {
-            const parts = ['✅ Deleted ' + result.deleted.length + (result.deleted.length ? ': ' + cleanupList(result.deleted) : '')];
+            const parts = ['✅ Deleted ' + result.deleted.length + (result.deleted.length ? ': ' + result.deleted.map(x => escapeHtml(x.name)).join(', ') : '')];
+            if (result.keptWithData.length > 0) parts.push('🔒 Not deleted, they have participation data by now: ' + result.keptWithData.map(x => escapeHtml(x.name)).join(', '));
             if (result.errors.length > 0) parts.push('❌ ' + result.errors.length + ' error(s): ' + result.errors.map(e => escapeHtml(e.name + ': ' + e.error)).join(', '));
             status.innerHTML = parts.join('<br>');
             status.style.color = result.errors.length > 0 ? '#ff5252' : '#4CAF50';
+            const gone = new Set(result.deleted.map(x => x.name));
+            cleanupCandidates = cleanupCandidates.filter(x => !gone.has(x.name));
+            renderCleanupList();
             loadEvents();
           } else {
             status.textContent = '❌ ' + (result?.message || 'Cleanup failed.');
@@ -3180,10 +3224,7 @@
           status.textContent = '❌ Error: ' + error.message;
           status.style.color = '#ff5252';
         })
-        .finally(() => {
-          confirmBtn.disabled = false;
-          confirmBtn.style.display = 'none';
-        });
+        .finally(() => updateCleanupSelection());
       }
 
       function viewEventParticipation(eventName) {
@@ -3511,7 +3552,7 @@
         }).catch(error => { status.textContent = 'Error: ' + error.message; status.classList.add('err'); });
       }
 
-      return { init, switchTab, loadEvents, loadEventsBundle, generateEvents, toggleAllGenTypes, previewCleanupEvents, runCleanupEvents, onChestEventSelected, onManualEventSelected, onTroopEventSelected, submitManualEntry, submitTroopEntry, calculateManualNonParticipants, calculateTroopNonParticipants, calculateChestParticipation, submitCreateEvent, updateEventTypeMethod, submitAddEventType, renderEventTypesTable, cancelEditEventType, addTroopTargetRow, removeTroopTargetRow, addEventTroopTargetRow, removeEventTroopTargetRow, editEventType, editEvent, deleteEvent, deleteEventType, viewEventParticipation, sortTable, sortManualTable, setEventFilter, setEventTypeFilter, toggleBatchTroopEntry, saveBatchTroopEntries, addToBatchEntry, removeBatchEntry, toggleManualBatchEntry, addToManualBatch, removeManualBatchEntry, saveManualBatchEntries, onPenaltyEnabledChange, savePenalty, waivePenalty, resetPenalty, calculatePenalties, recalculatePenalties, copyOutcome, onHeroEventSelected, calculateHeroLevelEvent };
+      return { init, switchTab, loadEvents, loadEventsBundle, generateEvents, toggleAllGenTypes, previewCleanupEvents, runCleanupEvents, toggleAllCleanup, updateCleanupSelection, onChestEventSelected, onManualEventSelected, onTroopEventSelected, submitManualEntry, submitTroopEntry, calculateManualNonParticipants, calculateTroopNonParticipants, calculateChestParticipation, submitCreateEvent, updateEventTypeMethod, submitAddEventType, renderEventTypesTable, cancelEditEventType, addTroopTargetRow, removeTroopTargetRow, addEventTroopTargetRow, removeEventTroopTargetRow, editEventType, editEvent, deleteEvent, deleteEventType, viewEventParticipation, sortTable, sortManualTable, setEventFilter, setEventTypeFilter, toggleBatchTroopEntry, saveBatchTroopEntries, addToBatchEntry, removeBatchEntry, toggleManualBatchEntry, addToManualBatch, removeManualBatchEntry, saveManualBatchEntries, onPenaltyEnabledChange, savePenalty, waivePenalty, resetPenalty, calculatePenalties, recalculatePenalties, copyOutcome, onHeroEventSelected, calculateHeroLevelEvent };
     })();
   </script>
 </body>
