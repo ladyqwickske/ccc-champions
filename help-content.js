@@ -104,7 +104,7 @@ window.HELP_CONTENT = {
         ] },
         { q: 'A member says chests are missing. What do I check?', steps: [
           'Check **Last Imported**. Chests opened after that time come in with the next import.',
-          'Was the name read wrong? See **Admin → 📥 Chest data → 🔧 Fix Chest Names**.',
+          'Were the chests saved under a wrong name? Move them with **Admin → 📥 Chest data → 🔀 Move Chests**.',
           'Did the chesttracker miss the chests? Ask the clan leader. They can add them on **➕ Manual Chests**.'
         ] }
       ]
@@ -210,7 +210,7 @@ window.HELP_CONTENT = {
         { q: 'A member changed their name in the game.', steps: [
           'Open **✏️ Change Name**.',
           'Choose the member, type the new name and click **✏️ Update Name**.',
-          'Do not use **Fix Chest Names** for this. That is only for names the chesttracker read wrong.'
+          'Do not use **🔀 Move Chests** for this. That only moves chests that were saved under a wrong name.'
         ] }
       ]
     },
@@ -251,7 +251,7 @@ window.HELP_CONTENT = {
       summary: 'Give warnings to members and see all earlier warnings.',
       parts: [
         { title: '📋 Overview', text: 'All members who have warnings, with the number of warnings. **🧹** deletes all warnings of a member.' },
-        { title: '➕ Issue Warning', text: 'Give a new warning: choose the member, the warning number (1st to 5th), the reason, and write a comment if you want.' },
+        { title: '➕ Issue Warning', text: 'Give a new warning: choose the member and the reason, and write a comment if you want. The warning number is chosen automatically: the next number for that member.' },
         { title: '🎯 Auto-warn Custom Targets', text: 'Gives the warning "Penalty target for chests" to every member who got a penalty target and does not have that warning yet.' },
         { title: '📜 History', text: 'All warnings, newest first. Filter on a member or on a reason. **🗑️** deletes one warning.' }
       ],
@@ -259,7 +259,8 @@ window.HELP_CONTENT = {
         { q: 'How do I give a warning?', steps: [
           'Open **📜 History** and choose the member. See how many warnings they already have.',
           'Open **➕ Issue Warning**.',
-          'Choose the member, the next warning number and the reason. Write a short comment.',
+          'Choose the member. **Warning #** shows their next number automatically.',
+          'Choose the reason and write a short comment.',
           'Click **⚠️ Issue Warning**.'
         ] },
         { q: 'I gave a warning by mistake.', steps: [
@@ -338,15 +339,15 @@ window.HELP_CONTENT = {
       summary: 'The settings of the clan: chest data and corrections, targets and exemptions, members who move between clans, and who may sign in.',
       parts: [
         { title: '📥 Chest data', list: [
-          '**🔧 Fix Chest Names**: chests saved under a wrongly read name. Move them to the right member.',
-          '**🔤 OCR Corrections**: words the chesttracker reads wrong, and the correct word. The chesttracker uses them at its next run.',
+          '**🔀 Move Chests**: move chests from one name to the right member, for example chests saved under a name the chesttracker read wrong.',
+          '**🔤 OCR Corrections**: words the chesttracker reads wrong, and the correct word. The chesttracker uses them at its next run. This does not change chests that are already saved: move those with **🔀 Move Chests**.',
           '**🛠️ Manage Chest Data**: every chest of the active or previous period. Remove chests that should not count, or correct a wrong chest type, name or level. You can undo this under **Recent removals** and **Recent corrections**.',
           '**➕ Manual Chests** (only the clan leader): add chests the chesttracker missed.'
         ] },
         { title: '🏷️ Rules', list: [
           '**🏷️ Chest Point Values**: how many points each chest is worth. A change counts again for the active period right away.',
           '**🛡️ Exemptions**: members who never get an event penalty, for example utility accounts. You can give dates. **Vacation**: the member still gets penalties, but more of their extra points carry over to the next period, so they can collect points before the holiday.',
-          '**🎯 Point Targets**: a member\'s own target for one period, for example a lower target for a new member. Leave it empty to use the normal target. The default target is set here too.'
+          '**🎯 Point Targets**: a member\'s own target for one period. Most targets here are calculated automatically: at every period change a shortfall or a surplus is carried over, and point penalties from events are added. Only change a target if you want to override that, for example a lower target for a new member. Leave it empty to use the normal target. The default target is set here too.'
         ] },
         { title: '🔁 Between clans', list: [
           '**🔗 Link Former Members**: a member who came back and was added as a new member. Link their old history to them.',
@@ -365,13 +366,14 @@ window.HELP_CONTENT = {
         ] },
         { q: 'One member needs a different target.', steps: [
           'Open **🏷️ Rules → 🎯 Point Targets**.',
+          'Remember: the carried-over targets are calculated automatically. Only change a target if you want to override it.',
           'Choose the period. Type the target next to the member. Leave it empty to use the normal target.',
           'Click **💾 Save Point Targets**.'
         ] },
-        { q: 'Chests are counted for a wrong name.', steps: [
-          'Open **📥 Chest data → 🔧 Fix Chest Names** and choose the period.',
-          'Find the wrong name in **Name in the chests** and choose the **Correct member**.',
-          'Confirm. Only the chests of that period move.',
+        { q: 'How do I move chests from one player to another?', steps: [
+          'Open **📥 Chest data → 🔀 Move Chests** and choose the period.',
+          'Find the wrong name in **Name in the chests** and choose the member under **Move to member**.',
+          'Click **🔀 Move** and confirm. Only the chests of that period move.',
           'Add the wrong spelling to **🔤 OCR Corrections**, so the chesttracker reads it right next time.'
         ] },
         { q: 'Chests that should not count (Inactive Player, wrong chest).', steps: [
@@ -389,7 +391,10 @@ window.HELP_CONTENT = {
           'Add them on **Members → ➕ Add Member** first.',
           'Open **🔁 Between clans → 🔁 Member Transfers**. Under **📨 Ask another clan for a profile**, choose the clan and type their name in that clan.',
           'Click **📨 Send request**.',
-          'When a superior of the other clan approves, their profile arrives. **⬇️ Copy levels** copies their troop and hero levels.'
+          'Wait until a superior of the other clan approves. The request then shows **✅ approved** under **📤 Our requests**.',
+          'Click **👁️ View profile** to see their profile.',
+          'Under the profile, pick our member at **For our member** and click **⬇️ Copy levels**. Confirm.',
+          'This adds their troop and hero levels and their captain history to our records.'
         ] }
       ]
     },

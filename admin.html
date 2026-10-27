@@ -631,7 +631,7 @@
           <button class="tab-group" data-group="access" onclick="AdminTab.switchGroup('access')">🔐 Access</button>
         </div>
         <button class="tab" data-group="chestdata" data-tab="manualChestsTab" id="manualChestsTabBtn" style="display:none" onclick="AdminTab.switchTab('manualChestsTab', event)">➕ Manual Chests</button>
-        <button class="tab active" data-group="chestdata" data-tab="chestNameFixTab" onclick="AdminTab.switchTab('chestNameFixTab', event)">🔧 Fix Chest Names</button>
+        <button class="tab active" data-group="chestdata" data-tab="chestNameFixTab" onclick="AdminTab.switchTab('chestNameFixTab', event)">🔀 Move Chests</button>
         <button class="tab" data-group="chestdata" data-tab="ocrTab" onclick="AdminTab.switchTab('ocrTab', event)">🔤 OCR Corrections</button>
         <button class="tab" data-group="chestdata" data-tab="removeChestsTab" onclick="AdminTab.switchTab('removeChestsTab', event)">🛠️ Manage Chest Data</button>
         <button class="tab" data-group="rules" hidden data-tab="chestValuesTab" onclick="AdminTab.switchTab('chestValuesTab', event)">🏷️ Chest Point Values</button>
@@ -671,8 +671,8 @@
         </table></div>
       </div>
       <div id="chestNameFixTab" class="tab-content active">
-        <h3 style="margin:0 0 6px 0;">Fix Chest Names</h3>
-        <div class="note" style="margin-bottom:12px;">A player name the chest reader got wrong: move those chests to the right member. Only the chests of the chosen period change (for a real name change in the game, use ✏️ Change Name).</div>
+        <h3 style="margin:0 0 6px 0;">Move Chests</h3>
+        <div class="note" style="margin-bottom:12px;">Move chests from one name to the right member, for example chests saved under a name the chest reader got wrong. Only the chests of the chosen period move (for a real name change in the game, use ✏️ Change Name).</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
           <label for="cnfPeriod" style="margin:0;">Period</label>
           <select id="cnfPeriod" style="width:auto;" onchange="ChestNameFix.load()"><option value="active">Active period</option><option value="previous">Previous period</option></select>
@@ -681,14 +681,14 @@
         </div>
         <div id="cnfPeriodInfo" class="note" style="margin-bottom:8px;"></div>
         <div style="overflow-x:auto;"><table id="cnfTable" data-sortable style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead><tr><th style="text-align:left;padding:6px 8px;">Name in the chests</th><th style="text-align:center;padding:6px 8px;width:70px;">Chests</th><th style="text-align:left;padding:6px 8px;">Correct member</th><th style="width:90px;"></th></tr></thead>
+          <thead><tr><th style="text-align:left;padding:6px 8px;">Name in the chests</th><th style="text-align:center;padding:6px 8px;width:70px;">Chests</th><th style="text-align:left;padding:6px 8px;">Move to member</th><th style="width:90px;"></th></tr></thead>
           <tbody id="cnfBody"><tr><td colspan="4" style="padding:8px;color:#999;">Loading…</td></tr></tbody>
         </table></div>
         <div id="cnfStatus" class="status" style="display:none;"></div>
       </div>
       <div id="ocrTab" class="tab-content">
         <h3 style="margin:0 0 6px 0;">OCR Corrections</h3>
-        <div class="note" style="margin-bottom:12px;">The chesttracker's list of words it reads wrong (player and chest names) and what they should be. Changes here reach the chesttracker at its next run; words it learns show up here after that run.</div>
+        <div class="note" style="margin-bottom:12px;">The chesttracker's list of words it reads wrong (player and chest names) and what they should be. Changes here reach the chesttracker at its next run; words it learns show up here after that run. Chests already saved under a wrong name don't change: move those with 🔀 Move Chests.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
           <input type="text" id="ocrSearch" placeholder="🔍 Search words or misreadings…" style="flex:1;min-width:200px;" oninput="OcrCorrections.render()">
           <input type="text" id="ocrNewWord" placeholder="New correct word" style="width:200px;" onkeydown="if(event.key==='Enter')OcrCorrections.addWord()">
@@ -809,7 +809,7 @@
       </div>
       <div id="pointTargetsTab" class="tab-content">
         <h3 style="margin:0 0 12px 0;">Point Targets</h3>
-        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">A member's own chest points target for one period (e.g. a shortfall carried over, or a lower target for a new member). Leave it empty to use the period's target. Only current members are listed; targets of members who left stay as they are.</p>
+        <p style="color:#b0b0b0; font-size:13px; margin-bottom:12px; text-align:left;">A member's own chest points target for one period. <b>Most targets here are calculated automatically</b>: at every period change a shortfall is carried over (a higher target) or a surplus is carried over (a lower target), and point penalties from events are added. Don't change anything here unless you want to override that, for example a lower target for a new member. Leave it empty to use the period's target. Only current members are listed; targets of members who left stay as they are.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
           <label for="ptPeriodSelect" style="margin:0;">Period</label>
           <select id="ptPeriodSelect" style="width:auto;flex:0 1 auto;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;" onchange="AdminTab.loadPointTargets()"><option value="">Loading periods...</option></select>
@@ -1474,7 +1474,7 @@
     })();
   </script>
   <script>
-    // 🔧 Fix Chest Names: move chests read under a wrong name (OCR) to the right member,
+    // 🔀 Move Chests: move chests read under a wrong name (OCR) to the right member,
     // in the active or previous period (database site only: getChestNamesForFix / fixChestPlayerName).
     window.ChestNameFix = (function () {
       let state = { names: [], members: [], period: null };
@@ -1511,7 +1511,7 @@
         const body = document.getElementById('cnfBody');
         if (!rows.length) {
           body.innerHTML = '<tr><td colspan="4" style="padding:8px;color:#81c784;">' +
-            (showAll ? 'No chests in this period yet.' : '✓ Every name in this period is a member. Tick "show all names" to fix a chest given to the wrong member.') + '</td></tr>';
+            (showAll ? 'No chests in this period yet.' : '✓ Every name in this period is a member. Tick "show all names" to move a chest given to the wrong member.') + '</td></tr>';
           return;
         }
         body.innerHTML = rows.map((n, i) => {
@@ -1520,7 +1520,7 @@
           return '<tr style="border-top:1px solid #444;"><td style="padding:6px 8px;" data-sort="' + esc(n.name).replace(/"/g, '&quot;') + '">' + esc(n.name) + tag + '</td>' +
             '<td style="text-align:center;padding:6px 8px;">' + n.chests + '</td>' +
             '<td style="padding:6px 8px;"><select data-cnf="' + i + '" style="width:100%;">' + options(n.suggestion) + '</select></td>' +
-            '<td style="padding:6px 8px;"><button class="btn" style="margin:0;padding:6px 12px;" data-cnf-apply="' + i + '">Fix</button></td></tr>';
+            '<td style="padding:6px 8px;"><button class="btn" style="margin:0;padding:6px 12px;" data-cnf-apply="' + i + '">🔀 Move</button></td></tr>';
         }).join('');
         body.querySelectorAll('[data-cnf-apply]').forEach(btn => btn.addEventListener('click', () => apply(rows[+btn.dataset.cnfApply], body.querySelector('[data-cnf="' + btn.dataset.cnfApply + '"]').value, btn)));
       }

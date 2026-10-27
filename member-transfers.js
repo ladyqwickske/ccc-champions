@@ -456,6 +456,10 @@
           + (r.answerNote ? ' · “' + esc(r.answerNote) + '”' : '') + '</span></div>'
           + '<div>' + (r.profile ? '<button class="btn" data-mt-view="' + esc(r.id) + '">' + (MT.open[r.id] ? '🔼 Hide profile' : '👁️ View profile') + '</button> ' : '')
           + '<button class="' + secondaryBtn + '" data-mt-cancel="' + esc(r.id) + '">' + (r.status === 'waiting' ? '✖ Withdraw' : '🗑️ Remove') + '</button></div></div>';
+        if (r.profile && !MT.open[r.id] && !r.levelsCopiedAt) {
+          html += '<div style="margin-top:8px;font-size:13px;' + muted + '">Next step: click <b>👁️ View profile</b>, pick our member under <b>For our member</b> '
+            + 'and click <b>⬇️ Copy levels</b>. That adds their troop and hero levels and their captain history to our records.</div>';
+        }
         if (r.profile && MT.open[r.id]) {
           html += '<div style="margin-top:10px;">' + profileHtml(r.profile)
             + '<div style="margin-top:10px;' + box + '"><b>Copy the latest troop and hero levels and the captain history into our records</b>'

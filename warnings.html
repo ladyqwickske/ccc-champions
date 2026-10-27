@@ -246,14 +246,9 @@
           <select id="warnMember"><option value="">Loading...</option></select>
         </div>
         <div>
-          <label for="warnNumber">Warning #</label>
-          <select id="warnNumber">
-            <option value="1">1st Warning</option>
-            <option value="2">2nd Warning</option>
-            <option value="3">3rd Warning</option>
-            <option value="4">4th Warning</option>
-            <option value="5">5th Warning (Final)</option>
-          </select>
+          <label for="warnNumberText">Warning #</label>
+          <input type="text" id="warnNumberText" readonly tabindex="-1" style="cursor:default;" value="Chosen automatically" title="Chosen automatically: the member's next warning number">
+          <input type="hidden" id="warnNumber" value="">
         </div>
       </div>
       <div class="form-grid full">
@@ -427,17 +422,24 @@
     document.getElementById('warnMember').addEventListener('change', autoSetWarningNumber);
   });
 
+  // The next number for the member: one above their highest warning (no maximum).
   function autoSetWarningNumber() {
     const member = document.getElementById('warnMember').value;
-    if (!member) return;
-    const s = warningSummary[member];
-    const nextNum = s ? s.maxWarningNum + 1 : 1;
-    document.getElementById('warnNumber').value = String(Math.min(nextNum, 5));
+    const s = member ? warningSummary[member] : null;
+    const nextNum = member ? (s ? (Number(s.maxWarningNum) || 0) + 1 : 1) : '';
+    document.getElementById('warnNumber').value = String(nextNum);
+    document.getElementById('warnNumberText').value = member ? ordinal(nextNum) + ' warning' : 'Chosen automatically';
+  }
+
+  function ordinal(n) {
+    const t = n % 100, u = n % 10;
+    return n + (t >= 11 && t <= 13 ? 'th' : u === 1 ? 'st' : u === 2 ? 'nd' : u === 3 ? 'rd' : 'th');
   }
 
   // ===== SUBMIT WARNING =====
   async function submitWarning() {
     const member = document.getElementById('warnMember').value;
+    autoSetWarningNumber();   // the latest number, also if warnings changed meanwhile
     const warningNumber = document.getElementById('warnNumber').value;
     const type = document.getElementById('warnType').value;
     const comment = document.getElementById('warnComment').value.trim();
