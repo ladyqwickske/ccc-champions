@@ -672,7 +672,7 @@
           <div><label for="troopEventSelect">Event</label><select id="troopEventSelect" onchange="EventsTab.onTroopEventSelected()"><option value="">-- Select Troop Event --</option></select></div>
         </div>
         <div id="troopEventActions" style="display:none; margin-bottom:12px;">
-          <p style="color:#e0e0e0; font-size:13px; margin-bottom:12px;">Event configured with category-based targets (G7/G8/T8/G9/T9). Enter points for each member below.</p>
+          <p id="troopTargetsInfo" style="color:#e0e0e0; font-size:13px; margin-bottom:12px;">Event configured with category-based targets (G7/G8/T8/G9/T9). Enter points for each member below.</p>
           <div class="form-grid" style="margin-bottom:12px;">
             <div><label for="troopMember">Member</label><select id="troopMember"><option value="">-- Select Member --</option></select></div>
             <div><label for="troopPoints">Points Achieved</label><input type="number" id="troopPoints" placeholder="Enter points" onkeypress="if(event.key==='Enter'){var bp=document.getElementById('troopBatchPanel');if(bp&&bp.style.display!=='none'){EventsTab.addToBatchEntry();}else{EventsTab.submitTroopEntry();}}"></div>
@@ -1747,6 +1747,22 @@
         return badge;
       }
 
+      /** The Troop tab's line above the entry form: the selected event's target per category. */
+      function renderTroopTargetsInfo() {
+        const el = document.getElementById('troopTargetsInfo');
+        if (!el) return;
+        const targets = getEventTroopTargets(selectedEvent?.eventType || '') || {};
+        const order = ['G7', 'G8', 'T8', 'G9', 'T9'];
+        const levels = Object.keys(targets).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+        if (!levels.length) {
+          el.innerHTML = '<span style="color:#ff9800;">No category targets set for this event or its type</span> (Event Types tab). Enter points for each member below.';
+          return;
+        }
+        el.innerHTML = '🎯 <strong style="color:#ffb300;">Category Targets:</strong> ' + levels.map(l =>
+          `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;background:#37474f;color:#cfd8dc;">${escapeHtml(l)}</span> ${isTitleTarget(targets[l]) ? 'Title' : fmtNum(targets[l])}`
+        ).join(' <span style="color:#666;">|</span> ');
+      }
+
       function getEventTroopTargets(eventTypeName) {
         // Check per-event troop targets first (override event type defaults)
         if (selectedEvent && selectedEvent.troopTargets) {
@@ -1877,6 +1893,7 @@
         currentParticipationEventName = eventName;
         if (!selectedEvent) return;
         document.getElementById('troopEventActions').style.display = 'block';
+        renderTroopTargetsInfo();
         populateMemberSelects();
         loadTroopParticipationData(eventName);
       }
@@ -2190,7 +2207,12 @@
         return (selectedEvent && selectedEvent.penaltyType === 'points') ? 'pts' : 'silver';
       }
 
-      const LATE_JOINER_BADGE = '<span class="badge" style="background:#1b5e20;color:#c8e6c9;" title="Joined the clan after this event started: not counted, no penalty">Exempt</span>';
+      const LATE_JOINER_BADGE = '<span class="badge" style="background:#1b5e20;color:#c8e6c9;" title="Joined the clan after this event started: not counted, no penalty">🛡️ Exempt</span>';
+      /** The late joiner's Exempt badge, with the join date under it when the Members page has one. */
+      function lateJoinerBadge(memberName) {
+        const joined = memberJoinDatesMap[normalizeName(memberName)];
+        return LATE_JOINER_BADGE + (joined ? `<div style="font-size:11px;color:#b0b0b0;margin-top:2px;">joined ${escapeHtml(cccDate(joined, ''))}</div>` : '');
+      }
 
       function penaltyBadge(amount, status) {
         if (status === 'Exempt') return '<span class="badge" style="background:#1b5e20;color:#c8e6c9;">Exempt</span>';
@@ -2380,7 +2402,7 @@
             : (p.value3 === 'Partial'
               ? '<span style="color:#ff9800;">⚠</span>'
               : (p.value3 === 'N/A'
-                ? '<span class="badge" style="background:#1b5e20;color:#c8e6c9;" title="Joined the clan after this event started: not counted, no penalty">Exempt</span>'
+                ? lateJoinerBadge(p.memberName)
                 : '<span style="color:#f44336;">✕</span>'));
           const row = document.createElement('tr');
           const penaltyCell = showPenalty ? `<td style="text-align:center;">${penaltyCellHtml(p.memberName, p.penalty, p.penaltyStatus)}</td>` : '';
@@ -2435,7 +2457,7 @@
           const joinDate = memberJoinDatesMap[nameKey] || null;
           const notInClan = joinDate && eventStartDate && (joinDate > eventStartDate
             || (joinDate.getTime() === eventStartDate.getTime() && !memberBeforeResetMap[nameKey]));
-          let statusIcon = notInClan ? LATE_JOINER_BADGE : '<span class="status-icon na">—</span>';
+          let statusIcon = notInClan ? lateJoinerBadge(p.memberName) : '<span class="status-icon na">—</span>';
           let statusSort = notInClan ? -1 : 0;
           if (!notInClan && targetPoints !== null && !isNaN(targetPoints)) {
             if (pts >= targetPoints) {
@@ -2539,7 +2561,7 @@
           const joinDate = memberJoinDatesMap[nameKey] || null;
           const notInClan = joinDate && eventStartDate && (joinDate > eventStartDate
             || (joinDate.getTime() === eventStartDate.getTime() && !memberBeforeResetMap[nameKey]));
-          let statusIcon = notInClan ? LATE_JOINER_BADGE : '<span class="status-icon na">—</span>';
+          let statusIcon = notInClan ? lateJoinerBadge(p.memberName) : '<span class="status-icon na">—</span>';
           let statusSort = notInClan ? -1 : 0;
           if (!notInClan && titleTarget) {
             // Title target: met with a tournament title (Winner, Podium, Top 10, Badge)
@@ -3339,7 +3361,8 @@
           const badge = status === 'Yes' ? '<span style="color:#4caf50;">✓ Yes</span>'
             : status === 'No' ? '<span style="color:#f44336;">✕ No</span>'
             : status === 'No data' ? '<span class="badge" style="background:#5c4b18;color:#fff3cd;" title="No hero level entered before the start, or none since: an officer decides">No data</span>'
-            : '<span class="badge" style="background:#1b5e20;color:#c8e6c9;" title="' + escapeHtml(status) + '">Exempt</span>';
+            : '<span class="badge" style="background:#1b5e20;color:#c8e6c9;" title="' + escapeHtml(status) + '">🛡️ Exempt</span>'
+              + (memberJoinDatesMap[normalizeName(p.memberName)] && /join/i.test(status) ? `<div style="font-size:11px;color:#b0b0b0;margin-top:2px;">joined ${escapeHtml(cccDate(memberJoinDatesMap[normalizeName(p.memberName)], ''))}</div>` : '');
           const penaltyCell = showPenalty ? `<td style="text-align:center;">${penaltyCellHtml(p.memberName, p.penalty, p.penaltyStatus)}</td>` : '';
           const gained = reach ? p.value1 : (p.value1 === '' ? '' : (Number(p.value1) >= 0 ? '+' : '') + p.value1);
           return `<tr><td>${escapeHtml(p.memberName)}</td><td style="text-align:center;">${cell(p.value2 || '')}</td><td style="text-align:center;">${cell(p.startLevel)}</td><td style="text-align:center;">${cell(p.endLevel)}</td><td style="text-align:center;">${cell(gained)}</td><td style="text-align:center;">${cell(p.target)}</td><td style="text-align:center;">${penaltyExemptBadge(p.memberName) || badge}</td>${penaltyCell}</tr>`;
