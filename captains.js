@@ -2,6 +2,8 @@
  * 🛡️ Captains — Helen and the epic captains (Hercules, Heimdall, Beowulf, Skadi): stars and level,
  * read daily from Voltron's Growth page (the chesttracker's voltron-import/voltron-growth.js).
  * The same file on every clan site: keep the copies identical.
+ * The site caches scripts for 4 hours but pages for 10 minutes: after changing this file, bump the
+ * ?v= on its <script> tag in members.html and profiling.html, so no page runs with an old copy.
  *
  *   CCCCaptains.loadAll()            Members page: { lowerName: { Helen: { stars, level, date }, … } },
  *                                    or null when the clan has no captain data (the columns stay hidden)
