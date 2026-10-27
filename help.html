@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Superior Guide</title>
+  <link rel="icon" type="image/png" href="favicon.png" id="guideIcon">
+  <!-- The same file on every clan site: the clan's name and colours come from help-content.js. -->
+  <script src="config.js"></script>
+  <script src="portal-shim.js"></script>
+  <script src="portal-auth.js"></script>
+  <script src="help-content.js"></script>
+  <script src="help.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; scroll-padding-top: 70px; }
+    body {
+      font-family: Roboto, 'Segoe UI', Arial, sans-serif; line-height: 1.6;
+      background: #1a1b1c; color: #f3f3f3; min-height: 100vh;
+      padding: 72px 12px 60px;
+    }
+    .guide-bar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+      background: var(--help-bg, #232526); border-bottom: 2px solid var(--help-accent, #ffb300);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+    .guide-bar .brand { flex: 1; font-weight: 700; color: var(--help-heading, #ffb300); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .guide-bar a, .guide-bar button {
+      color: var(--help-on-accent, #1a1b1c); background: var(--help-accent, #ffb300); border: 0; border-radius: 6px;
+      padding: 6px 12px; font: 600 14px Roboto, 'Segoe UI', Arial, sans-serif; text-decoration: none; cursor: pointer; white-space: nowrap;
+    }
+    .guide-bar .secondary { background: transparent; color: #f3f3f3; border: 1px solid #666; }
+
+    .container {
+      max-width: 860px; margin: 0 auto; background: var(--help-bg, #232526);
+      border: 1px solid #444; border-radius: 14px; padding: 24px 28px;
+    }
+    h1 { color: var(--help-heading, #ffb300); text-align: center; font-size: 1.9em; margin-bottom: 2px; }
+    .subtitle { text-align: center; color: #b8b8b8; margin-bottom: 18px; }
+
+    .guide-toc { background: rgba(255,255,255,0.05); border-radius: 10px; padding: 14px 20px; margin: 16px 0 8px; }
+    .guide-toc h2 { font-size: 1.05em; color: var(--help-heading, #ffb300); margin-bottom: 6px; }
+    .guide-toc ol { margin-left: 22px; columns: 2; column-gap: 28px; }
+    .guide-toc li { break-inside: avoid; }
+    .guide-toc a { color: #f3f3f3; text-decoration: none; }
+    .guide-toc a:hover { color: var(--help-heading, #ffb300); text-decoration: underline; }
+    .toc-icon { width: 18px; height: 18px; vertical-align: middle; }
+
+    .guide-section { padding: 20px 0 8px; border-top: 1px solid #444; margin-top: 12px; }
+    .guide-section h2 { color: var(--help-heading, #ffb300); font-size: 1.35em; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    .guide-section > p { margin-bottom: 8px; }
+    .guide-section > ul { margin: 4px 0 8px 22px; }
+    .guide-section > ul li { margin-bottom: 4px; }
+    .guide-section b { color: #fff; }
+    .guide-icon { width: 34px; height: 34px; }
+    .guide-sub { font-size: 1.05em; margin: 16px 0 8px; padding-bottom: 2px; border-bottom: 1px solid #555; color: #fff; }
+    .guide-top { font-size: 0.85em; margin-top: 8px; }
+    .guide-top a { color: #b8b8b8; }
+
+    @media (max-width: 600px) {
+      body { padding: 64px 4px 40px; }
+      .container { padding: 16px 12px; }
+      .guide-toc ol { columns: 1; }
+      .guide-bar .print { display: none; }
+    }
+    @media print {
+      body { background: #fff; color: #000; padding: 0; }
+      .guide-bar, .guide-top, .help-tip { display: none !important; }
+      .container { background: #fff; border: 0; max-width: none; }
+      .guide-section, .guide-toc { break-inside: avoid-page; }
+      h1, .guide-section h2, .guide-toc h2, .help-part h3, .guide-sub, .guide-section b, .help-part b, .help-summary b { color: #000 !important; }
+      .help-who, .subtitle, .guide-toc a { color: #333 !important; }
+      .help-summary { background: #f2f2f2 !important; }
+    }
+  </style>
+</head>
+<body id="top">
+
+<div class="guide-bar">
+  <span class="brand" id="guideBrand">📖 Superior Guide</span>
+  <button type="button" class="secondary print" onclick="window.print()">🖨️ Print / PDF</button>
+  <a href="dashboard.html" id="guideBack">← Back to the site</a>
+</div>
+
+<div class="container">
+  <h1>📖 Superior Guide</h1>
+  <p class="subtitle" id="guideSubtitle">How the clan website works, page by page</p>
+  <div id="guideBody"></div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    // Not a superior: portal-auth.js has replaced the page with "Restricted page".
+    if (!document.getElementById('guideBody')) return;
+    var c = window.HELP_CONTENT || {};
+    if (c.clanName) {
+      document.title = c.clanName + ' - Superior Guide';
+      document.getElementById('guideBrand').textContent = '📖 ' + c.clanName;
+    }
+    if (c.home) document.getElementById('guideBack').href = c.home;
+    if (c.icon) document.getElementById('guideIcon').href = c.icon;
+    HelpGuide.renderGuide(document.getElementById('guideBody'));
+    // The sections are drawn after the page loads: jump to the #page asked for in the link.
+    if (location.hash) {
+      var target = document.getElementById(location.hash.slice(1));
+      if (target) target.scrollIntoView();
+    }
+  });
+</script>
+</body>
+</html>
