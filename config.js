@@ -116,6 +116,10 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 	// or any touch screen up to 1400px wide (a tablet held sideways)
 	const TABLET = '(min-width: 801px) and (max-width: 1024px), (min-width: 801px) and (max-width: 1400px) and (pointer: coarse)';
 	const css = [
+		// A menu button the page hides (admin-only pages for members, Bank / Admin before sign-in:
+		// style="display:none") stays hidden: the desktop and tablet rules below set display with
+		// !important, and this rule is more specific, so it wins over them
+		'.tab-nav .tab-btn[style*="display: none"], .tab-nav .tab-btn[style*="display:none"] { display: none !important; }',
 		// Phone menu: the same text size and spacing as the Legends / Masters menu
 		// (the pages' own rules use 18px text with 18px 24px padding)
 		'@media (max-width: 800px) { .tab-buttons .tab-btn { font-size: 14.4px !important; padding: 10px 12px !important; } }',
