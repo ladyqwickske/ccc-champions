@@ -14,7 +14,7 @@
   <script src="help-content.js"></script>
   <script src="help.js"></script>
   <script src="evolution.js?v=2026-10-17c"></script>
-  <script src="captains.js"></script>
+  <script src="captains.js?v=2026-10-27"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -595,7 +595,7 @@
           document.getElementById('individualContent').style.display = 'block';
           CCCEvolution.load(name);
           loadHeroHistory(name);
-          CCCCaptains.renderMember(document.getElementById('captainSection'), name, () => document.getElementById('memberSelect').value === name);
+          if (window.CCCCaptains) CCCCaptains.renderMember(document.getElementById('captainSection'), name, () => document.getElementById('memberSelect').value === name);
         } else {
           document.getElementById('individualEmpty').innerHTML = '<div class="empty-state"><p>Failed to load profile: ' + (res && res.message ? res.message : 'Unknown error') + '</p></div>';
         }
