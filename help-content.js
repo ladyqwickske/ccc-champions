@@ -17,6 +17,7 @@
 window.HELP_CONTENT = {
   clanName: 'cCc Champions',
   home: 'dashboard.html',
+  icon: 'favicon.png',
   // Help panel colours: accent = the clan colour, panel = a dark background.
   colors: { accent: '#ffb300', panel: '#232526' },
 

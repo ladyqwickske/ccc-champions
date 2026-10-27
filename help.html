@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Superior Guide</title>
-  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="icon" type="image/png" href="favicon.png" id="guideIcon">
   <!-- The same file on every clan site: the clan's name and colours come from help-content.js. -->
   <script src="config.js"></script>
   <script src="portal-shim.js"></script>
@@ -99,6 +99,7 @@
       document.getElementById('guideBrand').textContent = '📖 ' + c.clanName;
     }
     if (c.home) document.getElementById('guideBack').href = c.home;
+    if (c.icon) document.getElementById('guideIcon').href = c.icon;
     HelpGuide.renderGuide(document.getElementById('guideBody'));
     // The sections are drawn after the page loads: jump to the #page asked for in the link.
     if (location.hash) {
