@@ -7,6 +7,7 @@
  *                                    or null when the clan has no captain data (the columns stay hidden)
  *   CCCCaptains.helenCell(caps)      table cell: "★4 · 45"
  *   CCCCaptains.epicCell(caps)       table cell: "3/4 · ★9" (epic captains owned, their stars together); hover for each
+ *   CCCCaptains.carterStars(caps)    after the Carter level (C): " ★2", or '' without Carter's stars
  *   CCCCaptains.helenSort(caps) / epicSort(caps)   numbers to sort by
  *   CCCCaptains.renderMember(el, memberName, stillCurrent)
  *                                    Profiling page → member detail: a card per captain and the history.
@@ -84,6 +85,12 @@
     return `<span class="cap-cell" title="${esc(tip)}">${s.owned.length}/${EPIC.length} · <span class="cap-star">★${s.stars}</span></span>`;
   }
 
+  function carterStars(caps) {
+    const c = caps && caps.Carter;
+    if (!c || c.stars == null) return '';
+    return ` <span class="cap-star cap-cell" title="Carter: ${esc(text(c))}${c.date ? ' (' + esc(c.date) + ')' : ''}">★${c.stars}</span>`;
+  }
+
   const helenSort = (caps) => { const h = caps && caps.Helen; return has(h) ? (h.stars || 0) * 10000 + (h.level || 0) : -1; };
   const epicSort = (caps) => { const s = epicSummary(caps); return s.owned.length ? s.owned.length * 1e8 + s.stars * 1e4 + s.levels : -1; };
 
@@ -119,5 +126,5 @@
     el.innerHTML = html;
   }
 
-  window.CCCCaptains = { EPIC, loadAll, helenCell, epicCell, helenSort, epicSort, renderMember };
+  window.CCCCaptains = { EPIC, loadAll, helenCell, epicCell, carterStars, helenSort, epicSort, renderMember };
 })();
