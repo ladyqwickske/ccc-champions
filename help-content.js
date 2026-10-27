@@ -124,6 +124,13 @@ window.HELP_CONTENT = {
         { title: '🦸 Hero Events', text: 'Checks if the hero level of each member went up enough during the event. It uses the hero levels entered on the Members page. It is calculated automatically one day after the event.' },
         { title: '➕ Create Event', text: 'Make one event by hand, make the coming events from the schedule (**📅 Generate Events**), or remove generated events that are not needed (**🧹 Clean Up Generated Events**).' },
         { title: '⚙️ Event Types', text: 'The kinds of events (for example Ragnarok) and how each kind is counted: from chests, troop targets, by hand, hero level, or only as a date (period marker).' },
+        { title: '🎯 Targets and penalties', list: [
+          '**Target Points**: what every member must reach in this event. Leave it empty to use the event type\'s default (**Threshold** on ⚙️ Event Types).',
+          '**🎖️ Troop Category Targets**: a different target per troop category (G7, G8, T8, G9, T9). A member\'s category is their highest troop level.',
+          '**Title** (instead of points, per category): the member must win a tournament title: Winner, Podium, Top 10 or Badge. Titles come from the Voltron import, so use Title only for tournament events imported from Voltron.',
+          '**Penalty**: every event can have a penalty, or none. Without a penalty, a missed target has no cost (it still counts in Profiling).',
+          'New events start with the targets of their event type. Generated events start without a penalty.'
+        ] },
         { title: '🗓️ Schedule', text: 'When each tournament comes back, and which events **📅 Generate Events** makes for it. The Calendar page shows this schedule too.' },
         { title: 'Penalty buttons (on every event tab)', list: [
           '**🙅‍♂️ Fill Non-Participants**: marks every member without an entry as "did not take part".',
@@ -154,10 +161,33 @@ window.HELP_CONTENT = {
         ] },
         { q: 'How do I create one event by hand?', steps: [
           'Open **➕ Create Event**.',
-          'Type the name, choose the event type, the start date and the end date. Type the target points, or leave it empty to use the normal target.',
-          'Troop event? Add a target per troop category under **🎖️ Troop Category Targets**.',
-          'Want a penalty? Tick **Enable penalty for this event**, choose **💰 Silver** or **📦 Extra Chest Points**, and type the amount. A member who missed 40% of the target gets 40% of the penalty.',
+          'Type the name, choose the event type, the start date and the end date.',
+          'Set the targets and the penalty (see the questions below).',
           'Click **🎯 Create Event**.'
+        ] },
+        { q: 'How do I set the target of an event?', steps: [
+          'Open **📋 Manage Events** and click **✏️** next to the event. For a new event, open **➕ Create Event**.',
+          'Type the target in **Target Points**. This is the target for every member.',
+          'Leave it empty to use the default of the event type (**Threshold** on ⚙️ Event Types). For **Active Period** it is the chest points target of the period.',
+          'Hero events: the target is the number of hero levels to gain (Hero Level Increase) or the hero level to reach (Hero Level Reached).',
+          'Click **💾 Update Event** (or **🎯 Create Event** for a new event).'
+        ] },
+        { q: 'How do I set targets per troop category?', steps: [
+          'Open the event with **✏️** (or **➕ Create Event**) and choose a troop, hero or chest event type with troop targets. The section **🎖️ Troop Category Targets** appears.',
+          'Click **➕ Add Category Target** for each category. Choose the category (for example G8) and type its target.',
+          'Tournament from Voltron? Choose **Title** instead of **Points** for a category. Those members must win a title (Winner, Podium, Top 10 or Badge). Only use this for tournament events whose results are imported from Voltron: other events have no titles, so nobody would reach the target.',
+          'Chest event with troop targets (**Chest-Based (Troop Targets)**)? The category targets are the number of chests each member must open.',
+          'Members whose category has no target here use **Target Points** of the event.',
+          'Click **💾 Update Event** (or **🎯 Create Event** for a new event).',
+          'To set the same targets for every new event of a type: open **⚙️ Event Types**, edit the type and fill in **Category Targets** (**➕ Add Category Target**). Click **💾 Save Event Type**. New and generated events then start with these targets.'
+        ] },
+        { q: 'How do I give an event a penalty (or not)?', steps: [
+          'A penalty is a choice per event. An event without a penalty only counts in Profiling.',
+          'Open the event with **✏️** in **📋 Manage Events** (or use **➕ Create Event**).',
+          'Tick **Enable penalty for this event**. Choose **💰 Silver** (paid to the clan bank) or **📦 Extra Chest Points** (added to the member\'s chest points target).',
+          'Type the amount: the penalty for a member who did nothing. A member who missed 40% of the target gets 40% of it. Silver penalties are rounded up to the nearest million.',
+          'No penalty? Leave the box unticked. Generated events always start without a penalty, so tick it on the events that need one.',
+          'Click **💾 Update Event** (or **🎯 Create Event** for a new event). The penalty is only given when you apply the penalties after the event.'
         ] },
         { q: 'Too many generated events. How do I remove them?', steps: [
           'Open **➕ Create Event** and scroll down to **🧹 Clean Up Generated Events**.',
