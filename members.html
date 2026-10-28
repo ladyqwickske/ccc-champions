@@ -631,7 +631,7 @@
       <div id="troopStatCards" style="display:contents"></div>
       <div class="stat-card"><h3>Top Hero</h3><div class="value" id="statTopHero" style="font-size:16px">-</div></div>
     </div>
-    <div class="controls"><div class="search-box"><input type="text" id="memberSearchInput" placeholder="🔍 Search by member name..."></div><button class="btn" onclick="MembersTab.loadAllData()">🔄 Refresh</button></div>
+    <div class="controls"><div class="search-box"><input type="text" id="memberSearchInput" placeholder="🔍 Search by member name..."></div><button class="btn" onclick="MembersTab.loadAllData()">🔄 Refresh</button><button class="btn" id="exportTroopsBtn" onclick="MembersTab.exportTroopsCsv()" title="Every member with their troop levels and profile score, grouped by troop category">⬇️ Export CSV</button></div>
 
     <div class="tabs-container">
       <div class="tabs">
@@ -2171,6 +2171,48 @@
         return might.toLocaleString();
       }
 
+      // ⬇️ Export CSV: every member with their troop levels and profile score
+      // (getProfilingRankings, the same score as on the Profiling page), grouped by
+      // troop category (highest first), best score first within each category.
+      async function exportTroopsCsv() {
+        const btn = document.getElementById('exportTroopsBtn');
+        const label = btn.textContent;
+        btn.disabled = true; btn.textContent = '⏳ Exporting...';
+        try {
+          const res = await fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'getProfilingRankings' }) }).then(r => r.json());
+          if (!res || !res.success) throw new Error((res && res.message) || 'Could not load the profile scores');
+          const scores = {};
+          const ranked = (res.rankings || []).filter(r => !r.notRanked).sort((a, b) => b.score - a.score);
+          (res.rankings || []).forEach(r => {
+            scores[(r.member || '').trim().toLowerCase()] = { score: r.score, rating: r.rating, rank: r.notRanked ? 'Not ranked yet' : ranked.indexOf(r) + 1 };
+          });
+          const rows = membersData.map(member => {
+            const key = (member.name || '').trim().toLowerCase();
+            const t = troopData[key] || {};
+            return { member, t, cat: determineTroopCategory(t.G, t.M, t.S), hero: heroData[key], p: scores[key] || {} };
+          }).sort((a, b) => CATEGORY_ORDER.indexOf(b.cat) - CATEGORY_ORDER.indexOf(a.cat)
+            || (b.p.score ?? -1) - (a.p.score ?? -1) || a.member.name.localeCompare(b.member.name));
+          const cell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+          const lines = [['Category', 'Rank in category', 'Member', 'Guardsmen (G)', 'Monsters (M)', 'Specialists (S)', 'Eng. Corps (E)', 'Carter (C)', 'Hero level', 'Profile score', 'Rating', 'Clan rank', 'Joined'].map(cell).join(',')];
+          let prevCat, catRank = 0;
+          rows.forEach(r => {
+            catRank = r.cat === prevCat ? catRank + 1 : 1; prevCat = r.cat;
+            lines.push([r.cat || 'No troop levels', catRank, r.member.name, r.t.G, r.t.M, r.t.S, r.t.E, r.t.C, r.hero ? r.hero.level : '',
+              r.p.score, r.p.rating, r.p.rank, r.member.joinDate ? cccDate(r.member.joinDate) : ''].map(cell).join(','));
+          });
+          const blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'members-troops-scores-' + new Date().toISOString().slice(0, 10) + '.csv';
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        } catch (e) {
+          showToast('Export failed: ' + e.message, 'error');
+        } finally {
+          btn.disabled = false; btn.textContent = label;
+        }
+      }
+
       function formatDate(dateStr) {
         if (!dateStr) return '-';
         return cccDate(dateStr); // shared UTC format (ccc-dates.js)
@@ -2203,7 +2245,7 @@
         document.getElementById('memberEmpty').style.display = 'block';
       }
 
-      return { init, toggleJoinedBeforeReset, loadAllData, switchTab, switchGroup, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts, loadSuperiors, toggleSuperior, addSuperiorEmail, updateSuperiorEmail, removeSuperiorEmail, saveSuperiors };
+      return { init, toggleJoinedBeforeReset, loadAllData, exportTroopsCsv, switchTab, switchGroup, loadMemberTroops, submitAllTroops, submitHeroLevelEntry, toggleHeroBatch, addToHeroBatch, removeHeroBatchEntry, saveHeroBatchEntries, submitAddMember, submitNameChange, submitRemoveMember, loadChestPointsTabData, loadExemptMembers, toggleExemptMember, updateExemptField, saveExemptMembers, loadMemberAccounts, updateMemberAccount, saveMemberAccounts, loadSuperiors, toggleSuperior, addSuperiorEmail, updateSuperiorEmail, removeSuperiorEmail, saveSuperiors };
     })();
   </script>
 </body>
