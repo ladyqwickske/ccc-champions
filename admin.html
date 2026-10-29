@@ -633,7 +633,7 @@
         <button class="tab" data-group="chestdata" data-tab="manualChestsTab" id="manualChestsTabBtn" style="display:none" onclick="AdminTab.switchTab('manualChestsTab', event)">➕ Manual Chests</button>
         <button class="tab active" data-group="chestdata" data-tab="chestNameFixTab" onclick="AdminTab.switchTab('chestNameFixTab', event)">🔀 Move Chests</button>
         <button class="tab" data-group="chestdata" data-tab="ocrTab" onclick="AdminTab.switchTab('ocrTab', event)">🔤 OCR Corrections</button>
-        <button class="tab" data-group="chestdata" data-tab="voltronNamesTab" onclick="AdminTab.switchTab('voltronNamesTab', event)">🛰️ Voltron Names</button>
+        <button class="tab" data-group="chestdata" data-tab="voltronNamesTab" id="voltronNamesTabBtn" style="display:none" onclick="AdminTab.switchTab('voltronNamesTab', event)">🛰️ Voltron Names</button>
         <button class="tab" data-group="chestdata" data-tab="removeChestsTab" onclick="AdminTab.switchTab('removeChestsTab', event)">🛠️ Manage Chest Data</button>
         <button class="tab" data-group="rules" hidden data-tab="chestValuesTab" onclick="AdminTab.switchTab('chestValuesTab', event)">🏷️ Chest Point Values</button>
         <button class="tab" data-group="rules" hidden data-tab="exemptTab" onclick="AdminTab.switchTab('exemptTab', event)">🛡️ Exemptions</button>
@@ -1203,7 +1203,7 @@
         const btn = document.getElementById('superiorsTabBtn');
         if (!email || !btn) return;
         fetchSuperiors()
-          .then(data => { superiors = data; btn.style.display = ''; const mc = document.getElementById('manualChestsTabBtn'); if (mc) mc.style.display = ''; })
+          .then(data => { superiors = data; btn.style.display = ''; const mc = document.getElementById('manualChestsTabBtn'); if (mc) mc.style.display = ''; if (window.VoltronNames) window.VoltronNames.checkAccess(); })
           .catch(() => { btn.style.display = 'none'; });
       }
 
@@ -1760,7 +1760,7 @@
       return { load, render, addWord };
     })();
 
-    // 🛰️ Voltron Names: Voltron player names → member names for the Voltron imports
+    // 🛰️ Voltron Names (owner only): Voltron player names → member names for the Voltron imports
     // (getVoltronNameCorrections / updateVoltronNameCorrections). Names the last runs
     // could not match are listed on top for a quick fix.
     window.VoltronNames = (function () {
@@ -1887,7 +1887,15 @@
         if (!(mEl.value || '').trim()) { status('Which member is "' + v + '"?', false); return; }
         if (await set(v, mEl.value)) { vEl.value = ''; mEl.value = ''; }
       }
-      return { load, render, add };
+      // Show the tab only to the owner: the Worker answers getVoltronNameCorrections only for her (and the imports' API key).
+      function checkAccess() {
+        const btn = document.getElementById('voltronNamesTabBtn');
+        if (!btn) return;
+        post({ action: 'getVoltronNameCorrections' })
+          .then(r => { if (r && r.success) btn.style.display = ''; })
+          .catch(() => {});
+      }
+      return { load, render, add, checkAccess };
     })();
 
     // 🏷️ Chest Point Values: the points per chest (old "Chests 2.0" tab), changed on the
