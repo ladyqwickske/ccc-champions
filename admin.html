@@ -633,6 +633,7 @@
         <button class="tab" data-group="chestdata" data-tab="manualChestsTab" id="manualChestsTabBtn" style="display:none" onclick="AdminTab.switchTab('manualChestsTab', event)">➕ Manual Chests</button>
         <button class="tab active" data-group="chestdata" data-tab="chestNameFixTab" onclick="AdminTab.switchTab('chestNameFixTab', event)">🔀 Move Chests</button>
         <button class="tab" data-group="chestdata" data-tab="ocrTab" onclick="AdminTab.switchTab('ocrTab', event)">🔤 OCR Corrections</button>
+        <button class="tab" data-group="chestdata" data-tab="voltronNamesTab" onclick="AdminTab.switchTab('voltronNamesTab', event)">🛰️ Voltron Names</button>
         <button class="tab" data-group="chestdata" data-tab="removeChestsTab" onclick="AdminTab.switchTab('removeChestsTab', event)">🛠️ Manage Chest Data</button>
         <button class="tab" data-group="rules" hidden data-tab="chestValuesTab" onclick="AdminTab.switchTab('chestValuesTab', event)">🏷️ Chest Point Values</button>
         <button class="tab" data-group="rules" hidden data-tab="exemptTab" onclick="AdminTab.switchTab('exemptTab', event)">🛡️ Exemptions</button>
@@ -698,6 +699,24 @@
         <div id="ocrInfo" class="note" style="margin-bottom:8px;"></div>
         <div id="ocrStatus" class="status" style="display:none;"></div>
         <div id="ocrList"></div>
+      </div>
+      <div id="voltronNamesTab" class="tab-content">
+        <h3 style="margin:0 0 6px 0;">Voltron Names</h3>
+        <div class="note" style="margin-bottom:12px;">Voltron player names that don't match a member by themselves, and the member they belong to. The daily Voltron imports (tournament scores, hero / troop / captain levels) use this list; scores and levels that weren't recorded for a name are added at the next run. A real name change in the game? Use ✏️ Change Name on the Members page instead: old names are matched by themselves.</div>
+        <h4 style="margin:6px 0 4px 0;color:#ffb300;text-align:left;">Not matched in the last runs</h4>
+        <div id="vnUnknown"></div>
+        <h4 style="margin:16px 0 6px 0;color:#ffb300;text-align:left;">Corrections</h4>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <input type="text" id="vnNewVoltron" placeholder="Name on Voltron" style="width:200px;" onkeydown="if(event.key==='Enter')VoltronNames.add()">
+          <input type="text" id="vnNewMember" list="vnMemberList" placeholder="Member" style="width:200px;" onkeydown="if(event.key==='Enter')VoltronNames.add()">
+          <button class="btn" style="margin:0;" onclick="VoltronNames.add()">➕ Add</button>
+          <button class="btn btn-secondary" style="margin:0;" onclick="VoltronNames.load()">🔄 Reload</button>
+        </div>
+        <input type="text" id="vnSearch" placeholder="🔍 Search…" style="width:100%;max-width:420px;margin-bottom:6px;" oninput="VoltronNames.render()">
+        <div id="vnInfo" class="note" style="margin-bottom:8px;"></div>
+        <div id="vnStatus" class="status" style="display:none;"></div>
+        <div id="vnList"></div>
+        <datalist id="vnMemberList"></datalist>
       </div>
       <div id="removeChestsTab" class="tab-content">
         <h3 style="margin:0 0 12px 0;">Manage Chest Data</h3>
@@ -1454,6 +1473,7 @@
         if (tabId === 'chestNameFixTab' && window.ChestNameFix) window.ChestNameFix.load();
         if (tabId === 'chestValuesTab' && window.ChestPointValues) window.ChestPointValues.load();
         if (tabId === 'ocrTab' && window.OcrCorrections) window.OcrCorrections.load();
+        if (tabId === 'voltronNamesTab' && window.VoltronNames) window.VoltronNames.load();
         if (tabId === 'removeChestsTab' && window.RemoveChests) window.RemoveChests.load();
         if (tabId === 'manualChestsTab' && window.ManualChests) window.ManualChests.load();
         if (tabId === 'transfersTab' && window.MemberTransfers) window.MemberTransfers.load();
@@ -1738,6 +1758,136 @@
         change([{ op: 'addWord', word: w }], '"' + w + '" added. Add its misreadings on its line.');
       }
       return { load, render, addWord };
+    })();
+
+    // 🛰️ Voltron Names: Voltron player names → member names for the Voltron imports
+    // (getVoltronNameCorrections / updateVoltronNameCorrections). Names the last runs
+    // could not match are listed on top for a quick fix.
+    window.VoltronNames = (function () {
+      let state = { rows: [], unknown: [] };
+      let memberNames = [];
+      const esc = (t) => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+      const attr = (t) => esc(t).replace(/"/g, '&quot;');
+      const when = (t) => t ? (window.cccDateTime ? cccDateTime(t) : String(t).replace('T', ' ').slice(0, 16)) : '';
+      const post = async (body) => {
+        const res = await fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return res.json();
+      };
+      const status = (msg, ok) => {
+        const el = document.getElementById('vnStatus');
+        el.style.display = msg ? '' : 'none';
+        el.className = 'status ' + (ok ? 'ok' : 'err');
+        el.textContent = msg || '';
+      };
+      async function loadMembers() {
+        try {
+          const r = await post({ action: 'getAllMembers' });
+          const arr = Array.isArray(r) ? r : (r && (r.data || r.members)) || [];
+          memberNames = arr.map(m => typeof m === 'string' ? m : m && m.name).filter(Boolean).map(String)
+            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+          document.getElementById('vnMemberList').innerHTML = memberNames.map(n => '<option value="' + attr(n) + '"></option>').join('');
+        } catch (e) { /* the list still works without suggestions */ }
+      }
+      const show = (r) => {
+        state = { rows: r.rows || [], unknown: r.unknown || [] };
+        const last = state.rows.slice().sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))[0];
+        document.getElementById('vnInfo').textContent = state.rows.length + ' correction(s)' +
+          (last ? ' · last change ' + when(last.updatedAt) + ' by ' + (last.updatedBy || '?') : '');
+        render();
+      };
+      async function load() {
+        status('');
+        if (!memberNames.length) loadMembers();
+        try {
+          const r = await post({ action: 'getVoltronNameCorrections' });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Could not load the list');
+          show(r);
+        } catch (e) { status(e.message, false); }
+      }
+      async function change(changes, okMsg) {
+        status('');
+        try {
+          let email = '';
+          try { email = localStorage.getItem('ccc_portal_google_email') || ''; } catch (e) {}
+          const r = await post({ action: 'updateVoltronNameCorrections', changes: changes, userEmail: email });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'The change failed');
+          show(r);
+          status(okMsg || r.message, true);
+          return true;
+        } catch (e) { status(e.message, false); return false; }
+      }
+      // The member as typed, spelled like the Members list; asks before saving a name that is no member.
+      function pickMember(typed) {
+        const t = String(typed || '').trim();
+        if (!t) return '';
+        const hit = memberNames.find(n => n === t) || memberNames.find(n => n.toLowerCase() === t.toLowerCase());
+        if (hit) return hit;
+        if (memberNames.length && !confirm('"' + t + '" is not on the Members list. Save it anyway?')) return '';
+        return t;
+      }
+      function set(voltronName, typed) {
+        const member = pickMember(typed);
+        if (!member) return Promise.resolve(false);
+        return change([{ op: 'set', voltronName: voltronName, memberName: member }], '"' + voltronName + '" is now read as "' + member + '". The next Voltron import records it.');
+      }
+      const inputStyle = 'padding:4px 8px;font-size:12px;width:180px;';
+      const smallBtn = 'margin:0;padding:4px 8px;font-size:12px;';
+      const line = 'border-top:1px solid rgba(128,128,128,0.35);padding:8px 4px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;';
+      function render() {
+        const unk = document.getElementById('vnUnknown');
+        unk.innerHTML = !state.unknown.length ? '<div style="padding:6px 4px;opacity:0.75;font-size:13px;">✅ No unmatched Voltron names in the last 30 days.</div>' :
+          state.unknown.map(u =>
+            '<div class="vn-unknown" data-name="' + attr(u.voltronName) + '" style="' + line + '">' +
+              '<strong style="min-width:150px;">' + esc(u.voltronName) + '</strong>' +
+              '<span style="font-size:12px;opacity:0.75;flex:1;min-width:140px;">' + esc(u.detail || u.problem) + ' · seen ' + esc(when(u.lastSeen)) + '</span>' +
+              '<input type="text" list="vnMemberList" placeholder="Member…" data-vn-member style="' + inputStyle + '">' +
+              '<button class="btn" data-vn-save style="' + smallBtn + '">✔ Save</button>' +
+              '<button class="btn btn-secondary" data-vn-dismiss style="' + smallBtn + '" title="Not a member: take it off this list">✖ Not a member</button>' +
+            '</div>').join('');
+        unk.querySelectorAll('.vn-unknown').forEach(row => {
+          const name = row.getAttribute('data-name');
+          const input = row.querySelector('[data-vn-member]');
+          const save = () => set(name, input.value);
+          row.querySelector('[data-vn-save]').addEventListener('click', save);
+          input.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') save(); });
+          row.querySelector('[data-vn-dismiss]').addEventListener('click', () =>
+            change([{ op: 'dismiss', voltronName: name }], '"' + name + '" taken off the list (it comes back if a later run still can\'t match it).'));
+        });
+
+        const q = (document.getElementById('vnSearch').value || '').toLowerCase().trim();
+        const rows = state.rows.filter(r => !q || r.voltronName.toLowerCase().includes(q) || r.memberName.toLowerCase().includes(q));
+        const box = document.getElementById('vnList');
+        if (!rows.length) { box.innerHTML = '<div style="padding:8px 4px;opacity:0.75;font-size:13px;">' + (state.rows.length ? 'Nothing matches.' : 'No corrections yet.') + '</div>'; return; }
+        box.innerHTML = rows.map(r =>
+          '<div class="vn-row" data-name="' + attr(r.voltronName) + '" style="' + line + '">' +
+            '<strong style="min-width:150px;">' + esc(r.voltronName) + '</strong><span>→</span>' +
+            '<span style="min-width:140px;">' + esc(r.memberName) + (memberNames.length && !memberNames.includes(r.memberName) ? ' <span title="Not on the Members list" style="color:#ef5350;">⚠️</span>' : '') + '</span>' +
+            '<span style="font-size:11px;opacity:0.65;">' + esc(when(r.updatedAt)) + (r.updatedBy ? ' · ' + esc(r.updatedBy) : '') + '</span>' +
+            '<span style="margin-left:auto;display:flex;gap:4px;">' +
+              '<button class="btn btn-secondary" data-vn-edit style="' + smallBtn + '" title="Change the member">✏️</button>' +
+              '<button class="btn btn-secondary" data-vn-del style="' + smallBtn + '" title="Remove this correction">🗑</button></span>' +
+          '</div>').join('');
+        box.querySelectorAll('.vn-row').forEach(row => {
+          const name = row.getAttribute('data-name');
+          const cur = state.rows.find(r => r.voltronName === name) || {};
+          row.querySelector('[data-vn-edit]').addEventListener('click', () => {
+            const nw = prompt('Voltron name "' + name + '" belongs to member:', cur.memberName || '');
+            if (nw && nw.trim() && nw.trim() !== cur.memberName) set(name, nw);
+          });
+          row.querySelector('[data-vn-del]').addEventListener('click', () => {
+            if (confirm('Remove the correction "' + name + '" → "' + cur.memberName + '"?'))
+              change([{ op: 'remove', voltronName: name }], 'Correction for "' + name + '" removed.');
+          });
+        });
+      }
+      async function add() {
+        const vEl = document.getElementById('vnNewVoltron'), mEl = document.getElementById('vnNewMember');
+        const v = (vEl.value || '').trim();
+        if (!v) { status('Type the name exactly as Voltron shows it.', false); return; }
+        if (!(mEl.value || '').trim()) { status('Which member is "' + v + '"?', false); return; }
+        if (await set(v, mEl.value)) { vEl.value = ''; mEl.value = ''; }
+      }
+      return { load, render, add };
     })();
 
     // 🏷️ Chest Point Values: the points per chest (old "Chests 2.0" tab), changed on the
