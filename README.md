@@ -1,2 +1,2 @@
 # ccc-champions
-Dashboard for cCc Champions
+Dashboard for cCc Anatolia
