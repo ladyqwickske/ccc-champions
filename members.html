@@ -1643,7 +1643,7 @@
         }).catch(error => { status.textContent = 'Error: ' + error.message; status.classList.add('err'); });
       }
 
-      function submitAddMember() {
+      async function submitAddMember() {
         const name = document.getElementById('newMemberNameInput').value.trim();
         const joinDate = document.getElementById('joinDate').value;
         const status = document.getElementById('addMemberStatus');
@@ -1651,6 +1651,8 @@
         status.className = 'status';
         if (!name) { status.textContent = 'Please enter a name.'; status.classList.add('err'); return; }
         if (!joinDate) { status.textContent = 'Please select a join date.'; status.classList.add('err'); return; }
+        // A former member had this name: same person (→ Returning member) or someone new? (member-transfers.js)
+        if (window.ReturningMember && !(await window.ReturningMember.confirmNew(name))) return;
         status.textContent = 'Adding member...';
         fetch(window.GAS_WEB_APP_URL, {
           method: 'POST',

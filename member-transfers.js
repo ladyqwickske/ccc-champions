@@ -8,7 +8,8 @@
  *                   Former Members list and restore them (their login comes
  *                   along; under a new name their history is renamed to it).
  *                   In "New member" mode a name that looks like a former
- *                   member's shows a hint.
+ *                   member's shows a hint, and adding a name a former member
+ *                   had asks first whether it is the same person (confirmNew).
  *  LinkFormer       🔗 Link Former Members tab: link one or more Former
  *                   Members entries to a current member (someone who came
  *                   back, maybe more than once, and was added as new); their
@@ -226,7 +227,81 @@
     });
   }
 
+  /** Former members who had exactly this name (case, accents, spaces and symbols ignored), also as an old name. */
+  function sameName(name) {
+    var t = key(name);
+    if (!t || !RM.former) return [];
+    return RM.former.filter(function (m) {
+      return [m.name].concat(m.previousNames || []).some(function (n) { return key(n) === t; });
+    }).sort(function (a, b) { return String(b.endDate || '').localeCompare(String(a.endDate || '')); });
+  }
+
+  /** The question before adding a new member who has a former member's name: resolves 'returning', 'new' or 'cancel'. */
+  function askSamePerson(name, matches) {
+    return new Promise(function (resolve) {
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100001;display:flex;align-items:center;justify-content:center;padding:16px;';
+      var who = matches.map(function (m) {
+        var label = formerLabel(m);
+        return '<li><b>' + esc(m.name) + '</b>' + (label ? ' <span style="' + muted + '">(' + esc(label) + ')</span>' : '') + '</li>';
+      }).join('');
+      overlay.innerHTML = '<div id="sameNameDialog" role="dialog" aria-modal="true" style="background:var(--bg-card, #2b2622);color:var(--text, #f3f3f3);' + box
+        + 'max-width:480px;width:100%;padding:18px;text-align:left;box-shadow:0 8px 24px rgba(0,0,0,.4);">'
+        + '<h3 style="margin:0 0 10px;">Was ' + esc(name) + ' here before?</h3>'
+        + '<p style="margin:0 0 6px;">The Former Members list has a player with this name:</p>'
+        + '<ul style="margin:0 0 10px;padding-left:20px;">' + who + '</ul>'
+        + '<p style="' + muted + 'font-size:13px;margin:0 0 14px;">Same person: add them as a returning member, so their earlier history (warnings, chests, events, …) stays theirs. '
+        + 'Someone else: add them as a new member; the earlier player\'s history then never counts for them.</p>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;">'
+        + '<button type="button" class="' + secondaryBtn + '" data-answer="cancel">Cancel</button>'
+        + '<button type="button" class="' + secondaryBtn + '" data-answer="new">🆕 Someone else — add as new</button>'
+        + '<button type="button" class="btn" data-answer="returning">↩️ Same person — returning member</button>'
+        + '</div></div>';
+      var done = function (answer) { document.removeEventListener('keydown', onKey); overlay.remove(); resolve(answer); };
+      var onKey = function (e) { if (e.key === 'Escape') done('cancel'); };
+      overlay.addEventListener('click', function (e) {
+        var b = e.target.closest ? e.target.closest('[data-answer]') : null;
+        if (b) done(b.getAttribute('data-answer'));
+        else if (e.target === overlay) done('cancel');
+      });
+      document.addEventListener('keydown', onKey);
+      document.body.appendChild(overlay);
+    });
+  }
+
+  /** Opens "Returning member" with the former member picked (or searched for, when there are several). */
+  function openReturning(name, matches) {
+    window.ReturningMember.setMode('returning');
+    var pick = function () {
+      var s = $('rmSearch');
+      if (s) { s.value = matches.length === 1 ? matches[0].name : name.trim(); drawList(); }
+      if (matches.length === 1) {
+        var inp = document.querySelector('input[name="rmPick"][value="' + String(matches[0].row).replace(/"/g, '') + '"]');
+        if (inp) { inp.checked = true; inp.dispatchEvent(new Event('change')); }
+        var n = $('rmName');
+        if (n) { n.value = name.trim(); n.dispatchEvent(new Event('input')); }
+      }
+    };
+    loadFormer().then(pick).catch(function () {});
+  }
+
   window.ReturningMember = {
+    /**
+     * Before adding `name` as a new member: when a former member had that name, asks whether
+     * it is the same person. Resolves true to go on adding them as new; false when the superior
+     * chose "same person" (Returning member opens with them picked) or cancelled. When the
+     * Former Members list can't be loaded the add goes on as before.
+     */
+    confirmNew: function (name) {
+      return loadFormer().then(function () {
+        var matches = sameName(name);
+        if (!matches.length) return true;
+        return askSamePerson(String(name).trim(), matches).then(function (answer) {
+          if (answer === 'returning') openReturning(name, matches);
+          return answer === 'new';
+        });
+      }, function () { return true; });
+    },
     /**
      * opts: { container, newForm, hint, nameInput, modeName, currentMembers(), onDone(result) }
      * (element ids; modeName = the name of the two mode radio buttons)
