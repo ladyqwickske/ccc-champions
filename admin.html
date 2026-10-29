@@ -642,6 +642,7 @@
         <button class="tab" data-group="clans" hidden data-tab="transfersTab" id="transfersTabBtn" onclick="AdminTab.switchTab('transfersTab', event)">🔁 Member Transfers</button>
         <button class="tab" data-group="access" hidden data-tab="accountsTab" onclick="AdminTab.switchTab('accountsTab', event)">🔐 Member Login Accounts</button>
         <button class="tab" data-group="access" hidden data-tab="superiorsTab" id="superiorsTabBtn" style="display:none" onclick="AdminTab.switchTab('superiorsTab', event)">👑 Superiors</button>
+        <button class="tab" data-group="access" hidden data-tab="orchestratorTab" id="orchestratorTabBtn" style="display:none" onclick="AdminTab.switchTab('orchestratorTab', event)">🖥️ Orchestrator</button>
     </div>
       <div id="manualChestsTab" class="tab-content">
         <h3 style="margin:0 0 6px 0;">Manual Chests</h3>
@@ -881,6 +882,35 @@
         <p style="color:#b0b0b0; font-size:12px; margin:0 0 8px 0; text-align:left;">Google logins with superior rights that aren't linked to a clan member. The note is just for you (e.g. who it is).</p>
         <div id="superiorEmailsList" style="border:1px solid #444; border-radius:8px; padding:10px; background:#232526; text-align:left;"></div>
         <button class="btn btn-secondary" style="margin-top:8px;" onclick="AdminTab.addSuperiorEmail()">➕ Add e-mail</button>
+      </div>
+      <div id="orchestratorTab" class="tab-content">
+        <h3 style="margin:0 0 6px 0;">Orchestrator</h3>
+        <div class="note" style="margin-bottom:12px;">The chesttracker PC's orchestrator, from anywhere. Buttons and settings reach it within about a minute while it runs; <b>Start</b> goes through the watchdog on the PC (within about 5 minutes). Settings here go on top of <code>orchestrator.json</code> without changing the file: ↺ puts a setting back to the file's value. Only you can see this tab.</div>
+        <div id="orcState" style="border:1px solid #444;border-radius:8px;padding:12px;background:#232526;text-align:left;margin-bottom:10px;">Loading…</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+          <button class="btn" style="margin:0;" onclick="Orchestrator.command('start')">▶️ Start</button>
+          <button class="btn btn-secondary" style="margin:0;" onclick="Orchestrator.command('pause')">⏸️ Pause</button>
+          <button class="btn btn-secondary" style="margin:0;" onclick="Orchestrator.command('resume')">⏯️ Resume</button>
+          <button class="btn btn-secondary" style="margin:0;" onclick="Orchestrator.command('stop')">⏹️ Stop</button>
+          <button class="btn btn-secondary" style="margin:0;" onclick="Orchestrator.load()">🔄 Reload</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+          <select id="orcRunNowClan" style="width:auto;min-width:180px;"><option value="*">All enabled clans</option></select>
+          <button class="btn btn-secondary" style="margin:0;" onclick="Orchestrator.command('runnow')">⚡ Run now</button>
+        </div>
+        <div id="orcStatus" class="status" style="display:none;"></div>
+        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Clans</h4>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
+          <thead><tr><th style="text-align:left;padding:6px 8px;">Clan</th><th style="padding:6px 8px;">On</th><th style="padding:6px 8px;">Every (h)</th><th style="padding:6px 8px;" title="Voltron tournament import">Tourn.</th><th style="padding:6px 8px;" title="Voltron growth import (hero, troop, captain levels)">Growth</th><th style="padding:6px 8px;" title="Voltron calendar sync">Calendar</th><th style="text-align:left;padding:6px 8px;">Last run</th><th style="text-align:left;padding:6px 8px;">Next run</th></tr></thead>
+          <tbody id="orcClans"></tbody>
+        </table></div>
+        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Vacation accounts</h4>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
+          <thead><tr><th style="text-align:left;padding:6px 8px;">Account</th><th style="padding:6px 8px;">On</th><th style="text-align:left;padding:6px 8px;">Last login</th><th style="text-align:left;padding:6px 8px;">Next login</th></tr></thead>
+          <tbody id="orcVacation"></tbody>
+        </table></div>
+        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Recent buttons</h4>
+        <div id="orcRecent" style="font-size:12px;text-align:left;"></div>
       </div>
     </div>
 
@@ -1203,7 +1233,7 @@
         const btn = document.getElementById('superiorsTabBtn');
         if (!email || !btn) return;
         fetchSuperiors()
-          .then(data => { superiors = data; btn.style.display = ''; const mc = document.getElementById('manualChestsTabBtn'); if (mc) mc.style.display = ''; if (window.VoltronNames) window.VoltronNames.checkAccess(); })
+          .then(data => { superiors = data; btn.style.display = ''; const mc = document.getElementById('manualChestsTabBtn'); if (mc) mc.style.display = ''; if (window.VoltronNames) window.VoltronNames.checkAccess(); if (window.Orchestrator) window.Orchestrator.checkAccess(); })
           .catch(() => { btn.style.display = 'none'; });
       }
 
@@ -1477,6 +1507,7 @@
         if (tabId === 'removeChestsTab' && window.RemoveChests) window.RemoveChests.load();
         if (tabId === 'manualChestsTab' && window.ManualChests) window.ManualChests.load();
         if (tabId === 'transfersTab' && window.MemberTransfers) window.MemberTransfers.load();
+        if (tabId === 'orchestratorTab' && window.Orchestrator) window.Orchestrator.load();
         if (tabId === 'linkFormerTab' && window.LinkFormer) window.LinkFormer.load();
         if (tabId === 'exemptTab') loadExemptMembers();
         if (tabId === 'pointTargetsTab') loadPointTargets(true);
@@ -1896,6 +1927,168 @@
           .catch(() => {});
       }
       return { load, render, add, checkAccess };
+    })();
+
+    // 🖥️ Orchestrator (owner only): the chesttracker PC's orchestrator from the website
+    // (getOrchestratorRemote / updateOrchestratorRemote; the PC syncs with orchestratorSync,
+    // the watchdog asks orchestratorWatchdog). Refreshes every 30 s while the tab is open.
+    window.Orchestrator = (function () {
+      let data = null, timer = null;
+      const CLAN_FLAGS = [['enabled', 'On'], ['voltron_import', 'Tournament import'], ['voltron_growth', 'Growth import'], ['voltron_calendar', 'Calendar sync']];
+      const $ = (id) => document.getElementById(id);
+      const esc = (t) => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+      const attr = (t) => esc(t).replace(/"/g, '&quot;');
+      const post = async (body) => {
+        const res = await fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return res.json();
+      };
+      const status = (msg, ok) => {
+        const el = $('orcStatus');
+        el.style.display = msg ? '' : 'none';
+        el.className = 'status ' + (ok ? 'ok' : 'err');
+        el.textContent = msg || '';
+      };
+      const fmt = (iso) => {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        if (isNaN(d)) return esc(iso);
+        return d.toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      };
+      const ago = (iso) => {
+        if (!iso) return 'never';
+        const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+        return min < 1 ? 'just now' : min < 60 ? min + ' min ago' : min < 2880 ? Math.round(min / 60) + ' h ago' : Math.round(min / 1440) + ' days ago';
+      };
+      const fresh = (iso, minutes) => iso && (Date.now() - new Date(iso).getTime()) < minutes * 60000;
+      async function load(quiet) {
+        if (!quiet) status('');
+        try {
+          const r = await post({ action: 'getOrchestratorRemote' });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Could not load the orchestrator');
+          data = r;
+          render();
+        } catch (e) { if (!quiet) status(e.message, false); }
+        if (!timer) timer = setInterval(() => {
+          const tab = $('orchestratorTab');
+          if (!tab || !tab.classList.contains('active') || document.hidden) return;
+          load(true);
+        }, 30000);
+      }
+      async function send(body, okMsg) {
+        status('');
+        try {
+          let email = '';
+          try { email = localStorage.getItem('ccc_portal_google_email') || ''; } catch (e) {}
+          const r = await post({ action: 'updateOrchestratorRemote', userEmail: email, ...body });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'The change failed');
+          data = r;
+          render();
+          status(okMsg || r.message, true);
+        } catch (e) { status(e.message, false); }
+      }
+      function command(kind) {
+        if (kind === 'stop' && !confirm('Stop the orchestrator? It stops within about a minute, also in the middle of a clan, and stays stopped until you press Start.')) return;
+        const body = { command: kind };
+        if (kind === 'runnow') body.clan = $('orcRunNowClan').value || '*';
+        send(body);
+      }
+      // A switch / interval: back to "no website setting" when it equals orchestrator.json
+      function setValue(scope, name, field, value, fileValue) {
+        send({ set: { scope: scope, name: name, field: field, value: value === fileValue ? null : value } });
+      }
+      function reset(scope, name, field) { send({ set: { scope: scope, name: name, field: field, value: null } }, 'Back to the orchestrator.json value.'); }
+
+      function stateBox() {
+        const st = data.status, desired = (data.desired && data.desired.state) || 'running';
+        const contact = fresh(data.statusAt, 3);
+        let state = st ? st.state : 'unknown';
+        if (st && state !== 'stopped' && !contact) state = 'no contact';
+        const color = { running: '#66bb6a', sleeping: '#66bb6a', paused: '#ffb300', stopped: '#ef5350', 'no contact': '#ef5350', unknown: '#999' }[state] || '#999';
+        const label = { running: '🟢 Running', sleeping: '🟢 Sleeping until the next run', paused: '⏸️ Paused', stopped: '⏹️ Stopped', 'no contact': '⚠️ No contact', unknown: '❔ Never heard from the PC' }[state] || state;
+        const lines = [];
+        lines.push('<div style="font-size:16px;font-weight:600;color:' + color + ';margin-bottom:6px;">' + label + '</div>');
+        if (st && state === 'running' && st.clan) lines.push('Now: <b>' + esc(st.clan) + '</b>' + (st.info ? ' — ' + esc(st.info) : ''));
+        if (st && state === 'sleeping' && st.nextCycle) lines.push('Next cycle: <b>' + esc(st.nextCycle) + '</b> (PC time)');
+        if (state === 'no contact') lines.push('The orchestrator last reported <b>' + ago(data.statusAt) + '</b>' + (st && st.state ? ' (it was ' + esc(st.state) + ')' : '') + '. Stopped, crashed, or the PC is off or offline.');
+        lines.push('<span class="note">Orchestrator last sync: ' + ago(data.statusAt) + (st && st.host ? ' · PC ' + esc(st.host) : '') + (st && st.startedAt && state !== 'stopped' ? ' · running since ' + fmt(st.startedAt) : '') + '</span>');
+        lines.push('<span class="note">Watchdog last check: ' + ago(data.watchdogAt) + (data.watchdog ? ' (saw it ' + (data.watchdog.running ? 'running' : 'not running') + ')' : '') +
+          (fresh(data.watchdogAt, 20) ? '' : ' — <b style="color:#ef5350;">the watchdog hasn\'t checked in for a while: Start can\'t work until it does (PC off, asleep or offline?)</b>') + '</span>');
+        lines.push('<span class="note">Wanted: <b>' + (desired === 'stopped' ? 'stopped' : 'running') + '</b>' + (data.desired && data.desired.by ? ' (' + esc(data.desired.by) + ', ' + ago(data.desired.at) + ')' : '') + '</span>');
+        if (data.pending && data.pending.length) lines.push('<span class="note">Waiting for the PC: ' + data.pending.map(p => esc(p.type + (p.clan && p.clan !== '*' ? ' ' + p.clan : ''))).join(', ') + '</span>');
+        $('orcState').innerHTML = lines[0] + lines.slice(1).join('<br>');
+      }
+      function render() {
+        if (!data) return;
+        stateBox();
+        const st = data.status || { clans: [], vacation: [] };
+        const sets = data.settings || {};
+        const sel = $('orcRunNowClan'), keep = sel.value;
+        sel.innerHTML = '<option value="*">All enabled clans</option>' + (st.clans || []).map(c => '<option value="' + attr(c.name) + '">' + esc(c.name) + '</option>').join('');
+        sel.value = [...sel.options].some(o => o.value === keep) ? keep : '*';
+        const cell = 'padding:6px 8px;border-top:1px solid #444;';
+        const resetBtn = (scope, name, field) => ' <button title="Back to the orchestrator.json value" data-orc-reset="' + scope + '|' + attr(name) + '|' + field + '" style="background:none;border:none;color:#ffb300;cursor:pointer;padding:0 2px;">↺</button>';
+        $('orcClans').innerHTML = (st.clans || []).length ? st.clans.map(c => {
+          const over = (sets.clans || {})[c.name] || {};
+          const file = c.file || {};
+          const flag = (f, title) => {
+            const has = f in over, value = has ? !!over[f] : !!file[f];
+            const off = f === 'voltron_import' && !(c.voltronReady || {}).import || f === 'voltron_calendar' && !(c.voltronReady || {}).calendar;
+            return '<td style="' + cell + 'text-align:center;white-space:nowrap;"><input type="checkbox" title="' + attr(title + (off ? ' (not set up in orchestrator.json)' : '')) + '" data-orc-flag="' + f + '" data-name="' + attr(c.name) + '"' + (value ? ' checked' : '') + (off && !value ? ' disabled' : '') + '>' +
+              (has ? (c[f] === value ? '' : ' <span title="Waiting for the PC to apply it" style="font-size:11px;">⏳</span>') + resetBtn('clan', c.name, f) : '') + '</td>';
+          };
+          const ivHas = 'interval_hours' in over;
+          const iv = ivHas ? over.interval_hours : (file.interval_hours > 0 ? file.interval_hours : (st.intervalHours || ''));
+          return '<tr>' +
+            '<td style="' + cell + 'font-weight:600;">' + esc(c.name) + '</td>' +
+            flag('enabled', 'On') +
+            '<td style="' + cell + 'text-align:center;white-space:nowrap;"><input type="number" min="0.25" max="48" step="0.25" value="' + attr(iv) + '" data-orc-iv data-name="' + attr(c.name) + '" data-file="' + attr(file.interval_hours || 0) + '" style="width:70px;padding:4px 6px;font-size:12px;">' +
+              (ivHas ? (Number(c.interval_hours) === Number(over.interval_hours) ? '' : ' <span title="Waiting for the PC to apply it" style="font-size:11px;">⏳</span>') + resetBtn('clan', c.name, 'interval_hours') : '') + '</td>' +
+            flag('voltron_import', 'Tournament import') + flag('voltron_growth', 'Growth import') + flag('voltron_calendar', 'Calendar sync') +
+            '<td style="' + cell + 'white-space:nowrap;">' + fmt(c.lastRun) + '</td>' +
+            '<td style="' + cell + 'white-space:nowrap;">' + (c.enabled ? fmt(c.nextRun) : '<span class="note">off</span>') + '</td>' +
+          '</tr>';
+        }).join('') : '<tr><td colspan="8" style="' + cell + 'color:#999;">The clans show up once the orchestrator has synced with the website.</td></tr>';
+        $('orcVacation').innerHTML = (st.vacation || []).length ? st.vacation.map(v => {
+          const over = (sets.vacation || {})[v.name] || {};
+          const has = 'enabled' in over, value = has ? !!over.enabled : !!(v.file || {}).enabled;
+          return '<tr><td style="' + cell + 'font-weight:600;">' + esc(v.name) + '</td>' +
+            '<td style="' + cell + 'text-align:center;white-space:nowrap;"><input type="checkbox" data-orc-vac data-name="' + attr(v.name) + '"' + (value ? ' checked' : '') + '>' +
+              (has ? (v.enabled === value ? '' : ' <span title="Waiting for the PC to apply it" style="font-size:11px;">⏳</span>') + resetBtn('vacation', v.name, 'enabled') : '') + '</td>' +
+            '<td style="' + cell + 'white-space:nowrap;">' + fmt(v.lastLogin) + '</td>' +
+            '<td style="' + cell + 'white-space:nowrap;">' + (v.enabled ? fmt(v.nextLogin) : '<span class="note">off</span>') + '</td></tr>';
+        }).join('') : '<tr><td colspan="4" style="' + cell + 'color:#999;">No vacation accounts in orchestrator.json' + (data.status ? '' : ' (or no sync yet)') + '.</td></tr>';
+        $('orcRecent').innerHTML = (data.recent || []).length ? data.recent.map(x =>
+          '<div style="padding:3px 0;border-top:1px solid #333;">' + fmt(x.createdAt) + ' · <b>' + esc(x.type) + (x.clan && x.clan !== '*' ? ' ' + esc(x.clan) : x.type === 'runnow' ? ' (all)' : '') + '</b> · ' +
+            (x.doneAt ? esc(x.result || 'done') + ' (' + fmt(x.doneAt) + ')' : '<span style="color:#ffb300;">waiting for the PC</span>') + '</div>').join('') : '<span class="note">None yet. (Start isn\'t listed: it goes through the watchdog.)</span>';
+
+        const fileOf = (name) => ((st.clans || []).find(c => c.name === name) || {}).file || {};
+        document.querySelectorAll('#orcClans [data-orc-flag]').forEach(cb => cb.addEventListener('change', () => {
+          const name = cb.getAttribute('data-name'), f = cb.getAttribute('data-orc-flag');
+          if (f === 'enabled' && !cb.checked && !confirm('Switch off ' + name + '? The orchestrator skips it until you switch it on again.')) { cb.checked = true; return; }
+          setValue('clan', name, f, cb.checked, !!fileOf(name)[f]);
+        }));
+        document.querySelectorAll('#orcClans [data-orc-iv]').forEach(inp => inp.addEventListener('change', () => {
+          const name = inp.getAttribute('data-name'), n = Number(inp.value);
+          if (!(n >= 0.25 && n <= 48)) { status('An interval is between 0.25 and 48 hours.', false); return; }
+          setValue('clan', name, 'interval_hours', n, Number(fileOf(name).interval_hours) > 0 ? Number(fileOf(name).interval_hours) : null);
+        }));
+        document.querySelectorAll('#orcVacation [data-orc-vac]').forEach(cb => cb.addEventListener('change', () => {
+          const name = cb.getAttribute('data-name');
+          const v = (st.vacation || []).find(x => x.name === name) || {};
+          setValue('vacation', name, 'enabled', cb.checked, !!(v.file || {}).enabled);
+        }));
+        document.querySelectorAll('#orchestratorTab [data-orc-reset]').forEach(b => b.addEventListener('click', () => {
+          const [scope, name, field] = b.getAttribute('data-orc-reset').split('|');
+          reset(scope, name, field);
+        }));
+      }
+      // Show the tab only to the owner: the Worker answers getOrchestratorRemote only for her.
+      function checkAccess() {
+        const btn = $('orchestratorTabBtn');
+        if (!btn) return;
+        post({ action: 'getOrchestratorRemote' }).then(r => { if (r && r.success) btn.style.display = ''; }).catch(() => {});
+      }
+      return { load, command, checkAccess };
     })();
 
     // 🏷️ Chest Point Values: the points per chest (old "Chests 2.0" tab), changed on the
