@@ -1998,6 +1998,15 @@
         const r = await post({ action: 'addMember', name: name, joinDate: joinDate });
         if (!okOf(r)) throw new Error('Adding "' + name + '": ' + msgOf(r));
       }
+      // Like the Members page's 🚪 Remove Member: to Former Members with the end date and reason
+      let lastEnd = '', lastReason = 'Left the clan (not on Voltron)';
+      async function removeMember(name, endDate, reason) {
+        const r = data && data.rules === 'legends'
+          ? await post({ action: 'api', fn: 'removeMember', args: [name, endDate, reason] })
+          : await post({ action: 'disableMember', memberName: name, endDate: endDate, remarks: reason });
+        const res = r && r.ok !== undefined && r.data !== undefined ? r.data : r;
+        if (!res || res.success === false || (r && r.ok === false)) throw new Error('"' + name + '": ' + msgOf(res || r));
+      }
       async function run(fn, okMsg) {
         status('Working…', true);
         try { const extra = await fn(); status((okMsg || 'Done.') + (extra ? ' ' + extra : ''), true); }
@@ -2032,7 +2041,11 @@
         // 1. New on Voltron
         $('rcxNewCount').textContent = '(' + data.voltronNew.length + ')';
         $('rcxNew').innerHTML = data.voltronNew.length ? data.voltronNew.map((v, i) => {
-          const info = [levels(v), v.firstSeen ? (v.firstSeenIsBaseline ? 'on Voltron since before ' : 'first on Voltron ') + day(v.firstSeen) : '', v.detail].filter(Boolean).join(' · ');
+          // where the name comes from: Voltron's full list now, or only an import (a tournament: may have left since)
+          const source = v.onVoltronNow ? '✅ on Voltron now'
+            : ro.fresh ? '⚠️ not on Voltron\'s latest list' + (v.detail ? ' (seen in ' + v.detail + ')' : '') + ': left again?'
+            : v.detail ? 'seen in the tournament ' + v.detail : 'seen by the growth import ' + day(v.lastSeen);
+          const info = [source, levels(v), v.firstSeen ? (v.firstSeenIsBaseline ? 'on Voltron since before ' : 'first on Voltron ') + day(v.firstSeen) : ''].filter(Boolean).join(' · ');
           const sugg = (v.suggestions || []).map(s => s.kind === 'member'
             ? '<button class="btn btn-secondary" data-same="' + i + '" data-target="' + attr(s.name) + '" style="' + small + '" title="Same player: Voltron writes the name differently (a Voltron name correction)">🔗 is ' + esc(s.name) + '</button>'
             : '<span class="note" style="margin:0;">looks like former member <b>' + esc(s.name) + '</b> (Members page → Returning member)</span>').join(' ');
@@ -2094,9 +2107,36 @@
         $('rcxReturned').innerHTML = (data.returned || []).length ? data.returned.map(v =>
           '<div style="padding:4px 0;border-top:1px solid rgba(128,128,128,0.35);"><b>' + esc(v.name) + '</b>' + (v.former !== v.name ? ' = former member <b>' + esc(v.former) + '</b>' : '') +
           (levels(v) ? ' <span class="note" style="margin:0;">' + esc(levels(v)) + '</span>' : '') + ' — back? Members page → Returning member (keeps their old data).</div>').join('') : '<span class="note">None.</span>';
-        $('rcxGone').innerHTML = !ro.fresh ? '<span class="note">Shown once Voltron\'s full list comes in.</span>' : (data.notOnVoltron.length ? data.notOnVoltron.map(m =>
-          '<div style="padding:4px 0;border-top:1px solid rgba(128,128,128,0.35);"><b>' + esc(m.name) + '</b>' + (m.joinDate ? ' <span class="note" style="margin:0;">joined ' + esc(String(m.joinDate).slice(0, 10)) + '</span>' : '') + '</div>').join('') +
-          '<div class="note">Left? Remove them on the Members page, or add them to the exemptions if they stay on purpose.</div>' : '<span class="note">✅ Every member is on Voltron.</span>');
+        // 4. Members not on Voltron's latest list: remove them here (end date + reason), one by one or all
+        if (!ro.fresh) $('rcxGone').innerHTML = '<span class="note">Shown once Voltron\'s full list comes in (the growth import sends it; Orchestrator → 🛰️ Run Voltron now → Growth import).</span>';
+        else if (!data.notOnVoltron.length) $('rcxGone').innerHTML = '<span class="note">✅ Every member is on Voltron\'s list of ' + esc(day(ro.at)) + '.</span>';
+        else {
+          $('rcxGone').innerHTML = '<div class="note" style="margin:0 0 6px;">Not on Voltron\'s list of ' + esc(day(ro.at)) + '. Left? Remove them: they go to Former Members with the end date and reason below (their history stays, and <b>Returning member</b> brings it back). Staying on purpose (for example suspended)? Add them to the exemptions instead.</div>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">' +
+              '<label for="rcxEndDate" style="margin:0;">End date</label><input type="date" id="rcxEndDate" value="' + attr(lastEnd || today()) + '" style="' + inp + 'width:140px;margin:0;">' +
+              '<label for="rcxReason" style="margin:0;">Reason</label><input type="text" id="rcxReason" value="' + attr(lastReason) + '" style="' + inp + 'width:220px;margin:0;">' +
+              '<button class="btn btn-secondary" id="rcxRemoveAll" style="' + small + '">🚪 Remove all ' + data.notOnVoltron.length + '</button></div>' +
+            data.notOnVoltron.map((m, i) =>
+              '<div style="padding:4px 0;border-top:1px solid rgba(128,128,128,0.35);display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><b style="flex:1 1 140px;">' + esc(m.name) + '</b>' +
+              (m.joinDate ? '<span class="note" style="margin:0;">joined ' + esc(String(m.joinDate).slice(0, 10)) + '</span>' : '') +
+              '<button class="btn btn-secondary" data-remove="' + i + '" style="' + small + '">🚪 Remove</button></div>').join('');
+          const remember = () => { lastEnd = $('rcxEndDate').value; lastReason = $('rcxReason').value; };
+          const removeNames = (names) => {
+            remember();
+            const date = lastEnd, reason = lastReason.trim();
+            if (!date) { status('Pick the end date.', false); return; }
+            if (!confirm('Remove ' + (names.length === 1 ? '"' + names[0] + '"' : names.length + ' members') + ' (end date ' + date + (reason ? ', "' + reason + '"' : '') + ')?' + (names.length > 1 ? '\n\n' + names.join(', ') : ''))) return;
+            run(async () => {
+              const failed = [];
+              for (const n of names) {
+                try { await removeMember(n, date, reason); } catch (e) { failed.push(e.message); }
+              }
+              if (failed.length) throw new Error((names.length - failed.length) + ' removed; not removed: ' + failed.join('; '));
+            }, (names.length === 1 ? '"' + names[0] + '"' : names.length + ' members') + ' moved to Former Members.');
+          };
+          $('rcxGone').querySelectorAll('[data-remove]').forEach(b => b.addEventListener('click', () => removeNames([data.notOnVoltron[+b.getAttribute('data-remove')].name])));
+          $('rcxRemoveAll').addEventListener('click', () => removeNames(data.notOnVoltron.map(m => m.name)));
+        }
       }
       function setAllDates() {
         const jd = $('rcxJoinDate').value;
