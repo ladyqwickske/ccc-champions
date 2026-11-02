@@ -113,7 +113,7 @@ window.HELP_CONTENT = {
         { q: 'A member says chests are missing. What do I check?', steps: [
           'Check **Last Imported**. Chests opened after that time come in with the next import.',
           'Were the chests saved under a wrong name? Move them with **Admin → 📥 Chest data → 🔀 Move Chests**.',
-          'Did the chesttracker miss the chests? Ask the clan leader. They can add them on **➕ Manual Chests**.'
+          'Did the chesttracker miss the chests? Ask the clan leader: they can add them.'
         ] }
       ]
     },
@@ -379,8 +379,7 @@ window.HELP_CONTENT = {
         { title: '📥 Chest data', list: [
           '**🔀 Move Chests**: move chests from one name to the right member, for example chests saved under a name the chesttracker read wrong.',
           '**🔤 OCR Corrections**: words the chesttracker reads wrong, and the correct word. The chesttracker uses them at its next run. This does not change chests that are already saved: move those with **🔀 Move Chests**.',
-          '**🛠️ Manage Chest Data**: every chest of the active or previous period. Remove chests that should not count, or correct a wrong chest type, name or level. You can undo this under **Recent removals** and **Recent corrections**.',
-          '**➕ Manual Chests** (only the clan leader): add chests the chesttracker missed.'
+          '**🛠️ Manage Chest Data**: every chest of the active or previous period. Remove chests that should not count, or correct a wrong chest type, name or level. You can undo this under **Recent removals** and **Recent corrections**.'
         ] },
         { title: '🏷️ Rules', list: [
           '**🏷️ Chest Point Values**: how many points each chest is worth. A change counts again for the active period right away.',
@@ -392,8 +391,7 @@ window.HELP_CONTENT = {
           '**🔁 Member Transfers**: a player who moves between the cCc clans. Ask the old clan to transfer the player (or only for their profile), and answer requests from other clans. Nothing is shared or moved until a superior of the other clan approves it. With **🔁 Move the member**, approving removes the player there (reason "Transferred to …", end date = the transfer date) and adds them here with that date as join date, with their troop, hero and captain levels.'
         ] },
         { title: '🔐 Access', list: [
-          '**🔐 Member Login Accounts**: link a member to a Google account, so they can sign in and see their profile. One Google account can be linked to several members (alt accounts).',
-          '**👑 Superiors** (only the clan leader): who may use the management pages.'
+          '**🔐 Member Login Accounts**: link a member to a Google account, so they can sign in and see their profile. One Google account can be linked to several members (alt accounts).'
         ] }
       ],
       howto: [
