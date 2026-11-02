@@ -480,13 +480,17 @@
     if (errs.length) html += '<div class="status err" style="margin-bottom:12px;">Could not check: ' + errs.map(function (k) { return esc(d.errors[k]); }).join('; ') + '</div>';
 
     // Ask another clan
-    html += '<h4 style="margin:0 0 6px;text-align:left;">📨 Ask another clan for a profile</h4>'
-      + '<p style="' + muted + 'font-size:13px;margin:0 0 8px;text-align:left;">For a player who joined us from another cCc clan. Their superiors choose which member it is and approve before anything is shared.</p>'
-      + '<div class="form-grid" style="grid-template-columns:1fr 1fr 2fr;">'
+    html += '<h4 style="margin:0 0 6px;text-align:left;">📨 Ask another clan for a member (transfer) or their profile</h4>'
+      + '<p style="' + muted + 'font-size:13px;margin:0 0 8px;text-align:left;">For a player who joined us from another cCc clan. Their superiors choose which member it is and approve before anything is shared or moved. '
+      + 'With <b>Move the member</b> ticked, approving removes them there (end date = the transfer date, reason "Transferred to ' + esc(d.clan || 'us') + '") and adds them here with that date as join date, with their troop, hero and captain levels.</p>'
+      + '<div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;">'
       + '<div><label for="mtClan">Clan</label><select id="mtClan">' + (d.clans || []).map(function (cl) { return '<option>' + esc(cl) + '</option>'; }).join('') + '</select></div>'
       + '<div><label for="mtPlayer">Their name in that clan</label><input type="text" id="mtPlayer" placeholder="Player name there"></div>'
-      + '<div><label for="mtNote">Note (optional)</label><input type="text" id="mtNote" placeholder="e.g. now called X, joined us 5 Oct"></div>'
-      + '</div><button class="btn" id="mtSend"' + (d.ready ? '' : ' disabled') + '>📨 Send request</button>'
+      + '<div><label for="mtNameHere">Their name here</label><input type="text" id="mtNameHere" placeholder="Same as there"></div>'
+      + '<div><label for="mtDate">Transfer date</label><input type="date" id="mtDate" value="' + today() + '"></div>'
+      + '<div style="grid-column:span 2;"><label for="mtNote">Note (optional)</label><input type="text" id="mtNote" placeholder="e.g. moved over in the merge"></div>'
+      + '</div><label style="display:flex;align-items:center;gap:6px;margin:4px 0 8px;text-align:left;text-transform:none;font-weight:normal;"><input type="checkbox" id="mtMove" checked style="width:auto;margin:0;"> 🔁 Move the member: remove there, add here with the transfer date, copy their levels</label>'
+      + '<button class="btn" id="mtSend"' + (d.ready ? '' : ' disabled') + '>📨 Send request</button>'
       + '<div id="mtSendStatus" class="status" style="display:none;"></div>';
 
     // Incoming
@@ -498,7 +502,9 @@
         + ['From', 'Player asked for', 'Asked', 'Status', ''].map(function (h) { return '<th style="' + cell + '">' + h + '</th>'; }).join('') + '</tr></thead><tbody>';
       d.incoming.forEach(function (r) {
         html += '<tr><td style="' + cell + '">' + esc(r.otherClan) + '</td>'
-          + '<td style="' + cell + '"><b>' + esc(r.playerName) + '</b>' + (r.note ? '<br><span style="' + muted + '">' + esc(r.note) + '</span>' : '') + '</td>'
+          + '<td style="' + cell + '"><b>' + esc(r.playerName) + '</b>' + (r.note ? '<br><span style="' + muted + '">' + esc(r.note) + '</span>' : '')
+          + (r.move ? '<br><span style="color:#ffb300;font-size:12px;">🔁 Transfer on ' + esc(r.transferDate) + '</span>' : '')
+          + (r.moveResult ? '<br><span style="' + muted + 'font-size:12px;">' + esc(r.moveResult) + '</span>' : '') + '</td>'
           + '<td style="' + cell + '">' + esc(fmtDate(r.requestedAt)) + (r.requestedBy ? '<br><span style="' + muted + '">' + esc(r.requestedBy) + '</span>' : '') + '</td>'
           + '<td style="' + cell + '">' + statusChip(r.status) + (r.matchedMember ? '<br><span style="' + muted + '">as ' + esc(r.matchedMember) + '</span>' : '')
           + (r.answeredBy ? '<br><span style="' + muted + '">' + esc(r.answeredBy) + ', ' + esc(fmtDate(r.answeredAt)) + '</span>' : '') + (r.answerNote ? '<br><span style="' + muted + '">“' + esc(r.answerNote) + '”</span>' : '') + '</td>'
@@ -507,6 +513,7 @@
           var guess = d.members.map(function (m) { return { m: m, s: likeness(r.playerName, { name: m.name }) }; }).sort(function (a, b) { return b.s - a.s; })[0];
           html += '<div class="form-grid" style="grid-template-columns:1fr;margin-bottom:6px;"><div><label>Which of our members?</label><select data-mt-member="' + esc(r.id) + '" data-mt-guess="' + esc(guess && guess.s >= 50 ? guess.m.name : '') + '"><option value="">— pick —</option>' + memberOptions(d.members) + '</select></div>'
             + '<div><label>Note (optional)</label><input type="text" data-mt-note="' + esc(r.id) + '" placeholder="Shown to them"></div></div>'
+            + (r.move ? '<div style="font-size:12px;color:#ffb300;margin-bottom:6px;text-align:left;">Approving removes this member here: end date ' + esc(r.transferDate) + ', reason "Transferred to ' + esc(r.otherClan) + '". A former member stays as is.</div>' : '')
             + '<button class="' + secondaryBtn + '" data-mt-preview="' + esc(r.id) + '">👁️ Preview</button> '
             + '<button class="btn" data-mt-approve="' + esc(r.id) + '">✅ Approve</button> '
             + '<button class="btn danger" data-mt-decline="' + esc(r.id) + '" style="background:#c62828;color:#fff;">⛔ Decline</button>'
@@ -528,10 +535,13 @@
           + '<div><b>' + esc(r.playerName) + '</b> from <b>' + esc(r.otherClan) + '</b> ' + statusChip(r.status)
           + '<br><span style="font-size:12px;' + muted + '">Asked ' + esc(fmtDate(r.requestedAt)) + (r.requestedBy ? ' by ' + esc(r.requestedBy) : '') + (r.note ? ' · “' + esc(r.note) + '”' : '')
           + (r.answeredAt ? ' · answered ' + esc(fmtDate(r.answeredAt)) + (r.answeredBy ? ' by ' + esc(r.answeredBy) : '') : '')
-          + (r.answerNote ? ' · “' + esc(r.answerNote) + '”' : '') + '</span></div>'
+          + (r.answerNote ? ' · “' + esc(r.answerNote) + '”' : '') + '</span>'
+          + (r.move ? '<br><span style="font-size:12px;color:#ffb300;">🔁 Transfer: joins as "' + esc(r.nameHere || r.playerName) + '" on ' + esc(r.transferDate) + '</span>'
+            + (r.moveResult ? '<br><span style="font-size:12px;' + (r.moveDoneAt ? muted : 'color:#e57373;') + '">' + (r.moveDoneAt ? '✅ ' : '⚠️ ') + esc(r.moveResult) + (r.moveDoneAt ? '' : ' (tried again when this page is opened)') + '</span>' : '') : '')
+          + '</div>'
           + '<div>' + (r.profile ? '<button class="btn" data-mt-view="' + esc(r.id) + '">' + (MT.open[r.id] ? '🔼 Hide profile' : '👁️ View profile') + '</button> ' : '')
           + '<button class="' + secondaryBtn + '" data-mt-cancel="' + esc(r.id) + '">' + (r.status === 'waiting' ? '✖ Withdraw' : '🗑️ Remove') + '</button></div></div>';
-        if (r.profile && !MT.open[r.id] && !r.levelsCopiedAt) {
+        if (r.profile && !MT.open[r.id] && !r.levelsCopiedAt && !r.move) {
           html += '<div style="margin-top:8px;font-size:13px;' + muted + '">Next step: click <b>👁️ View profile</b>, pick our member under <b>For our member</b> '
             + 'and click <b>⬇️ Copy levels</b>. That adds their troop and hero levels and their captain history to our records.</div>';
         }
@@ -573,7 +583,12 @@
       if (!playerName) { setStatus(st, 'Enter the player\'s name in that clan.', false); return; }
       setStatus(st, 'Sending…');
       send.disabled = true;
-      post({ action: 'requestTransferProfile', toClan: $('mtClan').value, playerName: playerName, note: $('mtNote').value.trim() }).then(function (r) {
+      var move = $('mtMove').checked;
+      var date = $('mtDate').value;
+      if (move && !date) { setStatus(st, 'Pick the transfer date.', false); return; }
+      if (move && !confirm('Transfer "' + playerName + '" from ' + $('mtClan').value + ' to us on ' + date + '? Once their superiors approve, the player is removed there and added here' + ($('mtNameHere').value.trim() ? ' as "' + $('mtNameHere').value.trim() + '"' : '') + '.')) return;
+      post({ action: 'requestTransferProfile', toClan: $('mtClan').value, playerName: playerName, note: $('mtNote').value.trim(),
+        move: move, transferDate: date, nameHere: $('mtNameHere').value.trim() }).then(function (r) {
         send.disabled = false;
         if (r && r.success) { window.MemberTransfers.load().then(function () { setStatus($('mtSendStatus'), r.message, true); }); }
         else setStatus(st, (r && (r.message || r.error)) || 'Failed.', false);
@@ -599,7 +614,9 @@
         var name = q('data-mt-member', id).value;
         var req = MT.data.incoming.find(function (r) { return r.id === id; });
         if (!name) { rowStatus(id, 'Pick which member it is first.', false); return; }
-        if (!confirm('Share the profile of "' + name + '" with ' + req.otherClan + '?')) return;
+        if (!confirm(req.move
+          ? 'Transfer "' + name + '" to ' + req.otherClan + '? Their profile is shared, and if they are a member here they are removed (end date ' + req.transferDate + ', "Transferred to ' + req.otherClan + '").'
+          : 'Share the profile of "' + name + '" with ' + req.otherClan + '?')) return;
         answer(id, true, name);
       });
     });
