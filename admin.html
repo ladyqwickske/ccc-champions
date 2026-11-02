@@ -634,6 +634,7 @@
         <button class="tab active" data-group="chestdata" data-tab="chestNameFixTab" onclick="AdminTab.switchTab('chestNameFixTab', event)">🔀 Move Chests</button>
         <button class="tab" data-group="chestdata" data-tab="ocrTab" onclick="AdminTab.switchTab('ocrTab', event)">🔤 OCR Corrections</button>
         <button class="tab" data-group="chestdata" data-tab="voltronNamesTab" id="voltronNamesTabBtn" style="display:none" onclick="AdminTab.switchTab('voltronNamesTab', event)">🛰️ Voltron Names</button>
+        <button class="tab" data-group="chestdata" data-tab="rosterCheckTab" id="rosterCheckTabBtn" style="display:none" onclick="AdminTab.switchTab('rosterCheckTab', event)">🧭 Roster Check</button>
         <button class="tab" data-group="chestdata" data-tab="removeChestsTab" onclick="AdminTab.switchTab('removeChestsTab', event)">🛠️ Manage Chest Data</button>
         <button class="tab" data-group="rules" hidden data-tab="chestValuesTab" onclick="AdminTab.switchTab('chestValuesTab', event)">🏷️ Chest Point Values</button>
         <button class="tab" data-group="rules" hidden data-tab="exemptTab" onclick="AdminTab.switchTab('exemptTab', event)">🛡️ Exemptions</button>
@@ -700,6 +701,29 @@
         <div id="ocrInfo" class="note" style="margin-bottom:8px;"></div>
         <div id="ocrStatus" class="status" style="display:none;"></div>
         <div id="ocrList"></div>
+      </div>
+      <div id="rosterCheckTab" class="tab-content">
+        <h3 style="margin:0 0 6px 0;">Roster Check</h3>
+        <div class="note" style="margin-bottom:12px;">The members against Voltron's clan list and against the names in the active period's chests, to tidy up after many players came in at once. Work from the top: add the new players (or say who they are), then move the chests of misread names. Only you can see this tab.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+          <label for="rcxJoinDate" style="margin:0;">Join date for new members</label>
+          <input type="date" id="rcxJoinDate" style="width:auto;" onchange="RosterCheck.setAllDates()">
+          <label style="margin:0;display:flex;align-items:center;gap:4px;text-transform:none;white-space:normal;font-weight:normal;"><input type="checkbox" id="rcxOcr" checked style="width:auto;"> also teach the chesttracker (OCR correction)</label>
+          <button class="btn btn-secondary" style="margin:0;" onclick="RosterCheck.load()">🔄 Reload</button>
+        </div>
+        <div id="rcxInfo" class="note" style="margin-bottom:8px;"></div>
+        <div id="rcxStatus" class="status" style="display:none;"></div>
+        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">1. On Voltron, not on the dashboard <span id="rcxNewCount"></span></h4>
+        <div id="rcxNew" style="font-size:13px;text-align:left;"></div>
+        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">2. Chest names that are no member <span id="rcxChestCount"></span></h4>
+        <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
+          <thead><tr><th style="text-align:left;padding:6px 8px;">Name in the chests</th><th style="padding:6px 8px;">Chests</th><th style="text-align:left;padding:6px 8px;">Member</th></tr></thead>
+          <tbody id="rcxChests"></tbody></table></div>
+        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">3. Former members back on Voltron</h4>
+        <div id="rcxReturned" style="font-size:13px;text-align:left;"></div>
+        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">4. On the dashboard, not on Voltron</h4>
+        <div id="rcxGone" style="font-size:13px;text-align:left;"></div>
+        <datalist id="rcxMemberList"></datalist>
       </div>
       <div id="voltronNamesTab" class="tab-content">
         <h3 style="margin:0 0 6px 0;">Voltron Names</h3>
@@ -1233,7 +1257,7 @@
         const btn = document.getElementById('superiorsTabBtn');
         if (!email || !btn) return;
         fetchSuperiors()
-          .then(data => { superiors = data; btn.style.display = ''; const mc = document.getElementById('manualChestsTabBtn'); if (mc) mc.style.display = ''; if (window.VoltronNames) window.VoltronNames.checkAccess(); if (window.Orchestrator) window.Orchestrator.checkAccess(); })
+          .then(data => { superiors = data; btn.style.display = ''; const mc = document.getElementById('manualChestsTabBtn'); if (mc) mc.style.display = ''; if (window.VoltronNames) window.VoltronNames.checkAccess(); if (window.RosterCheck) window.RosterCheck.checkAccess(); if (window.Orchestrator) window.Orchestrator.checkAccess(); })
           .catch(() => { btn.style.display = 'none'; });
       }
 
@@ -1504,6 +1528,7 @@
         if (tabId === 'chestValuesTab' && window.ChestPointValues) window.ChestPointValues.load();
         if (tabId === 'ocrTab' && window.OcrCorrections) window.OcrCorrections.load();
         if (tabId === 'voltronNamesTab' && window.VoltronNames) window.VoltronNames.load();
+        if (tabId === 'rosterCheckTab' && window.RosterCheck) window.RosterCheck.load();
         if (tabId === 'removeChestsTab' && window.RemoveChests) window.RemoveChests.load();
         if (tabId === 'manualChestsTab' && window.ManualChests) window.ManualChests.load();
         if (tabId === 'transfersTab' && window.MemberTransfers) window.MemberTransfers.load();
@@ -1927,6 +1952,158 @@
           .catch(() => {});
       }
       return { load, render, add, checkAccess };
+    })();
+
+    // 🧭 Roster Check (owner only): the members against Voltron's clan list and against the
+    // names in the active period's chests (getRosterCheck), with the fixes in one click:
+    // addMember, Voltron name corrections, fixChestPlayerName + an OCR correction.
+    window.RosterCheck = (function () {
+      let data = null;
+      const $ = (id) => document.getElementById(id);
+      const esc = (t) => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+      const attr = (t) => esc(t).replace(/"/g, '&quot;');
+      const post = async (body) => {
+        const res = await fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return res.json();
+      };
+      const okOf = (r) => !!(r && (r.success || (r.ok && (!r.data || r.data.success !== false))));
+      const msgOf = (r) => (r && (r.message || r.error || (r.data && r.data.message))) || 'failed';
+      const email = () => { try { return localStorage.getItem('ccc_portal_google_email') || ''; } catch (e) { return ''; } };
+      const today = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+      const day = (iso) => iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+      const status = (msg, ok) => {
+        const el = $('rcxStatus');
+        el.style.display = msg ? '' : 'none';
+        el.className = 'status ' + (ok ? 'ok' : 'err');
+        el.textContent = msg || '';
+      };
+      const isMember = (name) => !!data && data.members.some(m => m.toLowerCase() === String(name).trim().toLowerCase());
+      const memberSpelling = (name) => (data.members.find(m => m === name) || data.members.find(m => m.toLowerCase() === String(name).trim().toLowerCase()) || '');
+      async function load(keepStatus) {
+        if (!keepStatus) status('');
+        if (!$('rcxJoinDate').value) $('rcxJoinDate').value = today();
+        try {
+          const r = await post({ action: 'getRosterCheck' });
+          if (!r || !r.success) throw new Error(msgOf(r));
+          data = r;
+          render();
+        } catch (e) { status(e.message, false); }
+      }
+      async function addMember(name, joinDate) {
+        const r = await post({ action: 'addMember', name: name, joinDate: joinDate });
+        if (!okOf(r)) throw new Error('Adding "' + name + '": ' + msgOf(r));
+      }
+      async function run(fn, okMsg) {
+        status('Working…', true);
+        try { const extra = await fn(); status((okMsg || 'Done.') + (extra ? ' ' + extra : ''), true); }
+        catch (e) { status(e.message, false); }
+        await load(true);
+      }
+      // Chests from a misread name to a member, and teach the chesttracker the misreading
+      async function moveChests(wrong, target, ocr) {
+        const r = await post({ action: 'fixChestPlayerName', wrongName: wrong, correctName: target, period: 'active' });
+        if (!okOf(r)) throw new Error('Moving the chests: ' + msgOf(r));
+        let note = '';
+        if (ocr && wrong.trim().toLowerCase() !== target.trim().toLowerCase()) {
+          const o = await post({ action: 'updateOcrCorrections', userEmail: email(), changes: [{ op: 'addVariant', word: target, incorrect: wrong }] });
+          note = okOf(o) ? 'The chesttracker reads "' + wrong + '" as "' + target + '" from its next run.' : '(OCR correction not added: ' + msgOf(o) + ')';
+        }
+        return msgOf(r) + ' ' + note;
+      }
+      const cell = 'padding:6px 8px;border-top:1px solid rgba(128,128,128,0.35);vertical-align:top;';
+      const small = 'margin:0;padding:4px 8px;font-size:12px;';
+      const inp = 'padding:4px 6px;font-size:12px;';
+      const levels = (v) => [v.hero != null ? 'hero ' + v.hero : '', v.levels ? ['G', 'S', 'E', 'M'].map(t => v.levels[t] != null ? t + v.levels[t] : '').filter(Boolean).join(' ') : ''].filter(Boolean).join(' · ');
+      function render() {
+        if (!data) return;
+        const ro = data.roster || {};
+        $('rcxInfo').innerHTML = (ro.at
+          ? 'Voltron list: ' + ro.count + ' players, read ' + esc(day(ro.at)) + (ro.fresh ? '' : ' — <b>old</b>: "not on Voltron" is left out until a newer one comes in')
+          : 'Voltron\'s full list isn\'t in yet (it comes with the next update of the chesttracker PC): the new names below are the ones the daily Voltron imports could not match.')
+          + (data.period ? ' · Chests: active period ' + esc(data.period.start) + ' – ' + esc(data.period.end || '') : '');
+        $('rcxMemberList').innerHTML = data.members.map(m => '<option value="' + attr(m) + '"></option>').join('');
+        const jd = $('rcxJoinDate').value || today();
+
+        // 1. New on Voltron
+        $('rcxNewCount').textContent = '(' + data.voltronNew.length + ')';
+        $('rcxNew').innerHTML = data.voltronNew.length ? data.voltronNew.map((v, i) => {
+          const info = [levels(v), v.firstSeen ? (v.firstSeenIsBaseline ? 'on Voltron since before ' : 'first on Voltron ') + day(v.firstSeen) : '', v.detail].filter(Boolean).join(' · ');
+          const sugg = (v.suggestions || []).map(s => s.kind === 'member'
+            ? '<button class="btn btn-secondary" data-same="' + i + '" data-target="' + attr(s.name) + '" style="' + small + '" title="Same player: Voltron writes the name differently (a Voltron name correction)">🔗 is ' + esc(s.name) + '</button>'
+            : '<span class="note" style="margin:0;">looks like former member <b>' + esc(s.name) + '</b> (Members page → Returning member)</span>').join(' ');
+          return '<div style="border-top:1px solid rgba(128,128,128,0.35);padding:8px 4px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">' +
+            '<div style="flex:1 1 160px;min-width:140px;"><b>' + esc(v.name) + '</b>' + (info ? '<div class="note" style="margin:2px 0 0;">' + esc(info) + '</div>' : '') + '</div>' +
+            '<span style="display:flex;gap:4px;align-items:center;"><input type="date" data-jd="' + i + '" value="' + attr(jd) + '" style="' + inp + 'width:140px;margin:0;"> <button class="btn" data-add="' + i + '" style="' + small + '">➕ Add member</button></span>' +
+            sugg +
+            '<span style="display:flex;gap:4px;align-items:center;"><input type="text" list="rcxMemberList" placeholder="or: is member…" data-same-input="' + i + '" style="' + inp + 'width:150px;margin:0;"> ' +
+              '<button class="btn btn-secondary" data-dismiss="' + i + '" style="' + small + '" title="Not a member: leave it off this list">✖ not a member</button></span></div>';
+        }).join('') : '<div style="padding:6px 4px;">✅ Every Voltron name the imports saw is on the dashboard.</div>';
+        $('rcxNew').querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
+          const v = data.voltronNew[+b.getAttribute('data-add')], date = $('rcxNew').querySelector('[data-jd="' + b.getAttribute('data-add') + '"]').value;
+          if (!date) { status('Pick a join date.', false); return; }
+          run(() => addMember(v.name, date), '"' + v.name + '" added (joined ' + date + ').');
+        }));
+        const same = (v, target) => {
+          const t = memberSpelling(target) || String(target).trim();
+          if (!t) return;
+          if (!isMember(t) && !confirm('"' + t + '" is not on the Members list. Use it anyway?')) return;
+          run(async () => {
+            const r = await post({ action: 'updateVoltronNameCorrections', userEmail: email(), changes: [{ op: 'set', voltronName: v.name, memberName: t }] });
+            if (!okOf(r)) throw new Error(msgOf(r));
+          }, 'Voltron\'s "' + v.name + '" is now read as "' + t + '"; the next Voltron import records the missing scores and levels.');
+        };
+        $('rcxNew').querySelectorAll('[data-same]').forEach(b => b.addEventListener('click', () => same(data.voltronNew[+b.getAttribute('data-same')], b.getAttribute('data-target'))));
+        $('rcxNew').querySelectorAll('[data-same-input]').forEach(input => input.addEventListener('change', () => { if (input.value.trim()) same(data.voltronNew[+input.getAttribute('data-same-input')], input.value); }));
+        $('rcxNew').querySelectorAll('[data-dismiss]').forEach(b => b.addEventListener('click', () => {
+          const v = data.voltronNew[+b.getAttribute('data-dismiss')];
+          run(async () => { const r = await post({ action: 'ignoreRosterName', name: v.name }); if (!okOf(r)) throw new Error(msgOf(r)); }, '"' + v.name + '" left off the list.');
+        }));
+
+        // 2. Chest names that are no member
+        $('rcxChestCount').textContent = '(' + data.chestNames.length + ')';
+        $('rcxChests').innerHTML = data.chestNames.length ? data.chestNames.map((n, i) => {
+          const top = (n.suggestions || [])[0];
+          const others = (n.suggestions || []).slice(1).map(s => esc(s.name) + (s.kind === 'voltron' ? ' (new on Voltron)' : '')).join(', ');
+          return '<tr><td style="' + cell + 'font-weight:600;">' + esc(n.name) + (n.former ? ' <span class="note" style="margin:0;">(former member)</span>' : '') + '</td>' +
+            '<td style="' + cell + 'text-align:center;">' + n.chests + '</td>' +
+            '<td style="' + cell + 'white-space:nowrap;"><input type="text" list="rcxMemberList" data-move-input="' + i + '" value="' + attr(top ? top.name : '') + '" placeholder="Member…" style="' + inp + 'width:160px;"> ' +
+              '<button class="btn" data-move="' + i + '" style="' + small + '">➡️ Move chests</button>' +
+              (top && top.kind === 'voltron' ? '<div class="note" style="margin:2px 0 0;">"' + esc(top.name) + '" is new on Voltron: it is added as a member first (join date from the box above).</div>' : '') +
+              (others ? '<div class="note" style="margin:2px 0 0;">also like: ' + others + '</div>' : '') + '</td></tr>';
+        }).join('') : '<tr><td style="' + cell + '">✅ Every name in the active period\'s chests is a member.</td></tr>';
+        $('rcxChests').querySelectorAll('[data-move]').forEach(b => b.addEventListener('click', () => {
+          const i = +b.getAttribute('data-move'), n = data.chestNames[i];
+          const typed = $('rcxChests').querySelector('[data-move-input="' + i + '"]').value.trim();
+          if (!typed) { status('Which member are these chests for?', false); return; }
+          const ocr = $('rcxOcr').checked;
+          const target = memberSpelling(typed);
+          if (target) { run(() => moveChests(n.name, target, ocr)); return; }
+          const v = data.voltronNew.find(x => x.name.toLowerCase() === typed.toLowerCase());
+          const date = $('rcxJoinDate').value;
+          if (!confirm('"' + typed + '" is not a member yet. Add ' + (v ? v.name : typed) + ' as a member (joined ' + date + ') and move the ' + n.chests + ' chests?')) return;
+          if (!date) { status('Pick a join date in the box at the top.', false); return; }
+          run(async () => { await addMember(v ? v.name : typed, date); return moveChests(n.name, v ? v.name : typed, ocr); }, '"' + (v ? v.name : typed) + '" added.');
+        }));
+
+        // 3. Former members back on Voltron, and members not on Voltron
+        $('rcxReturned').innerHTML = (data.returned || []).length ? data.returned.map(v =>
+          '<div style="padding:4px 0;border-top:1px solid rgba(128,128,128,0.35);"><b>' + esc(v.name) + '</b>' + (v.former !== v.name ? ' = former member <b>' + esc(v.former) + '</b>' : '') +
+          (levels(v) ? ' <span class="note" style="margin:0;">' + esc(levels(v)) + '</span>' : '') + ' — back? Members page → Returning member (keeps their old data).</div>').join('') : '<span class="note">None.</span>';
+        $('rcxGone').innerHTML = !ro.fresh ? '<span class="note">Shown once Voltron\'s full list comes in.</span>' : (data.notOnVoltron.length ? data.notOnVoltron.map(m =>
+          '<div style="padding:4px 0;border-top:1px solid rgba(128,128,128,0.35);"><b>' + esc(m.name) + '</b>' + (m.joinDate ? ' <span class="note" style="margin:0;">joined ' + esc(String(m.joinDate).slice(0, 10)) + '</span>' : '') + '</div>').join('') +
+          '<div class="note">Left? Remove them on the Members page, or add them to the exemptions if they stay on purpose.</div>' : '<span class="note">✅ Every member is on Voltron.</span>');
+      }
+      function setAllDates() {
+        const jd = $('rcxJoinDate').value;
+        document.querySelectorAll('#rcxNew [data-jd]').forEach(i => { i.value = jd; });
+      }
+      // Show the tab only to the owner: the Worker answers getRosterCheck only for her.
+      function checkAccess() {
+        const btn = $('rosterCheckTabBtn');
+        if (!btn) return;
+        post({ action: 'getRosterCheck' }).then(r => { if (r && r.success) btn.style.display = ''; }).catch(() => {});
+      }
+      return { load, setAllDates, checkAccess };
     })();
 
     // 🖥️ Orchestrator (owner only): the chesttracker PC's orchestrator from the website
