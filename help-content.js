@@ -15,7 +15,7 @@
 //            (owner: true = only the clan leader sees it)
 //   howto    [{ q, steps: [...] }]: step-by-step tasks (only in the full guide)
 window.HELP_CONTENT = {
-  clanName: 'cCc Champions',
+  clanName: 'cCc Anatolia',
   home: 'dashboard.html',
   icon: 'favicon.png',
   // Help panel colours: accent = the clan colour, panel = a dark background.

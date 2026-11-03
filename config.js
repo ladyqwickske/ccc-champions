@@ -196,3 +196,30 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add);
 	else add();
 })();
+
+// The rename of 2026-11-02: this site moved to anatolia.ccc-hq.com (cCc Champions → cCc Anatolia),
+// the address of the clan that is now cCc Anatolia II. Its members who still come here find
+// their own site through this notice. Shown until 2026-12-01; "OK" hides it in this browser.
+(function anatoliaTwoNotice() {
+	var KEY = 'ccc_anatolia2_notice_seen';
+	try { if (localStorage.getItem(KEY)) return; } catch (e) {}
+	if (Date.now() >= Date.UTC(2026, 11, 1)) return;
+	var add = function () {
+		if (document.getElementById('anatolia2-notice')) return;
+		var box = document.createElement('div');
+		box.id = 'anatolia2-notice';
+		box.style.cssText = 'position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:100000;'
+			+ 'background:#232526;color:#f3f3f3;border:1px solid #ffb300;border-radius:10px;padding:10px 14px;'
+			+ 'font:14px Roboto,Arial,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.4);max-width:calc(100vw - 32px);text-align:center;';
+		box.innerHTML = 'cCc Champions is now <b>cCc Anatolia</b>. Looking for the former cCc Anatolia? It is now '
+			+ '<b>cCc Anatolia II</b>: <a href="https://anatolia2.ccc-hq.com" style="color:#ffb300;font-weight:600;">anatolia2.ccc-hq.com</a> ';
+		var btn = document.createElement('button');
+		btn.textContent = 'OK';
+		btn.style.cssText = 'margin-left:8px;background:#ffb300;color:#232526;border:0;border-radius:6px;padding:4px 12px;font-weight:600;cursor:pointer;';
+		btn.onclick = function () { try { localStorage.setItem(KEY, '1'); } catch (e) {} box.remove(); };
+		box.appendChild(btn);
+		document.body.appendChild(box);
+	};
+	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add);
+	else add();
+})();

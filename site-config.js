@@ -1,10 +1,10 @@
 /**
- * cCc Champions Site Configuration
+ * cCc Anatolia Site Configuration
  */
 
 const SITE_CONFIG = {
   // Clan Identity
-  clanName: 'cCc Champions',
+  clanName: 'cCc Anatolia',
   clanAbbr: 'ccc',
 
   // Progress ranking weights (must sum to 100)
