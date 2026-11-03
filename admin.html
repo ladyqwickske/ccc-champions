@@ -719,6 +719,7 @@
         <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
           <thead><tr><th style="text-align:left;padding:6px 8px;">Name in the chests</th><th style="padding:6px 8px;">Chests</th><th style="text-align:left;padding:6px 8px;">Member</th></tr></thead>
           <tbody id="rcxChests"></tbody></table></div>
+        <div id="rcxChestHidden" style="font-size:12px;text-align:left;margin-top:4px;"></div>
         <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">3. Former members back on Voltron</h4>
         <div id="rcxReturned" style="font-size:13px;text-align:left;"></div>
         <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">4. On the dashboard, not on Voltron</h4>
@@ -2000,6 +2001,7 @@
       }
       // Like the Members page's 🚪 Remove Member: to Former Members with the end date and reason
       let lastEnd = '', lastReason = 'Left the clan (not on Voltron)';
+      let showHidden = false;   // section 2: list the chest names left alone
       async function removeMember(name, endDate, reason) {
         const r = data && data.rules === 'legends'
           ? await post({ action: 'api', fn: 'removeMember', args: [name, endDate, reason] })
@@ -2078,17 +2080,38 @@
         }));
 
         // 2. Chest names that are no member
-        $('rcxChestCount').textContent = '(' + data.chestNames.length + ')';
+        $('rcxChestCount').textContent = '(' + data.chestNames.length + ')';  // only the ones that need something
         $('rcxChests').innerHTML = data.chestNames.length ? data.chestNames.map((n, i) => {
           const top = (n.suggestions || [])[0];
           const others = (n.suggestions || []).slice(1).map(s => esc(s.name) + (s.kind === 'voltron' ? ' (new on Voltron)' : '')).join(', ');
-          return '<tr><td style="' + cell + 'font-weight:600;">' + esc(n.name) + (n.former ? ' <span class="note" style="margin:0;">(former member)</span>' : '') + '</td>' +
+          return '<tr><td style="' + cell + 'font-weight:600;">' + esc(n.name) + (n.former ? '<div class="note" style="margin:2px 0 0;font-weight:normal;">former member' + (n.left ? ', left ' + esc(n.left) : '') + (n.afterLeaving ? ': <b>' + n.afterLeaving + ' chest(s) after that</b> (a misread name?)' : '') + '</div>' : '') + '</td>' +
             '<td style="' + cell + 'text-align:center;">' + n.chests + '</td>' +
             '<td style="' + cell + 'white-space:nowrap;"><input type="text" list="rcxMemberList" data-move-input="' + i + '" value="' + attr(top ? top.name : '') + '" placeholder="Member…" style="' + inp + 'width:160px;"> ' +
-              '<button class="btn" data-move="' + i + '" style="' + small + '">➡️ Move chests</button>' +
+              '<button class="btn" data-move="' + i + '" style="' + small + '">➡️ Move chests</button> ' +
+              '<button class="btn btn-secondary" data-ack="' + i + '" style="' + small + '" title="Nothing to do: leave these chests as they are and stop listing this name">✔ OK</button>' +
               (top && top.kind === 'voltron' ? '<div class="note" style="margin:2px 0 0;">"' + esc(top.name) + '" is new on Voltron: it is added as a member first (join date from the box above).</div>' : '') +
               (others ? '<div class="note" style="margin:2px 0 0;">also like: ' + others + '</div>' : '') + '</td></tr>';
-        }).join('') : '<tr><td style="' + cell + '">✅ Every name in the active period\'s chests is a member.</td></tr>';
+        }).join('') : '<tr><td style="' + cell + '">✅ Nothing to do: every other name in the active period\'s chests is a member.</td></tr>';
+        // What is left alone: former members' chests from before they left, and names marked ✔ OK
+        const fo = data.chestFormerOk || [], ak = data.chestAcknowledged || [];
+        $('rcxChestHidden').innerHTML = (fo.length || ak.length) ? '<span class="note" style="margin:0;">Not listed: ' +
+            [fo.length ? fo.length + ' former member(s) with chests from before they left' : '', ak.length ? ak.length + ' name(s) marked ✔ OK' : ''].filter(Boolean).join(' · ') +
+            ' — <a href="#" id="rcxHiddenToggle">' + (showHidden ? 'hide' : 'show') + '</a></span>' +
+          (showHidden ? '<div style="margin-top:4px;">' +
+            fo.map(n => '<div style="padding:2px 0;">' + esc(n.name) + ' · ' + n.chests + ' chest(s) · former member, left ' + esc(n.left) + '</div>').join('') +
+            ak.map((n, i) => '<div style="padding:2px 0;">' + esc(n.name) + ' · ' + n.chests + ' chest(s) · ✔ OK' + (n.by ? ' (' + esc(n.by) + ', ' + esc(day(n.at)) + ')' : '') +
+              ' <button class="btn btn-secondary" data-unack="' + i + '" style="' + small + 'padding:2px 6px;">↩ undo</button></div>').join('') + '</div>' : '') : '';
+        const tog = $('rcxHiddenToggle');
+        if (tog) tog.addEventListener('click', (ev) => { ev.preventDefault(); showHidden = !showHidden; render(); });
+        $('rcxChestHidden').querySelectorAll('[data-unack]').forEach(b => b.addEventListener('click', () => {
+          const n = ak[+b.getAttribute('data-unack')];
+          run(async () => { const r = await post({ action: 'unacknowledgeChestName', name: n.name }); if (!okOf(r)) throw new Error(msgOf(r)); }, '"' + n.name + '" is back on the list.');
+        }));
+        $('rcxChests').querySelectorAll('[data-ack]').forEach(b => b.addEventListener('click', () => {
+          const n = data.chestNames[+b.getAttribute('data-ack')];
+          run(async () => { const r = await post({ action: 'acknowledgeChestName', name: n.name, chests: n.chests, userEmail: email() }); if (!okOf(r)) throw new Error(msgOf(r)); },
+            '"' + n.name + '" is left as it is (see "Not listed" below the table to undo).');
+        }));
         $('rcxChests').querySelectorAll('[data-move]').forEach(b => b.addEventListener('click', () => {
           const i = +b.getAttribute('data-move'), n = data.chestNames[i];
           const typed = $('rcxChests').querySelector('[data-move-input="' + i + '"]').value.trim();
