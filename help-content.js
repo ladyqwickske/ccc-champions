@@ -426,9 +426,10 @@ window.HELP_CONTENT = {
         { q: 'A player moves to us from another cCc clan.', steps: [
           'Open **🔁 Between clans → 🔁 Member Transfers**. Under **📨 Ask another clan for a member (transfer) or their profile**, choose the clan and type their name in that clan.',
           'Their name here is different? Type it in **Their name here**. Fill in the **Transfer date**: the day they joined us.',
+          'Did you add them on the Members page already? Pick that member under **Their name here** (it suggests our members). Then nothing is added twice, and the login linked here is kept.',
           'Leave **🔁 Move the member** ticked. Click **📨 Send request** and confirm.',
           'A superior of the other clan approves the request on their **🔁 Member Transfers** page.',
-          'Then the player is removed there and added here, with the transfer date as join date. Their troop, hero and captain levels are copied. You do not need to add them on the Members page.',
+          'Then the player is removed there and added here, with the transfer date as join date. Their troop, hero and captain levels are copied, and their login (Google account) is linked if they have none here. You do not need to add them on the Members page.',
           'Was the player in our clan before? They come back with their old history (like **Returning member**).',
           'Under **📤 Our requests** you see what was done. A ⚠️ line means something is not finished yet: it is tried again each time this page is opened.'
         ] },

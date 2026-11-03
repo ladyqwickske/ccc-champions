@@ -482,11 +482,14 @@
     // Ask another clan
     html += '<h4 style="margin:0 0 6px;text-align:left;">📨 Ask another clan for a member (transfer) or their profile</h4>'
       + '<p style="' + muted + 'font-size:13px;margin:0 0 8px;text-align:left;">For a player who joined us from another cCc clan. Their superiors choose which member it is and approve before anything is shared or moved. '
-      + 'With <b>Move the member</b> ticked, approving removes them there (end date = the transfer date, reason "Transferred to ' + esc(d.clan || 'us') + '") and adds them here with that date as join date, with their troop, hero and captain levels.</p>'
+      + 'With <b>Move the member</b> ticked, approving removes them there (end date = the transfer date, reason "Transferred to ' + esc(d.clan || 'us') + '") and adds them here with that date as join date, with their troop, hero and captain levels and their login. '
+      + 'Added them here by hand already? Pick them under <b>Their name here</b>: nothing is added twice, and a login linked here is kept.</p>'
       + '<div class="form-grid" style="grid-template-columns:1fr 1fr 1fr;">'
       + '<div><label for="mtClan">Clan</label><select id="mtClan">' + (d.clans || []).map(function (cl) { return '<option>' + esc(cl) + '</option>'; }).join('') + '</select></div>'
       + '<div><label for="mtPlayer">Their name in that clan</label><input type="text" id="mtPlayer" placeholder="Player name there"></div>'
-      + '<div><label for="mtNameHere">Their name here</label><input type="text" id="mtNameHere" placeholder="Same as there"></div>'
+      + '<div><label for="mtNameHere">Their name here</label><input type="text" id="mtNameHere" list="mtMemberList" placeholder="Same as there (or pick a member)">'
+      + '<datalist id="mtMemberList">' + d.members.filter(function (m) { return m.status === 'current'; }).map(function (m) { return '<option value="' + esc(m.name) + '"></option>'; }).join('') + '</datalist>'
+      + '<div id="mtNameHereNote" style="font-size:12px;text-align:left;margin-top:2px;"></div></div>'
       + '<div><label for="mtDate">Transfer date</label><input type="date" id="mtDate" value="' + today() + '"></div>'
       + '<div style="grid-column:span 2;"><label for="mtNote">Note (optional)</label><input type="text" id="mtNote" placeholder="e.g. moved over in the merge"></div>'
       + '</div><label style="display:flex;align-items:center;gap:6px;margin:4px 0 8px;text-align:left;text-transform:none;font-weight:normal;"><input type="checkbox" id="mtMove" checked style="width:auto;margin:0;"> 🔁 Move the member: remove there, add here with the transfer date, copy their levels</label>'
@@ -574,8 +577,28 @@
   }
   var q = function (attr, id) { return MT.container.querySelector('[' + attr + '="' + CSS.escape(id) + '"]'); };
 
+  // "Their name here": is it (or does it look like) someone we have already? Then the move merges
+  // into that member (no second one): the levels are added, and their login if ours has none.
+  function nameHereNote() {
+    var el = $('mtNameHereNote');
+    if (!el) return;
+    var typed = ($('mtNameHere').value || $('mtPlayer').value || '').trim();
+    var current = (MT.data.members || []).filter(function (m) { return m.status === 'current'; });
+    var same = typed && current.find(function (m) { return key(m.name) === key(typed); });
+    if (same) { el.innerHTML = '<span style="color:#43a047;">✔ Already a member here: the move goes into "' + esc(same.name) + '" (their levels are added, and their login if ours has none).</span>'; return; }
+    var like = typed ? current.map(function (m) { return { m: m, s: likeness(typed, m) }; }).filter(function (x) { return x.s >= 50; })
+      .sort(function (a, b) { return b.s - a.s; }).slice(0, 3) : [];
+    el.innerHTML = like.length ? '<span style="color:#ffb300;">Already here under another name? </span>' + like.map(function (x) {
+      return '<a href="#" data-mt-pickhere="' + esc(x.m.name) + '">' + esc(x.m.name) + '</a>';
+    }).join(', ') + '<span style="color:#ffb300;"> — pick it, or a new member "' + esc(typed) + '" is added.</span>' : '';
+    el.querySelectorAll('[data-mt-pickhere]').forEach(function (a) {
+      a.addEventListener('click', function (e) { e.preventDefault(); $('mtNameHere').value = a.getAttribute('data-mt-pickhere'); nameHereNote(); });
+    });
+  }
+
   function wireTransfers() {
     var c = MT.container;
+    if ($('mtNameHere')) { $('mtNameHere').addEventListener('input', nameHereNote); $('mtPlayer').addEventListener('input', nameHereNote); }
     var send = $('mtSend');
     if (send) send.addEventListener('click', function () {
       var st = $('mtSendStatus');
