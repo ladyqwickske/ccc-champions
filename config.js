@@ -120,6 +120,8 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 		// style="display:none") stays hidden: the desktop and tablet rules below set display with
 		// !important, and this rule is more specific, so it wins over them
 		'.tab-nav .tab-btn[style*="display: none"], .tab-nav .tab-btn[style*="display:none"] { display: none !important; }',
+		// The clan shield next to the clan name keeps its own shape (the pages make it 32 x 32)
+		'.tab-nav .nav-brand img { width: auto !important; }',
 		// Phone menu: the same text size and spacing as the Legends / Masters menu
 		// (the pages' own rules use 18px text with 18px 24px padding)
 		'@media (max-width: 800px) { .tab-buttons .tab-btn { font-size: 14.4px !important; padding: 10px 12px !important; } }',
@@ -155,8 +157,10 @@ window.GAS_WEB_APP_URL = window.CLOUDFLARE_WORKER_URL;
 			+ ' body { padding-top: max(52px, calc(env(safe-area-inset-top) + 52px)) !important; padding-bottom: max(70px, calc(env(safe-area-inset-bottom) + 70px)) !important; }'
 			+ ' .tab-nav { position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; width: 100% !important; z-index: 9999 !important; padding-top: env(safe-area-inset-top); max-height: 100vh; overflow-y: auto; }'
 			+ ' .tab-nav-container { max-width: 100% !important; width: 100% !important; box-sizing: border-box !important; flex-wrap: wrap !important; align-items: center !important; padding: 2px 8px !important; min-height: 48px; }'
-			+ ' .nav-brand { display: none !important; }'
-			+ ' .hamburger { order: 0 !important; padding: 8px 8px 8px 0 !important; }'
+			// the clan shield (without the name) right after ☰
+			+ ' .nav-brand { display: flex !important; align-items: center !important; order: 0 !important; flex: 0 0 auto !important; font-size: 0 !important; margin: 0 4px !important; padding: 0 !important; }'
+			+ ' .nav-brand img { height: 34px !important; width: auto !important; margin: 0 !important; }'
+			+ ' .hamburger { order: -1 !important; padding: 8px 8px 8px 0 !important; }'
 			+ ' .login-bar { order: 1 !important; flex: 1 1 auto !important; justify-content: flex-end !important; margin-left: auto !important; padding: 4px 0 !important; gap: 6px !important; min-width: 0; }'
 			+ ' .login-bar .user-email { max-width: 55vw !important; }'
 			+ ' .tab-buttons { position: static !important; top: auto !important; order: 10 !important; flex: 0 0 100% !important; width: 100% !important; height: auto !important; align-items: stretch !important; max-height: none !important; overflow: visible !important; border-radius: 0 !important; box-shadow: none !important; border-top: 1px solid #444; }'
