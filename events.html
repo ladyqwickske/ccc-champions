@@ -1676,16 +1676,21 @@
         });
       }
 
+      // The troop categories are those locked in at the selected event's start (asOf: the start date),
+      // so a member who upgraded after the event started keeps the target of their level back then.
+      let troopSummaryAsOf = null;
       function ensureTroopSummaryLoaded() {
-        if (troopSummaryMap && Object.keys(troopSummaryMap).length > 0) return Promise.resolve();
+        const asOf = cccDate(selectedEvent?.startDate || selectedEvent?.endDate, '') || '';
+        if (troopSummaryAsOf === asOf && troopSummaryMap && Object.keys(troopSummaryMap).length > 0) return Promise.resolve();
         return fetch(window.GAS_WEB_APP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'getTroopCategories' })
+          body: JSON.stringify(asOf ? { action: 'getTroopCategories', asOf } : { action: 'getTroopCategories' })
         })
           .then(res => res.json())
           .then(result => {
             const list = Array.isArray(result) ? result : (result?.data || []);
+            troopSummaryAsOf = asOf;
             troopSummaryMap = {};
             list.forEach(entry => {
               const key = normalizeName(entry?.playerName || entry?.name);
