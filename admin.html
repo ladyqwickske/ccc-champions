@@ -947,8 +947,9 @@
           <button class="btn btn-secondary" style="margin:0;" onclick="Orchestrator.command('runnow')">⚡ Run now</button>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
-          <select id="orcVoltronKind" style="width:auto;min-width:180px;"><option value="voltron-all">All Voltron imports</option><option value="voltron-import">Tournament import</option><option value="voltron-growth">Growth import (levels, Voltron list)</option><option value="voltron-calendar">Calendar sync</option></select>
+          <select id="orcVoltronKind" style="width:auto;min-width:180px;" onchange="document.getElementById('orcVoltronEvent').style.display = this.value === 'voltron-journal' ? '' : 'none'"><option value="voltron-all">All Voltron imports</option><option value="voltron-import">Tournament import</option><option value="voltron-growth">Growth import (levels, Voltron list)</option><option value="voltron-calendar">Calendar sync</option><option value="voltron-journal">In-game tournaments (journal)</option></select>
           <select id="orcVoltronClan" style="width:auto;min-width:180px;"><option value="*">Every clan (where on)</option></select>
+          <input type="text" id="orcVoltronEvent" placeholder="Event to import again (optional)" style="display:none;width:240px;margin:0;" title="Only this event (its name as on the Events page), also if it was imported before. Empty: the events not imported yet.">
           <button class="btn btn-secondary" style="margin:0;" onclick="Orchestrator.command('voltron')">🛰️ Run Voltron now</button>
         </div>
         <div id="orcStatus" class="status" style="display:none;"></div>
@@ -2336,7 +2337,10 @@
         if (kind === 'stop' && !confirm('Stop the orchestrator? It stops within about a minute, also in the middle of a clan, and stays stopped until you press Start.')) return;
         const body = { command: kind };
         if (kind === 'runnow') body.clan = $('orcRunNowClan').value || '*';
-        if (kind === 'voltron') { body.command = $('orcVoltronKind').value; body.clan = $('orcVoltronClan').value || '*'; }
+        if (kind === 'voltron') {
+          body.command = $('orcVoltronKind').value; body.clan = $('orcVoltronClan').value || '*';
+          if (body.command === 'voltron-journal') body.event = $('orcVoltronEvent').value.trim();
+        }
         send(body);
       }
       // A switch / interval: back to "no website setting" when it equals orchestrator.json
@@ -2380,7 +2384,7 @@
         // Last Voltron runs (UTC dates) and what is waiting to run now
         const voltronLine = (c) => {
           const d = c.voltronDone || {}, q = c.voltronQueued || [];
-          const parts = [['import', 'tourn.', c.voltron_import], ['growth', 'growth', c.voltron_growth], ['calendar', 'calendar', c.voltron_calendar]]
+          const parts = [['import', 'tourn.', c.voltron_import], ['growth', 'growth', c.voltron_growth], ['calendar', 'calendar', c.voltron_calendar], ['journal', 'in-game', c.journalOn]]
             .filter(([, , on]) => on).map(([k, label]) => label + ' ' + (q.includes(k) ? '⏳ waiting' : (d[k] ? esc(String(d[k]).slice(5)) : '—')));
           return parts.length ? '<div class="note" style="margin:2px 0 0;font-weight:normal;">Voltron: ' + parts.join(' · ') + '</div>' : '';
         };
@@ -2415,7 +2419,7 @@
             '<td style="' + cell + 'white-space:nowrap;">' + (v.enabled ? fmt(v.nextLogin) : '<span class="note">off</span>') + '</td></tr>';
         }).join('') : '<tr><td colspan="4" style="' + cell + 'color:#999;">No vacation accounts in orchestrator.json' + (data.status ? '' : ' (or no sync yet)') + '.</td></tr>';
         $('orcRecent').innerHTML = (data.recent || []).length ? data.recent.map(x =>
-          '<div style="padding:3px 0;border-top:1px solid #333;">' + fmt(x.createdAt) + ' · <b>' + esc(x.type) + (x.clan && x.clan !== '*' ? ' ' + esc(x.clan) : x.type === 'runnow' || /^voltron-/.test(x.type) ? ' (all)' : '') + '</b> · ' +
+          '<div style="padding:3px 0;border-top:1px solid #333;">' + fmt(x.createdAt) + ' · <b>' + esc(x.type) + (x.clan && x.clan !== '*' ? ' ' + esc(x.clan) : x.type === 'runnow' || /^voltron-/.test(x.type) ? ' (all)' : '') + (x.event ? ' "' + esc(x.event) + '"' : '') + '</b> · ' +
             (x.doneAt ? esc(x.result || 'done') + ' (' + fmt(x.doneAt) + ')' : '<span style="color:#ffb300;">waiting for the PC</span>') + '</div>').join('') : '<span class="note">None yet. (Start isn\'t listed: it goes through the watchdog.)</span>';
 
         const fileOf = (name) => ((st.clans || []).find(c => c.name === name) || {}).file || {};
