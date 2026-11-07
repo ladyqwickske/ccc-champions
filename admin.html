@@ -947,11 +947,13 @@
           <button class="btn btn-secondary" style="margin:0;" onclick="Orchestrator.command('runnow')">⚡ Run now</button>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
-          <select id="orcVoltronKind" style="width:auto;min-width:180px;" onchange="document.getElementById('orcVoltronEvent').style.display = this.value === 'voltron-journal' ? '' : 'none'"><option value="voltron-all">All Voltron imports</option><option value="voltron-import">Tournament import</option><option value="voltron-growth">Growth import (levels, Voltron list)</option><option value="voltron-calendar">Calendar sync</option><option value="voltron-journal">In-game tournaments (journal)</option></select>
-          <select id="orcVoltronClan" style="width:auto;min-width:180px;"><option value="*">Every clan (where on)</option></select>
+          <select id="orcVoltronKind" style="width:auto;min-width:180px;" onchange="Orchestrator.voltronUi()"><option value="voltron-all">All Voltron imports</option><option value="voltron-import">Tournament import</option><option value="voltron-growth">Growth import (levels, Voltron list)</option><option value="voltron-calendar">Calendar sync</option><option value="voltron-journal">In-game tournaments (journal)</option></select>
+          <select id="orcVoltronClan" style="width:auto;min-width:180px;" onchange="Orchestrator.voltronUi()"><option value="*">Every clan (where on)</option></select>
+          <select id="orcVoltronEventSel" style="display:none;width:auto;min-width:240px;margin:0;" title="Which in-game tournament event to import" onchange="Orchestrator.voltronUi()"></select>
           <input type="text" id="orcVoltronEvent" placeholder="Event to import again (optional)" style="display:none;width:240px;margin:0;" title="Only this event (its name as on the Events page), also if it was imported before. Empty: the events not imported yet.">
           <button class="btn btn-secondary" style="margin:0;" onclick="Orchestrator.command('voltron')">🛰️ Run Voltron now</button>
         </div>
+        <div id="orcJournalInfo" class="note" style="margin:-4px 0 8px;text-align:left;"></div>
         <div id="orcStatus" class="status" style="display:none;"></div>
         <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Clans</h4>
         <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
@@ -2339,7 +2341,7 @@
         if (kind === 'runnow') body.clan = $('orcRunNowClan').value || '*';
         if (kind === 'voltron') {
           body.command = $('orcVoltronKind').value; body.clan = $('orcVoltronClan').value || '*';
-          if (body.command === 'voltron-journal') body.event = $('orcVoltronEvent').value.trim();
+          if (body.command === 'voltron-journal') body.event = ($('orcVoltronEventSel').style.display !== 'none' ? $('orcVoltronEventSel').value : $('orcVoltronEvent').value).trim();
         }
         send(body);
       }
@@ -2379,6 +2381,7 @@
         const vsel = $('orcVoltronClan'), vkeep = vsel.value;
         vsel.innerHTML = '<option value="*">Every clan (where on)</option>' + (st.clans || []).map(c => '<option value="' + attr(c.name) + '">' + esc(c.name) + '</option>').join('');
         vsel.value = [...vsel.options].some(o => o.value === vkeep) ? vkeep : '*';
+        voltronUi();
         const cell = 'padding:6px 8px;border-top:1px solid #444;';
         const resetBtn = (scope, name, field) => ' <button title="Back to the orchestrator.json value" data-orc-reset="' + scope + '|' + attr(name) + '|' + field + '" style="background:none;border:none;color:#ffb300;cursor:pointer;padding:0 2px;">↺</button>';
         // Last Voltron runs (UTC dates) and what is waiting to run now
@@ -2443,13 +2446,39 @@
           reset(scope, name, field);
         }));
       }
+      // In-game tournaments: the clan's events the journal import can read (sent by the PC), and its last run
+      function voltronUi() {
+        const journal = $('orcVoltronKind').value === 'voltron-journal';
+        const clanName = $('orcVoltronClan').value;
+        const c = ((data && data.status && data.status.clans) || []).find(x => x.name === clanName);
+        const events = c && Array.isArray(c.journalEvents) ? c.journalEvents : null;
+        const sel = $('orcVoltronEventSel'), keep = sel.value;
+        const listed = journal && clanName !== '*' && events && events.length;
+        sel.style.display = listed ? '' : 'none';
+        $('orcVoltronEvent').style.display = journal && clanName !== '*' && !listed && !(events && !events.length) ? '' : 'none';
+        if (listed) {
+          sel.innerHTML = '<option value="">Events not imported yet</option>' + events.map(e => '<option value="' + attr(e.name) + '">' +
+            esc(e.name) + (e.end ? ' (ended ' + esc(e.end.slice(5)) + ')' : '') + (e.imported ? ' — ✔ imported: import again' : ' — not imported yet') + '</option>').join('');
+          sel.value = [...sel.options].some(o => o.value === keep) ? keep : '';
+        }
+        const lines = [];
+        if (journal) {
+          if (clanName === '*') lines.push('Every clan where the in-game import is set up: only the events not imported yet. Pick a clan to choose an event to import again.');
+          else if (events && !events.length) lines.push('No in-game tournament event of ' + esc(clanName) + ' ended in the last days, or its in-game import is not set up.');
+          else if (!events) lines.push('The PC sends the list of events after its next update; until then type the event\'s name as on the Events page (empty: only the events not imported yet).');
+          else if (!sel.value) lines.push('Only the events not imported yet: nothing happens when they were all imported already. Pick an event to import it again.');
+          const last = c && c.journalLast;
+          if (last) lines.push('Last in-game run for ' + esc(clanName) + ': ' + fmt(last.at) + ' — ' + esc(last.text));
+        }
+        $('orcJournalInfo').innerHTML = lines.join('<br>');
+      }
       // Show the tab only to the owner: the Worker answers getOrchestratorRemote only for her.
       function checkAccess() {
         const btn = $('orchestratorTabBtn');
         if (!btn) return;
         post({ action: 'getOrchestratorRemote' }).then(r => { if (r && r.success) btn.style.display = ''; }).catch(() => {});
       }
-      return { load, command, checkAccess };
+      return { load, command, checkAccess, voltronUi };
     })();
 
     // 🏷️ Chest Point Values: the points per chest (old "Chests 2.0" tab), changed on the
