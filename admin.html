@@ -1990,7 +1990,13 @@
           const r = await post(body);
           if (r && r.active !== undefined) data = r;
           status((r && (r.message || r.error)) || 'No answer', !!(r && r.success));
-        } catch (e) { status('No answer (' + e.message + '). It may still be running: press 🔄 Reload in a few minutes.', false); }
+        } catch (e) {
+          // Cloudflare stopped the Worker (error 1102) or the connection dropped: show what the database recorded
+          busy = false;
+          try { const r = await post({ action: 'getPeriodStatus' }); if (r && r.success) data = r; } catch (_) {}
+          const c = (data && data.closings || []).find(x => x.status === 'pending');
+          status('No answer from the database (' + e.message + ').' + (c && c.lastError ? ' ' + c.lastError : ' Press 🔄 Reload in a few minutes to see whether it finished.'), false);
+        }
         busy = false; render();
       }
       function start() {
