@@ -633,6 +633,7 @@
         <button class="tab" data-group="chestdata" data-tab="manualChestsTab" id="manualChestsTabBtn" style="display:none" onclick="AdminTab.switchTab('manualChestsTab', event)">➕ Manual Chests</button>
         <button class="tab active" data-group="chestdata" data-tab="chestNameFixTab" onclick="AdminTab.switchTab('chestNameFixTab', event)">🔀 Move Chests</button>
         <button class="tab" data-group="chestdata" data-tab="ocrTab" onclick="AdminTab.switchTab('ocrTab', event)">🔤 OCR Corrections</button>
+        <button class="tab" data-group="chestdata" data-tab="periodAdminTab" id="periodAdminTabBtn" style="display:none" onclick="AdminTab.switchTab('periodAdminTab', event)">🗓️ Period</button>
         <button class="tab" data-group="chestdata" data-tab="voltronNamesTab" id="voltronNamesTabBtn" style="display:none" onclick="AdminTab.switchTab('voltronNamesTab', event)">🛰️ Voltron Names</button>
         <button class="tab" data-group="chestdata" data-tab="rosterCheckTab" id="rosterCheckTabBtn" style="display:none" onclick="AdminTab.switchTab('rosterCheckTab', event)">🧭 Roster Check</button>
         <button class="tab" data-group="chestdata" data-tab="removeChestsTab" onclick="AdminTab.switchTab('removeChestsTab', event)">🛠️ Manage Chest Data</button>
@@ -689,6 +690,18 @@
           <tbody id="cnfBody"><tr><td colspan="4" style="padding:8px;color:#999;">Loading…</td></tr></tbody>
         </table></div>
         <div id="cnfStatus" class="status" style="display:none;"></div>
+      </div>
+      <div id="periodAdminTab" class="tab-content">
+        <h3 style="margin:0 0 6px 0;">Period</h3>
+        <div class="note" style="margin-bottom:12px;">Normally the chesttracker starts the new period at the reset. If that failed (you got a "starting the new period FAILED" e-mail), start it here, or finish a period change that is still pending: targets, warnings and the period e-mail. The database also tries again by itself every hour, and starts a period 6 hours after it ended. Only the owners can see this tab.</div>
+        <div id="pdActive" style="text-align:left;margin-bottom:8px;">Loading…</div>
+        <button class="btn" id="pdStart" style="margin:0 8px 0 0;" onclick="PeriodAdmin.start()" disabled>▶️ Start the new period</button>
+        <button class="btn btn-secondary" style="margin:0;" onclick="PeriodAdmin.load()">🔄 Reload</button>
+        <div id="pdStatus" class="status" style="display:none;"></div>
+        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Period changes</h4>
+        <div id="pdChanges" style="font-size:13px;text-align:left;"></div>
+        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Period e-mails</h4>
+        <div id="pdEmails" style="font-size:13px;text-align:left;"></div>
       </div>
       <div id="ocrTab" class="tab-content">
         <h3 style="margin:0 0 6px 0;">OCR Corrections</h3>
@@ -1289,7 +1302,7 @@
         const btn = document.getElementById('superiorsTabBtn');
         if (!email || !btn) return;
         fetchSuperiors()
-          .then(data => { superiors = data; btn.style.display = ''; const mc = document.getElementById('manualChestsTabBtn'); if (mc) mc.style.display = ''; if (window.VoltronNames) window.VoltronNames.checkAccess(); if (window.RosterCheck) window.RosterCheck.checkAccess(); if (window.Orchestrator) window.Orchestrator.checkAccess(); if (window.EmailSettings) window.EmailSettings.checkAccess(); })
+          .then(data => { superiors = data; btn.style.display = ''; const mc = document.getElementById('manualChestsTabBtn'); if (mc) mc.style.display = ''; if (window.VoltronNames) window.VoltronNames.checkAccess(); if (window.RosterCheck) window.RosterCheck.checkAccess(); if (window.Orchestrator) window.Orchestrator.checkAccess(); if (window.EmailSettings) window.EmailSettings.checkAccess(); if (window.PeriodAdmin) window.PeriodAdmin.checkAccess(); })
           .catch(() => { btn.style.display = 'none'; });
       }
 
@@ -1559,6 +1572,7 @@
         if (tabId === 'chestNameFixTab' && window.ChestNameFix) window.ChestNameFix.load();
         if (tabId === 'chestValuesTab' && window.ChestPointValues) window.ChestPointValues.load();
         if (tabId === 'ocrTab' && window.OcrCorrections) window.OcrCorrections.load();
+        if (tabId === 'periodAdminTab' && window.PeriodAdmin) window.PeriodAdmin.load();
         if (tabId === 'voltronNamesTab' && window.VoltronNames) window.VoltronNames.load();
         if (tabId === 'rosterCheckTab' && window.RosterCheck) window.RosterCheck.load();
         if (tabId === 'removeChestsTab' && window.RemoveChests) window.RemoveChests.load();
@@ -1912,6 +1926,85 @@
         post({ action: 'getEmailSettings' }).then(r => { if (r && r.success) btn.style.display = ''; }).catch(() => {});
       }
       return { load, save, checkAccess };
+    })();
+
+    // 🗓️ Period (owners only): the period change from the website, for when the one at the reset
+    // failed (getPeriodStatus / startPeriodNow / finishPeriodChange). Never forced: starting is
+    // refused before the active period has ended.
+    window.PeriodAdmin = (function () {
+      let data = null, busy = false;
+      const $ = (id) => document.getElementById(id);
+      const esc = (t) => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+      const post = async (body) => {
+        const res = await fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return res.json();
+      };
+      const when = (iso) => iso ? new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+      const status = (msg, ok) => {
+        const el = $('pdStatus');
+        el.style.display = msg ? '' : 'none';
+        el.className = 'status ' + (ok ? 'ok' : 'err');
+        el.textContent = msg || '';
+      };
+      function render() {
+        if (!data) return;
+        const a = data.active;
+        $('pdActive').innerHTML = a
+          ? 'Active period: <b>' + esc(a.start) + ' – ' + esc(a.end || '?') + '</b>' + (data.ended
+            ? ' — <b style="color:#ef5350;">it has ended</b>: the new period can be started.'
+            : ' — runs until the reset (17:00 UTC) on ' + esc(a.end || '?') + '.')
+          : 'No active period in the database.';
+        $('pdStart').disabled = busy || !data.ended;
+        const list = data.closings || [];
+        $('pdChanges').innerHTML = list.length ? list.map((c, i) =>
+          '<div style="padding:6px 0;border-top:1px solid rgba(128,128,128,0.35);display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
+            '<span style="flex:1 1 220px;">Period from <b>' + esc(c.start) + '</b> closed ' + esc(when(c.closedAt)) + ' · ' +
+              (c.status === 'done' ? '✅ done ' + esc(when(c.doneAt)) : '<b style="color:#ffb300;">⏳ pending</b> (' + c.attempts + ' attempt' + (c.attempts === 1 ? '' : 's') + ')') +
+              (c.status !== 'done' && c.lastError ? '<br><span style="font-size:12px;opacity:0.8;">Last error: ' + esc(c.lastError) + '</span>' : '') + '</span>' +
+            (c.status === 'pending' ? '<button class="btn" data-pd-finish="' + i + '" style="margin:0;padding:4px 10px;font-size:12px;"' + (busy ? ' disabled' : '') + '>✔ Finish this period change</button>' : '') +
+          '</div>').join('') : '<span style="opacity:0.75;">No period changes recorded yet.</span>';
+        const mails = data.emails || [];
+        $('pdEmails').innerHTML = mails.length ? mails.map(m =>
+          '<div style="padding:6px 0;border-top:1px solid rgba(128,128,128,0.35);">' + esc(when(m.at)) + ' · <b>' + esc(m.subject) + '</b><br>' +
+            '<span style="font-size:12px;">' + (m.status === 'sent' ? '✅ sent' : '<b style="color:#ef5350;">⚠️ ' + esc(m.status) + '</b>') +
+            (m.to ? ' — to ' + esc(m.to) : '') + (m.error ? ' — ' + esc(m.error) : '') + '</span></div>').join('')
+          : '<span style="opacity:0.75;">No period e-mails sent yet. If a period change above is pending, ✔ Finish it to send its e-mail.</span>';
+        $('pdChanges').querySelectorAll('[data-pd-finish]').forEach(b => b.addEventListener('click', () => {
+          const c = data.closings[+b.getAttribute('data-pd-finish')];
+          if (confirm('Finish the period change for the period from ' + c.start + '? This works out the targets and warnings and sends the period e-mail. It can take a few minutes.'))
+            act({ action: 'finishPeriodChange', start: c.start });
+        }));
+      }
+      async function load(keepStatus) {
+        if (!keepStatus) status('');
+        try {
+          const r = await post({ action: 'getPeriodStatus' });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Could not load the period');
+          data = r; render();
+        } catch (e) { status(e.message, false); }
+      }
+      async function act(body) {
+        busy = true; render();
+        status('Working… this can take a few minutes. Keep this page open.', true);
+        try {
+          const r = await post(body);
+          if (r && r.active !== undefined) data = r;
+          status((r && (r.message || r.error)) || 'No answer', !!(r && r.success));
+        } catch (e) { status('No answer (' + e.message + '). It may still be running: press 🔄 Reload in a few minutes.', false); }
+        busy = false; render();
+      }
+      function start() {
+        if (!data || !data.ended) return;
+        if (confirm('Start the new period now? This closes ' + data.active.start + ' – ' + data.active.end + ', starts the next one, works out the targets and warnings and sends the period e-mail — the same as the chesttracker does at the reset. It can take a few minutes.'))
+          act({ action: 'startPeriodNow' });
+      }
+      // Show the tab only to the owners: the Worker answers getPeriodStatus only for them.
+      function checkAccess() {
+        const btn = $('periodAdminTabBtn');
+        if (!btn) return;
+        post({ action: 'getPeriodStatus' }).then(r => { if (r && r.success) btn.style.display = ''; }).catch(() => {});
+      }
+      return { load, start, checkAccess };
     })();
 
     // 🛰️ Voltron Names (owner only): Voltron player names → member names for the Voltron imports
