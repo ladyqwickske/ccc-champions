@@ -946,7 +946,7 @@
       </div>
       <div id="orchestratorTab" class="tab-content">
         <h3 style="margin:0 0 6px 0;">Orchestrator</h3>
-        <div class="note" style="margin-bottom:12px;">The chesttracker PC's orchestrator, from anywhere. Buttons and settings reach it within about a minute while it runs; <b>Start</b> goes through the watchdog on the PC (within about 5 minutes). Settings here go on top of <code>orchestrator.json</code> without changing the file: ↺ puts a setting back to the file's value. Only you can see this tab.</div>
+        <div class="note" style="margin-bottom:12px;">The chesttracker PC's orchestrator, from anywhere. Buttons and settings reach it within about a minute while it runs; <b>Start</b> goes through the watchdog on the PC (within about 5 minutes). Settings here go on top of <code>orchestrator.json</code> without changing the file: ↺ puts a setting back to the file's value, ↺ All back to orchestrator.json does that for every setting. The orchestrator reads the file when it starts: after changing the file, Stop and Start it. Only you can see this tab.</div>
         <div id="orcState" style="border:1px solid #444;border-radius:8px;padding:12px;background:#232526;text-align:left;margin-bottom:10px;">Loading…</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
           <button class="btn" style="margin:0;" onclick="Orchestrator.command('start')">▶️ Start</button>
@@ -968,7 +968,8 @@
         </div>
         <div id="orcJournalInfo" class="note" style="margin:-4px 0 8px;text-align:left;"></div>
         <div id="orcStatus" class="status" style="display:none;"></div>
-        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Clans</h4>
+        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">Clans
+          <button class="btn btn-secondary" style="margin:0 0 0 auto;padding:4px 10px;font-size:12px;" title="Every clan and vacation-account setting made here goes back to the orchestrator.json value" onclick="Orchestrator.resetAll()">↺ All back to orchestrator.json</button></h4>
         <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
           <thead><tr><th style="text-align:left;padding:6px 8px;">Clan</th><th style="padding:6px 8px;">On</th><th style="padding:6px 8px;">Every (h)</th><th style="padding:6px 8px;" title="Voltron tournament import">Tourn.</th><th style="padding:6px 8px;" title="Voltron growth import (hero, troop, captain levels)">Growth</th><th style="padding:6px 8px;" title="Voltron calendar sync">Calendar</th><th style="text-align:left;padding:6px 8px;">Last run</th><th style="text-align:left;padding:6px 8px;">Next run</th></tr></thead>
           <tbody id="orcClans"></tbody>
@@ -2449,6 +2450,10 @@
         send({ set: { scope: scope, name: name, field: field, value: value === fileValue ? null : value } });
       }
       function reset(scope, name, field) { send({ set: { scope: scope, name: name, field: field, value: null } }, 'Back to the orchestrator.json value.'); }
+      function resetAll() {
+        if (confirm('Put every clan and vacation-account setting made here back to orchestrator.json? (Who gets the e-mails stays: change that on the 📧 E-mails tab.) After changing orchestrator.json, restart the orchestrator so it reads the file again.'))
+          send({ resetAll: true });
+      }
 
       function stateBox() {
         const st = data.status, desired = (data.desired && data.desired.state) || 'running';
@@ -2577,7 +2582,7 @@
         if (!btn) return;
         post({ action: 'getOrchestratorRemote' }).then(r => { if (r && r.success) btn.style.display = ''; }).catch(() => {});
       }
-      return { load, command, checkAccess, voltronUi };
+      return { load, command, checkAccess, voltronUi, resetAll };
     })();
 
     // 🏷️ Chest Point Values: the points per chest (old "Chests 2.0" tab), changed on the
