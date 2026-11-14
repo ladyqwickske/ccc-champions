@@ -476,6 +476,44 @@
       }
       .hamburger { display: none; }
     }
+    /* 🖥️ Orchestrator → Resource tracking: one card per clan, resources as toggle chips */
+    .rt-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin:22px 0 4px; text-align:left; }
+    .rt-head h4 { margin:0; color:#ffb300; font-size:16px; }
+    .rt-head .rt-sum { font-size:12px; color:#9aa0a6; }
+    .rt-intro { font-size:12px; color:#9aa0a6; text-align:left; margin:0 0 12px; line-height:1.5; }
+    .rt-list { display:flex; flex-direction:column; gap:10px; text-align:left; }
+    .rt-card { background:#1b1e23; border:1px solid #33383f; border-radius:12px; padding:12px 14px; transition:border-color .15s; }
+    .rt-card.on { border-color:#4a3f1c; box-shadow:inset 3px 0 0 #ffb300; }
+    .rt-row { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .rt-name { font-weight:600; font-size:15px; color:#f3f3f3; min-width:150px; }
+    .rt-badge { font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px; letter-spacing:.3px; white-space:nowrap; }
+    .rt-badge.on { background:rgba(102,187,106,.15); color:#81c784; }
+    .rt-badge.off { background:#2b2f35; color:#8b9198; }
+    .rt-badge.wait { background:rgba(255,179,0,.12); color:#ffca4f; }
+    .rt-meta { font-size:12px; color:#9aa0a6; white-space:nowrap; }
+    .rt-meta b { color:#d7dade; font-weight:600; }
+    .rt-meta.stale { color:#ffb74d; }
+    .rt-actions { margin-left:auto; display:flex; gap:6px; align-items:center; }
+    .rt-btn { background:#2b2f35; color:#d7dade; border:1px solid #3a3f47; border-radius:7px; padding:4px 10px; font-size:12px; cursor:pointer; font-family:inherit; }
+    .rt-btn:hover { border-color:#ffb300; color:#ffb300; }
+    .rt-btn.link { background:none; border-color:transparent; color:#ffb300; padding:4px 6px; }
+    .rt-btn.link:hover { text-decoration:underline; }
+    .rt-switch { position:relative; width:38px; height:22px; flex:none; border-radius:999px; border:none; background:#3a3f47; cursor:pointer; padding:0; transition:background .15s; }
+    .rt-switch::after { content:''; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#cfd3d8; transition:transform .15s, background .15s; }
+    .rt-switch[aria-checked="true"] { background:#ffb300; }
+    .rt-switch[aria-checked="true"]::after { transform:translateX(16px); background:#232526; }
+    .rt-switch:focus-visible, .rt-chip:focus-visible, .rt-btn:focus-visible { outline:2px solid #ffca4f; outline-offset:2px; }
+    .rt-chips { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:6px; margin-top:12px; }
+    .rt-chips.dim { opacity:.55; }
+    .rt-chip { display:flex; align-items:center; gap:8px; text-align:left; background:#22262c; border:1px solid #33383f; color:#8b9198; border-radius:8px; padding:6px 10px; font-size:13px; cursor:pointer; font-family:inherit; transition:all .12s; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .rt-chip:hover { border-color:#6b5a26; color:#d7dade; }
+    .rt-chip .tick { flex:none; width:16px; height:16px; border-radius:4px; border:1.5px solid #4a5059; display:grid; place-items:center; font-size:11px; line-height:1; color:transparent; }
+    .rt-chip[aria-pressed="true"] { background:rgba(255,179,0,.1); border-color:rgba(255,179,0,.55); color:#ffe2a0; }
+    .rt-chip[aria-pressed="true"] .tick { background:#ffb300; border-color:#ffb300; color:#232526; }
+    .rt-offnote { font-size:12px; color:#8b9198; margin-top:8px; }
+    .rt-missing { margin-top:10px; padding:10px 14px; border:1px dashed #3a3f47; border-radius:12px; font-size:12px; color:#9aa0a6; text-align:left; line-height:1.6; }
+    .rt-missing b { color:#d7dade; }
+    @media (max-width: 640px) { .rt-actions { margin-left:0; width:100%; } .rt-name { min-width:0; } .rt-chips { grid-template-columns:repeat(2, minmax(0, 1fr)); } .rt-chip { font-size:12px; padding:6px 8px; gap:6px; } }
   </style>
 </head>
 <body>
@@ -979,9 +1017,9 @@
           <thead><tr><th style="text-align:left;padding:6px 8px;">Clan</th><th style="padding:6px 8px;">On</th><th style="padding:6px 8px;">Every (h)</th><th style="padding:6px 8px;" title="Voltron tournament import">Tourn.</th><th style="padding:6px 8px;" title="Voltron growth import (hero, troop, captain levels)">Growth</th><th style="padding:6px 8px;" title="Voltron calendar sync">Calendar</th><th style="text-align:left;padding:6px 8px;">Last run</th><th style="text-align:left;padding:6px 8px;">Next run</th></tr></thead>
           <tbody id="orcClans"></tbody>
         </table></div>
-        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Resource tracking</h4>
-        <div class="note" style="text-align:left;margin:0 0 6px;">Clan Capital → History, read once a day after midnight (yesterday's donations). Only clans with resource tracking set up on the PC are listed; screen positions and navigation are recorded there. ↺ goes back to the clan's file on the PC.</div>
-        <div id="orcResources" style="text-align:left;font-size:13px;"></div>
+        <div class="rt-head"><h4>Resource tracking</h4><span class="rt-sum" id="orcResourcesSum"></span></div>
+        <p class="rt-intro">Who sent what in Clan Capital → History, read once a day after midnight (yesterday's donations; today's are never recorded). Changes here apply at the PC's next sync; ↺ goes back to the clan's own settings on the PC.</p>
+        <div id="orcResources"></div>
         <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Stay Alive accounts</h4>
         <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
           <thead><tr><th style="text-align:left;padding:6px 8px;">Account</th><th style="padding:6px 8px;">On</th><th style="text-align:left;padding:6px 8px;">Last login</th><th style="text-align:left;padding:6px 8px;">Next login</th></tr></thead>
@@ -2551,46 +2589,92 @@
           '<div style="padding:3px 0;border-top:1px solid #333;">' + fmt(x.createdAt) + ' · <b>' + esc(x.type) + (x.clan && x.clan !== '*' ? ' ' + esc(x.clan) : x.type === 'runnow' || /^voltron-/.test(x.type) ? ' (all)' : '') + (x.event ? ' "' + esc(x.event) + '"' : '') + '</b> · ' +
             (x.doneAt ? esc(x.result || 'done') + ' (' + fmt(x.doneAt) + ')' : '<span style="color:#ffb300;">waiting for the PC</span>') + '</div>').join('') : '<span class="note">None yet. (Start isn\'t listed: it goes through the watchdog.)</span>';
 
-        // Resource tracking per clan: on/off and which resources (on top of the PC's config file)
-        const rclansAll = (st.clans || []).filter(c => c.resources && c.resources.on);
-        $('orcResources').innerHTML = rclansAll.length ? rclansAll.map(c => {
+        // Resource tracking: a card per clan with its setup on the PC; on/off and the resources
+        // as toggle chips (website settings on top of the PC's resource_tracking_config.json)
+        const rAll = (st.clans || []).filter(c => c.resources && c.resources.on);
+        const rMissing = (st.clans || []).filter(c => !(c.resources && c.resources.on));
+        const rView = rAll.map(c => {
           const r = c.resources, over = (sets.clans || {})[c.name] || {}, file = r.file || {};
-          const onHas = 'resources_enabled' in over, on = onHas ? !!over.resources_enabled : !!file.enabled;
-          const typesHas = Array.isArray(over.resource_types), types = typesHas ? over.resource_types : (file.types || []);
+          const onHas = 'resources_enabled' in over, typesHas = Array.isArray(over.resource_types);
+          const on = onHas ? !!over.resources_enabled : !!file.enabled;
+          const types = typesHas ? over.resource_types : (file.types || []);
           const known = [...(r.known || [])];
           for (const t of [...(file.types || []), ...(r.types || []), ...types]) if (!known.includes(t)) known.push(t);
-          const chosen = new Set(types);
-          const waitOn = onHas && !!r.enabled !== on, waitTypes = typesHas && JSON.stringify(r.types || []) !== JSON.stringify(types);
-          return '<div style="border-top:1px solid #444;padding:8px 0;">' +
-            '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><b>' + esc(c.name) + '</b>' +
-              '<label style="display:inline-flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" data-orc-res-on data-name="' + attr(c.name) + '"' + (on ? ' checked' : '') + '> Track resources</label>' +
-              (waitOn ? ' <span title="Waiting for the PC to apply it" style="font-size:11px;">⏳</span>' : '') + (onHas ? resetBtn('clan', c.name, 'resources_enabled') : '') +
-              '<span class="note" style="margin:0;">' + chosen.size + ' of ' + known.length + ' resources' + (r.lastRun ? ' · last run ' + esc(r.lastRun) : '') + '</span>' +
-              (waitTypes ? ' <span title="Waiting for the PC to apply it" style="font-size:11px;">⏳</span>' : '') + (typesHas ? resetBtn('clan', c.name, 'resource_types') : '') +
-              ' <button class="btn btn-secondary" style="margin:0;padding:2px 8px;font-size:12px;" data-orc-res-all="' + attr(c.name) + '">All</button>' +
+          const waiting = (onHas && !!r.enabled !== on) || (typesHas && JSON.stringify(r.types || []) !== JSON.stringify(types));
+          return { c, r, on, onHas, typesHas, types, chosen: new Set(types), known, waiting };
+        });
+        const dayDiff = (iso) => {
+          if (!iso) return null;
+          const d = new Date(iso + 'T00:00:00'), t = new Date(); t.setHours(0, 0, 0, 0);
+          return Math.round((t - d) / 86400000);
+        };
+        const lastRunText = (iso) => {
+          const n = dayDiff(iso);
+          if (n === null) return 'never run';
+          const when = n <= 0 ? 'today' : n === 1 ? 'yesterday' : n < 7 ? n + ' days ago'
+            : new Date(iso + 'T00:00:00').toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: n > 300 ? 'numeric' : undefined });
+          return 'last run <b>' + esc(when) + '</b>';
+        };
+        const tracking = rView.filter(v => v.on).length;
+        $('orcResourcesSum').textContent = rAll.length ? tracking + ' of ' + rAll.length + ' clan' + (rAll.length === 1 ? '' : 's') + ' tracking' : '';
+        const openKey = 'orcResOpen';
+        let openSet; try { openSet = new Set(JSON.parse(sessionStorage.getItem(openKey) || '[]')); } catch (e) { openSet = new Set(); }
+        $('orcResources').innerHTML = (rView.length ? '<div class="rt-list">' + rView.map(v => {
+          const { c, r, on } = v, n = dayDiff(r.lastRun), stale = on && (n === null || n > 2);
+          const showChips = on || openSet.has(c.name);
+          const badge = v.waiting ? '<span class="rt-badge wait" title="Saved here; the PC applies it at its next sync (about a minute)">⏳ Waiting for the PC</span>'
+            : on ? '<span class="rt-badge on">Tracking</span>' : '<span class="rt-badge off">Off</span>';
+          return '<div class="rt-card' + (on ? ' on' : '') + '">' +
+            '<div class="rt-row">' +
+              '<button type="button" class="rt-switch" role="switch" aria-checked="' + on + '" aria-label="Track resources for ' + attr(c.name) + '" title="Track resources every night" data-rt-on="' + attr(c.name) + '"></button>' +
+              '<span class="rt-name">' + esc(c.name) + '</span>' + badge +
+              '<span class="rt-meta"><b>' + v.chosen.size + '</b> of ' + v.known.length + ' resources</span>' +
+              '<span class="rt-meta' + (stale ? ' stale' : '') + '"' + (stale ? ' title="Tracking is on but it hasn\'t run in the last two days"' : '') + '>' + (stale ? '⚠ ' : '') + lastRunText(r.lastRun) + '</span>' +
+              '<span class="rt-actions">' +
+                (!on ? '<button type="button" class="rt-btn link" data-rt-open="' + attr(c.name) + '">' + (showChips ? 'Hide resources ▴' : 'Choose resources ▾') + '</button>' : '') +
+                (showChips ? '<button type="button" class="rt-btn" data-rt-all="' + attr(c.name) + '" title="Track every resource">Select all</button>' : '') +
+                (v.onHas || v.typesHas ? '<button type="button" class="rt-btn" data-rt-reset="' + attr(c.name) + '" title="Back to the clan\'s own settings on the PC">↺ PC settings</button>' : '') +
+              '</span>' +
             '</div>' +
-            '<div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;' + (on ? '' : 'opacity:.5;') + '">' + known.map(t =>
-              '<label style="display:inline-flex;gap:4px;align-items:center;cursor:pointer;white-space:nowrap;"><input type="checkbox" data-orc-res-type data-name="' + attr(c.name) + '" value="' + attr(t) + '"' + (chosen.has(t) ? ' checked' : '') + '>' + esc(t) + '</label>').join('') +
-            '</div></div>';
-        }).join('') : '<span class="note">' + ((st.clans || []).length ? 'No clan has resource tracking set up on the PC (or the PC runs an older chesttracker that doesn\'t report it yet).' : 'Shown once the orchestrator has synced with the website.') + '</span>';
+            (showChips ? '<div class="rt-chips' + (on ? '' : ' dim') + '">' + v.known.map(t => {
+                const sel = v.chosen.has(t);
+                return '<button type="button" class="rt-chip" aria-pressed="' + sel + '" data-rt-type="' + attr(c.name) + '" data-value="' + attr(t) + '" title="' + attr(t) + '"><span class="tick">✓</span>' + esc(t) + '</button>';
+              }).join('') + '</div>' + (on ? '' : '<div class="rt-offnote">Tracking is off — the choice is kept for when you switch it on.</div>') : '') +
+          '</div>';
+        }).join('') + '</div>' : '') +
+        (rMissing.length ? '<div class="rt-missing">Not set up on the PC: <b>' + rMissing.map(c => esc(c.name)).join('</b>, <b>') + '</b>.<br>' +
+          'Resource tracking needs the screen positions and clicks recorded once in the chesttracker app (Tools → Resource Tracking…); the clan shows up here after that.</div>'
+          : '') ||
+        '<span class="note">' + ((st.clans || []).length ? 'The PC runs an older chesttracker that doesn\'t report resource tracking yet.' : 'Shown once the orchestrator has synced with the website.') + '</span>';
+        const rFind = (name) => rView.find(v => v.c.name === name);
         const saveTypes = (name, list) => {
-          const c = rclansAll.find(x => x.name === name) || {}, fileTypes = ((c.resources || {}).file || {}).types || [];
-          if (!list.length) { status('Choose at least one resource, or switch resource tracking off.', false); render(); return; }
+          const v = rFind(name), fileTypes = ((v && v.r.file) || {}).types || [];
+          if (!list.length) { status('Keep at least one resource, or switch tracking off.', false); return; }
           send({ set: { scope: 'clan', name: name, field: 'resource_types', value: JSON.stringify(list) === JSON.stringify(fileTypes) ? null : list } });
         };
-        document.querySelectorAll('#orcResources [data-orc-res-on]').forEach(cb => cb.addEventListener('change', () => {
-          const name = cb.getAttribute('data-name'), c = rclansAll.find(x => x.name === name) || {};
-          setValue('clan', name, 'resources_enabled', cb.checked, !!((c.resources || {}).file || {}).enabled);
+        document.querySelectorAll('#orcResources [data-rt-on]').forEach(b => b.addEventListener('click', () => {
+          const name = b.getAttribute('data-rt-on'), v = rFind(name);
+          setValue('clan', name, 'resources_enabled', !v.on, !!(v.r.file || {}).enabled);
         }));
-        document.querySelectorAll('#orcResources [data-orc-res-type]').forEach(cb => cb.addEventListener('change', () => {
-          const name = cb.getAttribute('data-name');
-          saveTypes(name, [...document.querySelectorAll('#orcResources [data-orc-res-type]')]
-            .filter(x => x.getAttribute('data-name') === name && x.checked).map(x => x.value));
+        document.querySelectorAll('#orcResources [data-rt-type]').forEach(b => b.addEventListener('click', () => {
+          const name = b.getAttribute('data-rt-type'), v = rFind(name), t = b.getAttribute('data-value');
+          const next = new Set(v.chosen); if (next.has(t)) next.delete(t); else next.add(t);
+          saveTypes(name, v.known.filter(x => next.has(x)));
         }));
-        document.querySelectorAll('#orcResources [data-orc-res-all]').forEach(b => b.addEventListener('click', () => {
-          const name = b.getAttribute('data-orc-res-all');
-          saveTypes(name, [...document.querySelectorAll('#orcResources [data-orc-res-type]')]
-            .filter(x => x.getAttribute('data-name') === name).map(x => x.value));
+        document.querySelectorAll('#orcResources [data-rt-all]').forEach(b => b.addEventListener('click', () => {
+          const v = rFind(b.getAttribute('data-rt-all')); saveTypes(v.c.name, [...v.known]);
+        }));
+        document.querySelectorAll('#orcResources [data-rt-reset]').forEach(b => b.addEventListener('click', () => {
+          const v = rFind(b.getAttribute('data-rt-reset'));
+          const body = (field) => ({ set: { scope: 'clan', name: v.c.name, field: field, value: null } });
+          if (v.onHas && v.typesHas) send(body('resources_enabled')).then(() => send(body('resource_types'), 'Back to the clan\'s settings on the PC.'));
+          else send(body(v.onHas ? 'resources_enabled' : 'resource_types'), 'Back to the clan\'s settings on the PC.');
+        }));
+        document.querySelectorAll('#orcResources [data-rt-open]').forEach(b => b.addEventListener('click', () => {
+          const name = b.getAttribute('data-rt-open');
+          if (openSet.has(name)) openSet.delete(name); else openSet.add(name);
+          try { sessionStorage.setItem(openKey, JSON.stringify([...openSet])); } catch (e) {}
+          render();
         }));
         const fileOf = (name) => ((st.clans || []).find(c => c.name === name) || {}).file || {};
         document.querySelectorAll('#orcClans [data-orc-flag]').forEach(cb => cb.addEventListener('change', () => {
