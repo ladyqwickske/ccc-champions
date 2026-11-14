@@ -979,6 +979,9 @@
           <thead><tr><th style="text-align:left;padding:6px 8px;">Clan</th><th style="padding:6px 8px;">On</th><th style="padding:6px 8px;">Every (h)</th><th style="padding:6px 8px;" title="Voltron tournament import">Tourn.</th><th style="padding:6px 8px;" title="Voltron growth import (hero, troop, captain levels)">Growth</th><th style="padding:6px 8px;" title="Voltron calendar sync">Calendar</th><th style="text-align:left;padding:6px 8px;">Last run</th><th style="text-align:left;padding:6px 8px;">Next run</th></tr></thead>
           <tbody id="orcClans"></tbody>
         </table></div>
+        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Resource tracking</h4>
+        <div class="note" style="text-align:left;margin:0 0 6px;">Clan Capital → History, read once a day after midnight (yesterday's donations). Only clans with resource tracking set up on the PC are listed; screen positions and navigation are recorded there. ↺ goes back to the clan's file on the PC.</div>
+        <div id="orcResources" style="text-align:left;font-size:13px;"></div>
         <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Vacation accounts</h4>
         <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
           <thead><tr><th style="text-align:left;padding:6px 8px;">Account</th><th style="padding:6px 8px;">On</th><th style="text-align:left;padding:6px 8px;">Last login</th><th style="text-align:left;padding:6px 8px;">Next login</th></tr></thead>
@@ -2548,6 +2551,47 @@
           '<div style="padding:3px 0;border-top:1px solid #333;">' + fmt(x.createdAt) + ' · <b>' + esc(x.type) + (x.clan && x.clan !== '*' ? ' ' + esc(x.clan) : x.type === 'runnow' || /^voltron-/.test(x.type) ? ' (all)' : '') + (x.event ? ' "' + esc(x.event) + '"' : '') + '</b> · ' +
             (x.doneAt ? esc(x.result || 'done') + ' (' + fmt(x.doneAt) + ')' : '<span style="color:#ffb300;">waiting for the PC</span>') + '</div>').join('') : '<span class="note">None yet. (Start isn\'t listed: it goes through the watchdog.)</span>';
 
+        // Resource tracking per clan: on/off and which resources (on top of the PC's config file)
+        const rclansAll = (st.clans || []).filter(c => c.resources && c.resources.on);
+        $('orcResources').innerHTML = rclansAll.length ? rclansAll.map(c => {
+          const r = c.resources, over = (sets.clans || {})[c.name] || {}, file = r.file || {};
+          const onHas = 'resources_enabled' in over, on = onHas ? !!over.resources_enabled : !!file.enabled;
+          const typesHas = Array.isArray(over.resource_types), types = typesHas ? over.resource_types : (file.types || []);
+          const known = [...(r.known || [])];
+          for (const t of [...(file.types || []), ...(r.types || []), ...types]) if (!known.includes(t)) known.push(t);
+          const chosen = new Set(types);
+          const waitOn = onHas && !!r.enabled !== on, waitTypes = typesHas && JSON.stringify(r.types || []) !== JSON.stringify(types);
+          return '<div style="border-top:1px solid #444;padding:8px 0;">' +
+            '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><b>' + esc(c.name) + '</b>' +
+              '<label style="display:inline-flex;gap:4px;align-items:center;cursor:pointer;"><input type="checkbox" data-orc-res-on data-name="' + attr(c.name) + '"' + (on ? ' checked' : '') + '> Track resources</label>' +
+              (waitOn ? ' <span title="Waiting for the PC to apply it" style="font-size:11px;">⏳</span>' : '') + (onHas ? resetBtn('clan', c.name, 'resources_enabled') : '') +
+              '<span class="note" style="margin:0;">' + chosen.size + ' of ' + known.length + ' resources' + (r.lastRun ? ' · last run ' + esc(r.lastRun) : '') + '</span>' +
+              (waitTypes ? ' <span title="Waiting for the PC to apply it" style="font-size:11px;">⏳</span>' : '') + (typesHas ? resetBtn('clan', c.name, 'resource_types') : '') +
+              ' <button class="btn btn-secondary" style="margin:0;padding:2px 8px;font-size:12px;" data-orc-res-all="' + attr(c.name) + '">All</button>' +
+            '</div>' +
+            '<div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:6px;' + (on ? '' : 'opacity:.5;') + '">' + known.map(t =>
+              '<label style="display:inline-flex;gap:4px;align-items:center;cursor:pointer;white-space:nowrap;"><input type="checkbox" data-orc-res-type data-name="' + attr(c.name) + '" value="' + attr(t) + '"' + (chosen.has(t) ? ' checked' : '') + '>' + esc(t) + '</label>').join('') +
+            '</div></div>';
+        }).join('') : '<span class="note">' + ((st.clans || []).length ? 'No clan has resource tracking set up on the PC (or the PC runs an older chesttracker that doesn\'t report it yet).' : 'Shown once the orchestrator has synced with the website.') + '</span>';
+        const saveTypes = (name, list) => {
+          const c = rclansAll.find(x => x.name === name) || {}, fileTypes = ((c.resources || {}).file || {}).types || [];
+          if (!list.length) { status('Choose at least one resource, or switch resource tracking off.', false); render(); return; }
+          send({ set: { scope: 'clan', name: name, field: 'resource_types', value: JSON.stringify(list) === JSON.stringify(fileTypes) ? null : list } });
+        };
+        document.querySelectorAll('#orcResources [data-orc-res-on]').forEach(cb => cb.addEventListener('change', () => {
+          const name = cb.getAttribute('data-name'), c = rclansAll.find(x => x.name === name) || {};
+          setValue('clan', name, 'resources_enabled', cb.checked, !!((c.resources || {}).file || {}).enabled);
+        }));
+        document.querySelectorAll('#orcResources [data-orc-res-type]').forEach(cb => cb.addEventListener('change', () => {
+          const name = cb.getAttribute('data-name');
+          saveTypes(name, [...document.querySelectorAll('#orcResources [data-orc-res-type]')]
+            .filter(x => x.getAttribute('data-name') === name && x.checked).map(x => x.value));
+        }));
+        document.querySelectorAll('#orcResources [data-orc-res-all]').forEach(b => b.addEventListener('click', () => {
+          const name = b.getAttribute('data-orc-res-all');
+          saveTypes(name, [...document.querySelectorAll('#orcResources [data-orc-res-type]')]
+            .filter(x => x.getAttribute('data-name') === name).map(x => x.value));
+        }));
         const fileOf = (name) => ((st.clans || []).find(c => c.name === name) || {}).file || {};
         document.querySelectorAll('#orcClans [data-orc-flag]').forEach(cb => cb.addEventListener('change', () => {
           const name = cb.getAttribute('data-name'), f = cb.getAttribute('data-orc-flag');
