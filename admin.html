@@ -967,6 +967,11 @@
           <button class="btn btn-secondary" style="margin:0;" onclick="Orchestrator.command('voltron')">🛰️ Run Voltron now</button>
         </div>
         <div id="orcJournalInfo" class="note" style="margin:-4px 0 8px;text-align:left;"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+          <select id="orcResourcesClan" style="width:auto;min-width:180px;"><option value="">Choose a clan…</option></select>
+          <button class="btn btn-secondary" style="margin:0;" title="Read the clan's whole Clan Capital → History list again (TODAY skipped) and replace the stored resource history with it" onclick="Orchestrator.command('resources')">📦 Re-import resource history</button>
+        </div>
+        <div id="orcResourcesInfo" class="note" style="margin:-4px 0 8px;text-align:left;"></div>
         <div id="orcStatus" class="status" style="display:none;"></div>
         <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">Clans
           <button class="btn btn-secondary" style="margin:0 0 0 auto;padding:4px 10px;font-size:12px;" title="Every clan and vacation-account setting made here goes back to the orchestrator.json value" onclick="Orchestrator.resetAll()">↺ All back to orchestrator.json</button></h4>
@@ -2443,6 +2448,12 @@
           body.command = $('orcVoltronKind').value; body.clan = $('orcVoltronClan').value || '*';
           if (body.command === 'voltron-journal') body.event = ($('orcVoltronEventSel').style.display !== 'none' ? $('orcVoltronEventSel').value : $('orcVoltronEvent').value).trim();
         }
+        if (kind === 'resources') {
+          body.command = 'resources-history'; body.clan = $('orcResourcesClan').value;
+          if (!body.clan) { status('Choose the clan whose resource history to re-import.', false); return; }
+          if (!confirm('Re-import the whole resource history of ' + body.clan + '?\n\nThe PC opens the game and scrolls every resource to the end of its Clan Capital history list. That takes a while. ' +
+            'Every day it reads (yesterday and older, with an exact date) replaces what is stored for that day. Today is never recorded.')) return;
+        }
         send(body);
       }
       // A switch / interval: back to "no website setting" when it equals orchestrator.json
@@ -2486,6 +2497,13 @@
         vsel.innerHTML = '<option value="*">Every clan (where on)</option>' + (st.clans || []).map(c => '<option value="' + attr(c.name) + '">' + esc(c.name) + '</option>').join('');
         vsel.value = [...vsel.options].some(o => o.value === vkeep) ? vkeep : '*';
         voltronUi();
+        // Re-import resource history: only clans with a resource tracking setup on the PC
+        const rsel = $('orcResourcesClan'), rkeep = rsel.value;
+        const rclans = (st.clans || []).filter(c => c.resourcesOn);
+        rsel.innerHTML = '<option value="">Choose a clan…</option>' + rclans.map(c => '<option value="' + attr(c.name) + '">' + esc(c.name) + (c.resourcesQueued ? ' (⏳ waiting)' : '') + '</option>').join('');
+        rsel.value = [...rsel.options].some(o => o.value === rkeep) ? rkeep : '';
+        $('orcResourcesInfo').innerHTML = (st.clans || []).length && !rclans.length
+          ? 'No clan has resource tracking set up on the PC (or the PC runs an older chesttracker that doesn\'t report it yet).' : '';
         const cell = 'padding:6px 8px;border-top:1px solid #444;';
         const resetBtn = (scope, name, field) => ' <button title="Back to the orchestrator.json value" data-orc-reset="' + scope + '|' + attr(name) + '|' + field + '" style="background:none;border:none;color:#ffb300;cursor:pointer;padding:0 2px;">↺</button>';
         // Last Voltron runs (UTC dates) and what is waiting to run now
@@ -2493,7 +2511,8 @@
           const d = c.voltronDone || {}, q = c.voltronQueued || [];
           const parts = [['import', 'tourn.', c.voltron_import], ['growth', 'growth', c.voltron_growth], ['calendar', 'calendar', c.voltron_calendar], ['journal', 'in-game', c.journalOn]]
             .filter(([, , on]) => on).map(([k, label]) => label + ' ' + (q.includes(k) ? '⏳ waiting' : (d[k] ? esc(String(d[k]).slice(5)) : '—')));
-          return parts.length ? '<div class="note" style="margin:2px 0 0;font-weight:normal;">Voltron: ' + parts.join(' · ') + '</div>' : '';
+          return (parts.length ? '<div class="note" style="margin:2px 0 0;font-weight:normal;">Voltron: ' + parts.join(' · ') + '</div>' : '')
+            + (c.resourcesQueued ? '<div class="note" style="margin:2px 0 0;font-weight:normal;">Resource history re-import ⏳ waiting</div>' : '');
         };
         $('orcClans').innerHTML = (st.clans || []).length ? st.clans.map(c => {
           const over = (sets.clans || {})[c.name] || {};
