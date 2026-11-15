@@ -247,6 +247,13 @@
       overflow-y: auto;
     }
     .cal-sidebar h3 { color: #ffb300; font-size: 15px; margin-bottom: 12px; }
+    details.cal-upcoming > summary { cursor: pointer; list-style: none; }
+    details.cal-upcoming > summary::-webkit-details-marker { display: none; }
+    details.cal-upcoming > summary h3 { display: inline; }
+    details.cal-upcoming > summary::before { content: '▸ '; color: #ffb300; }
+    details.cal-upcoming[open] > summary::before { content: '▾ '; }
+    details.cal-upcoming[open] > summary { display: block; margin-bottom: 12px; }
+    .upcoming-count { display: block; font-size: 11px; font-weight: 400; color: #9aa0a6; margin: 2px 0 0 14px; }
     /* Voltron's mini tournaments (the kingdom's rotation), at the top of the sidebar */
     #calMini { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #333; }
     .mini-item { background: #232526; border: 1px solid #3a3d42; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; font-size: 12px; }
@@ -255,7 +262,6 @@
     .mini-item .mi-when { color: #9aa0a6; margin-top: 2px; }
     .mini-item .mi-state { color: #ffb300; font-weight: 600; margin-top: 2px; font-size: 11px; }
     .mini-next > summary { cursor: pointer; color: #9aa0a6; font-size: 12px; margin: 4px 0 6px; }
-    .mini-note { color: #777; font-size: 11px; margin-top: 6px; }
     .mini-more { background: none; border: 1px solid #444; color: #e0e0e0; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 11px; margin-top: 2px; }
     .cal-sidebar-event {
       padding: 8px 10px;
@@ -580,8 +586,10 @@
       </div>
       <div class="cal-sidebar" id="calSidebar">
         <div id="calMini" style="display:none"></div>
-        <h3>📋 Upcoming Events</h3>
-        <div id="calUpcoming"></div>
+        <details class="cal-upcoming" id="calUpcomingBox">
+          <summary><h3>📋 Upcoming Events <span class="upcoming-count" id="calUpcomingCount"></span></h3></summary>
+          <div id="calUpcoming"></div>
+        </details>
       </div>
     </div>
   </div>
@@ -621,8 +629,6 @@
       { title: 'Doomsday',          firstStart: '2026-03-01', duration: 1, interval: 6,  color: 'teal',    category: 'Daily Event', description: 'Doomsday — recurring every 6 days.' },
       { title: 'Arachne\'s Swarm',  firstStart: '2026-03-02', duration: 1, interval: 6,  color: 'purple',  category: 'Daily Event', description: 'Arachne\'s Swarm — recurring every 6 days.' },
       { title: 'Ruthless Slaughter',firstStart: '2026-03-03', duration: 1, interval: 6,  color: 'silver',  category: 'Daily Event', description: 'Ruthless Slaughter — recurring every 6 days.' },
-      { title: 'Crypt Start',firstStart: '2026-03-03', duration: 1, interval: 6, color: 'caramel', category: 'Crypting', description: 'Crypting period starts — same day as Ruthless Slaughter.' },
-      { title: 'Crypt End',  firstStart: '2026-03-08', duration: 1, interval: 6, color: 'caramel', category: 'Crypting', description: 'Crypting period ends — the day before the next Ruthless Slaughter.' },
       { title: 'Ancients',          firstStart: '2026-03-03', duration: 2, interval: 6,  color: 'amber',   category: 'Daily Event', description: 'Ancients — 2-day event (Towers day 1, Tin Man day 2).' },
       { title: 'Thirst for Battle', firstStart: '2026-03-05', duration: 1, interval: 6,  color: 'cyan',    category: 'Daily Event', description: 'Thirst for Battle — recurring every 6 days.' },
       { title: 'The Great Hunt',    firstStart: '2026-03-06', duration: 1, interval: 6,  color: 'green',   category: 'Daily Event', description: 'The Great Hunt — recurring every 6 days.' },
@@ -636,10 +642,10 @@
       { title: 'Ragnarok',          firstStart: '2026-04-04', duration: 2, interval: 24, color: 'lime',    category: 'Major Event', description: 'Ragnarok — 2-day event.' },
       // Only on the dates Voltron's calendar lists (no rhythm): a tournament's game days run from
       // the day after its 17:00 UTC start (the day itself when it starts before 17:00) to its end.
-      { title: 'Dawn of the Season', voltronOnly: true, firstStart: '2026-01-01', duration: 1, interval: 1, color: 'sky', category: 'Season Event', description: 'Dawn of the Season — shown on the dates from Voltron\'s calendar (no fixed rhythm).' },
-      { title: 'Prime Arena', voltronOnly: true, firstStart: '2026-01-01', duration: 1, interval: 1, color: 'rose', category: 'Special Event', description: 'Prime Arena — shown on the dates from Voltron\'s calendar (no fixed rhythm).' },
-      { title: 'Lucky Bazaar', voltronOnly: true, firstStart: '2026-01-01', duration: 1, interval: 1, color: 'violet', category: 'Special Event', description: 'Lucky Bazaar — shown on the dates from Voltron\'s calendar (no fixed rhythm).' },
-      { title: 'Sands of Eternity', voltronOnly: true, firstStart: '2026-01-01', duration: 1, interval: 1, color: 'sand', category: 'Special Event', description: 'Sands of Eternity — shown on the dates from Voltron\'s calendar (no fixed rhythm).' },
+      { title: 'Dawn of the Season', voltronOnly: true, firstStart: '2026-01-01', duration: 1, interval: 1, color: 'sky', category: 'Season Event', description: 'Dawn of the Season — shown on the dates from the game calendar (no fixed rhythm).' },
+      { title: 'Prime Arena', voltronOnly: true, firstStart: '2026-01-01', duration: 1, interval: 1, color: 'rose', category: 'Special Event', description: 'Prime Arena — shown on the dates from the game calendar (no fixed rhythm).' },
+      { title: 'Lucky Bazaar', voltronOnly: true, firstStart: '2026-01-01', duration: 1, interval: 1, color: 'violet', category: 'Special Event', description: 'Lucky Bazaar — shown on the dates from the game calendar (no fixed rhythm).' },
+      { title: 'Sands of Eternity', voltronOnly: true, firstStart: '2026-01-01', duration: 1, interval: 1, color: 'sand', category: 'Special Event', description: 'Sands of Eternity — shown on the dates from the game calendar (no fixed rhythm).' },
     ];
 
     /* ── Voltron's tournament calendar (getVoltronCalendar: stored daily by the chesttracker) ──
@@ -745,7 +751,7 @@
           known.forEach(function (o) {
             if (o.start <= rangeEnd && o.end >= rangeStart) {
               var vev = { title: def.title, date: fmtDate(o.start), color: def.color, category: def.category,
-                description: def.description + ' Dates from Voltron\'s calendar' + (VOLTRON_INFO && VOLTRON_INFO.kingdom ? ' (kingdom ' + VOLTRON_INFO.kingdom + ')' : '') + '.' };
+                description: def.description + ' Dates from the game calendar' + (VOLTRON_INFO && VOLTRON_INFO.kingdom ? ' (kingdom ' + VOLTRON_INFO.kingdom + ')' : '') + '.' };
               if (o.end > o.start) vev.endDate = fmtDate(o.end);
               events.push(vev);
             }
@@ -881,25 +887,36 @@
       return result;
     }
 
+    // Upcoming events in the sidebar, folded: the header counts what runs now and in the next
+    // 7 days; open, it lists those, "Show all" for the next 60 days.
+    var upcomingAll = false;
+    window.calUpcomingToggleAll = function () { upcomingAll = !upcomingAll; renderSidebar(); };
     function renderSidebar() {
       var container = document.getElementById('calUpcoming');
       var now = new Date();
       var todayStr = cccTodayUTC();
+      var weekAhead = new Date(now.getTime() + 7 * 86400000).toISOString().slice(0, 10);
       // Show upcoming events for the next 60 days
       var sidebarEnd = new Date(now.getTime() + 60 * 86400000);
-      var allUpcoming = expandRecurring(now, sidebarEnd);
+      // from the start of today (UTC), so what runs today counts as running now
+      var allUpcoming = expandRecurring(new Date(todayStr + 'T00:00:00Z'), sidebarEnd);
       var upcoming = allUpcoming.filter(function(ev) {
         var end = ev.endDate || ev.date;
         return end >= todayStr;
       }).sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+      var running = upcoming.filter(function (ev) { return ev.date <= todayStr; }).length;
+      var soon = upcoming.filter(function (ev) { return ev.date <= weekAhead; });
+      var count = document.getElementById('calUpcomingCount');
+      if (count) count.textContent = running + ' running now, ' + (soon.length - running) + ' more in the next 7 days';
 
       if (upcoming.length === 0) {
         container.innerHTML = '<div class="cal-sidebar-empty">No upcoming events</div>';
         return;
       }
+      var shown = upcomingAll ? upcoming : soon;
       var html = '';
-      for (var i = 0; i < Math.min(upcoming.length, 10); i++) {
-        var ev = upcoming[i];
+      for (var i = 0; i < shown.length; i++) {
+        var ev = shown[i];
         var dateLabel = formatDate(ev.date);
         if (ev.endDate) dateLabel += ' — ' + formatDate(ev.endDate);
         html += '<div class="cal-sidebar-event color-' + ev.color + '" onclick="showEventPopup(' + EVENTS.indexOf(ev) + ')">';
@@ -907,8 +924,12 @@
         html += '<div class="se-date">' + dateLabel + '</div>';
         html += '</div>';
       }
+      if (upcoming.length > soon.length) {
+        html += '<button class="mini-more" onclick="calUpcomingToggleAll()">' + (upcomingAll ? 'Next 7 days only' : 'Show all (' + (upcoming.length - soon.length) + ' more)') + '</button>';
+      }
       container.innerHTML = html;
     }
+
 
     /* ── Popups ───────────────────────────────────── */
     window.showEventPopup = function(idx) {
@@ -997,7 +1018,6 @@
           (rest.length > 5 ? '<button class="mini-more" onclick="miniToggleAll()">' + (miniAll ? 'Only the next 5' : 'Show ' + (rest.length - shown.length) + ' more') + '</button>' : '') +
           '</details>';
       }
-      html += '<div class="mini-note">From Voltron\'s calendar, in your own time zone. Updated daily by the chesttracker.</div>';
       box.innerHTML = html;
       box.style.display = '';
     }

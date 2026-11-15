@@ -38,7 +38,7 @@ window.HELP_CONTENT = {
       title: '🆕 What\'s new (November 2026)',
       list: [
         '**🔁 Member Transfers** can now move a player between the cCc clans. Tick **🔁 Move the member** and give the **Transfer date**. When the other clan approves, the player is removed there (reason "Transferred to …") and added here with that date as join date. Their troop, hero and captain levels are copied automatically. See **Admin** below.',
-        'The Voltron growth import reads the new layout of Voltron\'s Growth page again.'
+        'The game data growth import reads the new layout of the growth page again.'
       ]
     },
     {
@@ -135,7 +135,7 @@ window.HELP_CONTENT = {
         { title: '🎯 Targets and penalties', list: [
           '**Target Points**: what every member must reach in this event. Leave it empty to use the event type\'s default (**Threshold** on ⚙️ Event Types).',
           '**🎖️ Troop Category Targets**: a different target per troop category (G7, G8, T8, G9, T9). A member\'s category is their highest troop level.',
-          '**Title** (instead of points, per category): the member must win a tournament title: Winner, Podium, Top 10 or Badge. Titles come from the Voltron import, so use Title only for tournament events imported from Voltron.',
+          '**Title** (instead of points, per category): the member must win a tournament title: Winner, Podium, Top 10 or Badge. Titles come from the game data import, so use Title only for tournament events imported from the game data.',
           '**Penalty**: every event can have a penalty, or none. Without a penalty, a missed target has no cost (it still counts in Profiling).',
           'New events start with the targets of their event type. Generated events start without a penalty.'
         ] },
@@ -183,7 +183,7 @@ window.HELP_CONTENT = {
         { q: 'How do I set targets per troop category?', steps: [
           'Open the event with **✏️** (or **➕ Create Event**) and choose a troop, hero or chest event type with troop targets. The section **🎖️ Troop Category Targets** appears.',
           'Click **➕ Add Category Target** for each category. Choose the category (for example G8) and type its target.',
-          'Tournament from Voltron? Choose **Title** instead of **Points** for a category. Those members must win a title (Winner, Podium, Top 10 or Badge). Only use this for tournament events whose results are imported from Voltron: other events have no titles, so nobody would reach the target.',
+          'Tournament from the game data? Choose **Title** instead of **Points** for a category. Those members must win a title (Winner, Podium, Top 10 or Badge). Only use this for tournament events whose results are imported from the game data: other events have no titles, so nobody would reach the target.',
           'Chest event with troop targets (**Chest-Based (Troop Targets)**)? The category targets are the number of chests each member must open.',
           'Members whose category has no target here use **Target Points** of the event.',
           'Click **💾 Update Event** (or **🎯 Create Event** for a new event).',

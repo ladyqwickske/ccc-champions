@@ -123,7 +123,7 @@
         + r.entries.map(e => `<tr><td>${esc(e.date)}</td><td>${esc(e.captain)}</td><td>${e.stars != null ? '★' + e.stars : '—'}</td><td>${e.level != null ? e.level : '—'}</td></tr>`).join('')
         + '</tbody></table></details>';
     } else {
-      html += '<p class="cap-none">No captains recorded for this member yet (read daily from Voltron\'s Growth page).</p>';
+      html += '<p class="cap-none">No captains recorded for this member yet (read daily from the game data).</p>';
     }
     el.innerHTML = html;
   }
