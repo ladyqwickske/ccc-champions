@@ -247,6 +247,16 @@
       overflow-y: auto;
     }
     .cal-sidebar h3 { color: #ffb300; font-size: 15px; margin-bottom: 12px; }
+    /* Voltron's mini tournaments (the kingdom's rotation), at the top of the sidebar */
+    #calMini { margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid #333; }
+    .mini-item { background: #232526; border: 1px solid #3a3d42; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; font-size: 12px; }
+    .mini-item.running { border-left: 3px solid #ffb300; }
+    .mini-item .mi-name { font-weight: 600; font-size: 13px; color: #e0e0e0; }
+    .mini-item .mi-when { color: #9aa0a6; margin-top: 2px; }
+    .mini-item .mi-state { color: #ffb300; font-weight: 600; margin-top: 2px; font-size: 11px; }
+    .mini-next > summary { cursor: pointer; color: #9aa0a6; font-size: 12px; margin: 4px 0 6px; }
+    .mini-note { color: #777; font-size: 11px; margin-top: 6px; }
+    .mini-more { background: none; border: 1px solid #444; color: #e0e0e0; border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 11px; margin-top: 2px; }
     .cal-sidebar-event {
       padding: 8px 10px;
       margin-bottom: 8px;
@@ -371,6 +381,27 @@
       }
       .tab-btn { font-size: 28px; padding: 12px 16px; border-bottom: 3px solid transparent; display: block; justify-content: center; }
       .hamburger { display: none; }
+    }
+
+    /* Phones: the month always fits the screen. A day's events are coloured bars (no room for
+       names); tapping a day lists them all under the calendar (today is picked at first). */
+    .day-agenda { display: none; }
+    @media (max-width: 600px) {
+      .cal-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; }
+      .cal-dow { font-size: 10px; padding: 6px 0; letter-spacing: 0; }
+      .cal-day { min-width: 0; min-height: 54px; padding: 3px; cursor: pointer; }
+      .cal-day-num { font-size: 11px; padding: 1px 4px; margin-bottom: 3px; }
+      .cal-day .cal-event { height: 5px; padding: 0; margin: 0 0 2px; font-size: 0; border-radius: 3px; pointer-events: none; }
+      .cal-day .cal-more { font-size: 9px; padding: 0; pointer-events: none; }
+      .cal-day.selected { box-shadow: inset 0 0 0 2px #ffb300; background: #2a2d30; }
+      .day-agenda { display: block; margin: 12px 0 4px; text-align: left; }
+      .day-agenda h4 { color: #ffb300; font-size: 14px; margin: 0 0 8px; }
+      .day-agenda .cal-event { font-size: 13px; padding: 9px 12px; margin: 0 0 6px; border-radius: 8px; white-space: normal; cursor: pointer; }
+      .day-agenda .agenda-empty { color: #888; font-size: 13px; }
+      .cal-toolbar { gap: 6px; flex-wrap: wrap; }
+      .cal-toolbar button { padding: 6px 10px; }
+      .cal-month-label { min-width: 0; flex: 1 1 100%; order: -1; }
+      .cal-sidebar { max-height: none; }
     }
   </style>
 </head>
@@ -548,6 +579,7 @@
         <div class="cal-grid" id="calGrid"></div>
       </div>
       <div class="cal-sidebar" id="calSidebar">
+        <div id="calMini" style="display:none"></div>
         <h3>📋 Upcoming Events</h3>
         <div id="calUpcoming"></div>
       </div>
@@ -694,7 +726,7 @@
       if (!window.GAS_WEB_APP_URL) return;
       fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'getVoltronCalendar' }) })
         .then(function (r) { return r.json(); })
-        .then(function (res) { if (res && res.success) { LAST_VOLTRON = res; setVoltronCalendar(res); render(); } })
+        .then(function (res) { if (res && res.success) { LAST_VOLTRON = res; setVoltronCalendar(res); render(); setMini(res.rotation); } })
         .catch(function () { /* no Voltron calendar: the recurring rhythm only */ });
     }
 
@@ -825,7 +857,7 @@
           evHtml += '<div class="cal-more" onclick="showDayPopup(\'' + dateStr + '\')">+' + (dayEvents.length - maxShow) + ' more</div>';
         }
 
-        html += '<div class="' + cls + '" ondblclick="showDayPopup(\'' + dateStr + '\')">';
+        html += '<div class="' + cls + '" data-date="' + dateStr + '" ondblclick="showDayPopup(\'' + dateStr + '\')">';
         html += '<span class="cal-day-num">' + dayNum + '</span>';
         html += evHtml;
         html += '</div>';
@@ -892,6 +924,10 @@
     };
     window.closeEventPopup = function() { document.getElementById('eventPopupOverlay').classList.remove('open'); };
 
+    // For the phone day list (script below): a day's events, each with its showEventPopup index
+    window.calDayEvents = function (dateStr) {
+      return getEventsForDate(dateStr).map(function (ev) { return { title: ev.title, color: ev.color, idx: EVENTS.indexOf(ev) }; });
+    };
     window.showDayPopup = function(dateStr) {
       var evts = getEventsForDate(dateStr);
       document.getElementById('dpTitle').textContent = formatDate(dateStr);
@@ -916,6 +952,55 @@
     /* ── Utilities ────────────────────────────────── */
     function pad(n) { return n < 10 ? '0' + n : '' + n; }
     function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    /* ── Voltron's mini tournaments (getVoltronCalendar → rotation: [{ name, start, end, kind }],
+       UTC seconds; forest ones too in a season kingdom). Running ones on top; an ended one drops
+       off at the next refresh (every 30 s). ── */
+    var MINI = [], miniAll = false, miniOpen = false, miniTimer = null;
+    window.miniSetOpen = function (open) { miniOpen = open; };
+    window.miniToggleAll = function () { miniAll = !miniAll; renderMini(); };
+    function setMini(list) {
+      MINI = (Array.isArray(list) ? list : []).filter(function (o) { return o && o.name && o.end > o.start; });
+      renderMini();
+      if (!miniTimer && MINI.length) miniTimer = setInterval(renderMini, 30000);
+    }
+    function miniIn(sec) {
+      var m = Math.max(0, Math.round(sec / 60)), d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60), mm = m % 60;
+      return d ? d + 'd ' + h + 'h' : h ? h + 'h ' + mm + 'm' : mm + 'm';
+    }
+    function miniTime(sec, withDay) {
+      return new Date(sec * 1000).toLocaleString(undefined, withDay
+        ? { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }
+        : { hour: '2-digit', minute: '2-digit' });
+    }
+    function miniItem(o, now) {
+      var running = o.start <= now;
+      return '<div class="mini-item' + (running ? ' running' : '') + '">' +
+        '<div class="mi-name">' + esc(o.name) + (o.kind === 'forest' ? ' 🌲' : '') + '</div>' +
+        '<div class="mi-when">' + esc(miniTime(o.start, true)) + ' – ' + esc(miniTime(o.end, false)) + '</div>' +
+        '<div class="mi-state">' + (running ? 'running · ends in ' + miniIn(o.end - now) : 'in ' + miniIn(o.start - now)) + '</div></div>';
+    }
+    function renderMini() {
+      var box = document.getElementById('calMini');
+      if (!box) return;
+      var now = Date.now() / 1000;
+      var items = MINI.filter(function (o) { return o.end > now; })
+        .sort(function (a, b) { return ((b.start <= now) - (a.start <= now)) || a.start - b.start; });
+      if (!items.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+      var running = items.filter(function (o) { return o.start <= now; }).length;
+      var top = items.slice(0, Math.max(1, running)), rest = items.slice(top.length);
+      var shown = miniAll ? rest : rest.slice(0, 5);
+      var html = '<h3>⚔️ Mini tournaments</h3>' + top.map(function (o) { return miniItem(o, now); }).join('');
+      if (rest.length) {
+        html += '<details class="mini-next"' + (miniOpen ? ' open' : '') + ' ontoggle="miniSetOpen(this.open)"><summary>Next tournaments (' + rest.length + ')</summary>' +
+          shown.map(function (o) { return miniItem(o, now); }).join('') +
+          (rest.length > 5 ? '<button class="mini-more" onclick="miniToggleAll()">' + (miniAll ? 'Only the next 5' : 'Show ' + (rest.length - shown.length) + ' more') + '</button>' : '') +
+          '</details>';
+      }
+      html += '<div class="mini-note">From Voltron\'s calendar, in your own time zone. Updated daily by the chesttracker.</div>';
+      box.innerHTML = html;
+      box.style.display = '';
+    }
     function escAttr(s) { return esc(s).replace(/"/g, '&quot;'); }
     function formatDate(str) {
       var parts = str.split('-');
@@ -926,5 +1011,47 @@
     init();
   })();
   </script>
+<script>
+/* Phones (≤ 600 px): the month shows each day's events as coloured bars; tapping a day lists
+   them all under the calendar, and tapping one there opens it as usual. When a month is shown,
+   the day picked before (or today, or the 1st) is listed. */
+(function () {
+  var phone = window.matchMedia('(max-width: 600px)');
+  var grid = document.getElementById('calGrid');
+  if (!grid) return;
+  var agenda = document.createElement('div');
+  agenda.className = 'day-agenda';
+  agenda.id = 'dayAgenda';
+  grid.parentNode.insertBefore(agenda, grid.nextSibling);
+  var picked = null;
+  function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+  function show(cell) {
+    grid.querySelectorAll('.cal-day.selected').forEach(function (c) { c.classList.remove('selected'); });
+    if (!cell || !cell.dataset.date) { agenda.innerHTML = ''; return; }
+    cell.classList.add('selected');
+    picked = cell.dataset.date;
+    var title = new Date(picked + 'T00:00:00Z').toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+    var evs = window.calDayEvents ? window.calDayEvents(picked) : [];
+    agenda.innerHTML = '<h4>' + esc(title) + '</h4>' + (evs.length
+      ? evs.map(function (ev) { return '<div class="cal-event color-' + esc(ev.color) + '" onclick="showEventPopup(' + ev.idx + ')">' + esc(ev.title) + '</div>'; }).join('')
+      : '<div class="agenda-empty">No events this day.</div>');
+  }
+  function pickDefault() {
+    if (!phone.matches) { show(null); return; }
+    show((picked && grid.querySelector('.cal-day[data-date="' + picked + '"]'))
+      || grid.querySelector('.cal-day.today') || grid.querySelector('.cal-day:not(.other-month)'));
+  }
+  grid.addEventListener('click', function (e) {
+    if (!phone.matches) return;
+    var cell = e.target.closest('.cal-day');
+    if (!cell) return;
+    e.stopPropagation();
+    show(cell);
+  }, true);
+  new MutationObserver(pickDefault).observe(grid, { childList: true });
+  if (phone.addEventListener) phone.addEventListener('change', pickDefault); else phone.addListener(pickDefault);
+  pickDefault();
+})();
+</script>
 </body>
 </html>
