@@ -730,7 +730,7 @@
         <div class="form-grid"><div><label for="eventStartDate">Start Date</label><input type="date" id="eventStartDate"></div><div><label for="eventEndDate">End Date</label><input type="date" id="eventEndDate"></div><div id="targetPointsGroup" style="display:none;"><label for="eventTargetPoints">Target Points</label><input type="number" id="eventTargetPoints" placeholder="e.g., 4000 (blank = use global default)" min="0"></div></div>
         <div id="eventTroopTargetSection" style="display:none; margin:12px 0;">
           <label style="display:block; margin-bottom:8px;">🎖️ Troop Category Targets</label>
-          <p style="color:#b0b0b0; font-size:12px; margin-bottom:12px;">Set target points for each troop category, or choose <strong>Title</strong>: the member has to earn a tournament title (Winner, Podium, Top 10 or Badge, from the Voltron import). These override the event type defaults for this specific event.</p>
+          <p style="color:#b0b0b0; font-size:12px; margin-bottom:12px;">Set target points for each troop category, or choose <strong>Title</strong>: the member has to earn a tournament title (Winner, Podium, Top 10 or Badge, from the game data import). These override the event type defaults for this specific event.</p>
           <div id="eventTroopTargetsList" style="border:1px solid #444; border-radius:6px; padding:12px; background:#232526; margin-bottom:12px; max-height:250px; overflow-y:auto;"></div>
           <button type="button" class="btn btn-secondary" style="width:100%; margin-bottom:12px;" onclick="EventsTab.addEventTroopTargetRow()">➕ Add Category Target</button>
         </div>
@@ -865,7 +865,7 @@
     const escapeAttr = (str) => String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     // Numbers with thousand separators (the viewer's locale); anything else ('—', '') as is.
     const fmtNum = (v) => (v === '' || v === null || v === undefined || isNaN(Number(v))) ? (v ?? '') : Number(v).toLocaleString();
-    // Tournament titles (Voltron import, column C of troop events): "Top 10 (#5)", "Badge (#94)", "No badge (#119)".
+    // Tournament titles (game data import, column C of troop events): "Top 10 (#5)", "Badge (#94)", "No badge (#119)".
     // A troop target of "title" means the member has to earn one (Winner, Podium, Top 10 or Badge).
     const TITLE_KINDS = [
       { name: 'Winner', re: /^winner\b/i, bg: '#ffd700', fg: '#1a1a1a' },
@@ -965,7 +965,7 @@
             <td><input class="sched-in" type="date" value="${esc(r.firstStart)}" onchange="Schedule.setTour(${i}, 'firstStart', this.value)"></td>
             <td><input class="sched-in" type="number" min="1" max="30" style="width:64px;" value="${esc(r.duration)}" onchange="Schedule.setTour(${i}, 'duration', this.value)"></td>
             <td><input class="sched-in" type="number" min="1" max="366" style="width:64px;" value="${esc(r.interval)}" onchange="Schedule.setTour(${i}, 'interval', this.value)"></td>
-            <td style="text-align:center;">${voltron.has(String(r.title).toLowerCase()) ? '<span title="Uses Voltron\'s dates when the chesttracker has stored its calendar">✔️</span>' : ''}</td>
+            <td style="text-align:center;">${voltron.has(String(r.title).toLowerCase()) ? '<span title="Uses the game calendar dates when the chesttracker has stored its calendar">✔️</span>' : ''}</td>
             <td><button class="btn secondary btn-secondary sched-x" title="Remove" onclick="Schedule.removeTour(${i})">✕</button></td>
           </tr>`).join('');
         const events = state.eventMap.map((m, i) => {
@@ -985,9 +985,9 @@
         ed.innerHTML = `
           <div class="sched-note" style="margin-bottom:10px;">${sourceText()}${dirty ? ' <b>Unsaved changes.</b>' : ''}</div>
           <h4 style="margin:12px 0 6px;">Tournaments</h4>
-          <div class="sched-note">The <b>first date</b> is a day the tournament starts at the 17:00 UTC reset; its first game day is the day after. The <b>length</b> counts calendar days from that start, so a tournament of 1 game day is 2 days long. ✔️ = the dates come from Voltron's calendar when it is available (${esc((info.voltronTitles || []).join(', '))}).</div>
+          <div class="sched-note">The <b>first date</b> is a day the tournament starts at the 17:00 UTC reset; its first game day is the day after. The <b>length</b> counts calendar days from that start, so a tournament of 1 game day is 2 days long. ✔️ = the dates come from the game calendar when it is available (${esc((info.voltronTitles || []).join(', '))}).</div>
           <div class="table-container" style="overflow-x:auto;"><table class="sched-table">
-            <thead><tr><th>Tournament</th><th>First date</th><th>Length (days)</th><th>Repeats every (days)</th><th>Voltron</th><th></th></tr></thead>
+            <thead><tr><th>Tournament</th><th>First date</th><th>Length (days)</th><th>Repeats every (days)</th><th>Game data</th><th></th></tr></thead>
             <tbody>${tours}</tbody></table></div>
           <button class="btn secondary btn-secondary" style="margin-top:6px;" onclick="Schedule.addTour()">+ Add tournament</button>
           <h4 style="margin:16px 0 6px;">Events made for each tournament</h4>
@@ -1089,7 +1089,7 @@
         }
         out.sort((a, b) => a.s.localeCompare(b.s) || a.name.localeCompare(b.name));
         $('schedulePreview').innerHTML = out.length
-          ? '<div class="sched-note">' + out.length + ' event(s) in the next 30 days on this rhythm (Voltron\'s dates can move the tournaments it knows):</div><ul style="margin:6px 0 0 18px; columns:2; font-size:0.85em;">'
+          ? '<div class="sched-note">' + out.length + ' event(s) in the next 30 days on this rhythm (the game calendar dates can move the tournaments it knows):</div><ul style="margin:6px 0 0 18px; columns:2; font-size:0.85em;">'
             + out.map(o => '<li>' + esc(o.name) + '</li>').join('') + '</ul>'
           : '<div class="sched-note">No events in the next 30 days.</div>';
       }
@@ -2546,7 +2546,7 @@
           { key: 'achieved', label: 'Achieved' },
           { key: 'status', label: 'Status' }
         ];
-        // Tournament titles from the Voltron import (column C): a Title column and a summary line
+        // Tournament titles from the game data import (column C): a Title column and a summary line
         const showTitles = participationRawData.some(p => titleKind(p.value2));
         if (showTitles) columns.splice(4, 0, { key: 'title', label: 'Title' });
         if (showPenalty) columns.push({ key: 'penalty', label: 'Penalty' });
@@ -2713,7 +2713,7 @@
           el.id = id;
           el.style.cssText = 'margin:0 0 10px 0; padding:10px 12px; border:1px solid #444; border-radius:8px; background:#232526; font-size:13px; color:#e0e0e0;';
         }
-        // Champions troop events: above the tournament title summary (Voltron import)
+        // Champions troop events: above the tournament title summary (game data import)
         const anchor = (tableKey === 'troop' && document.getElementById('troopTitleSummary')) || box;
         if (el.nextSibling !== anchor) anchor.parentNode.insertBefore(el, anchor);
         const exemptions = rows.map(r => penaltyExemptionOf(r.memberName) && r).filter(Boolean);
@@ -2821,7 +2821,7 @@
           ? "Hero level events: the number of hero levels (increase) or the hero level (reached) expected from each troop category. Optional: members without a category target use the default — the event's target, else this type's Threshold."
           : method === 'chest-troop'
           ? 'Set the number of chests expected from each troop category (G7, G8, T8, G9, T9).'
-          : 'Set target points for each troop category (G7, G8, T8, G9, T9), or choose Title: the member has to earn a tournament title (Winner, Podium, Top 10 or Badge, from the Voltron import).';
+          : 'Set target points for each troop category (G7, G8, T8, G9, T9), or choose Title: the member has to earn a tournament title (Winner, Podium, Top 10 or Badge, from the game data import).';
       }
 
       function submitAddEventType() {
