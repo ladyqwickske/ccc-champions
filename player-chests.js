@@ -105,7 +105,7 @@
     var sel = document.getElementById('memberSelect');
     if (!sel) return [];
     var names = [];
-    Array.prototype.forEach.call(sel.options, function (o) { if (o.value) names.push(o.value); });
+    Array.prototype.forEach.call(sel.options, function (o) { if (o.value && names.indexOf(o.value) < 0) names.push(o.value); });
     return names.sort(function (a, b) { return a.localeCompare(b); });
   }
 
