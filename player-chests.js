@@ -6,6 +6,9 @@
  *      chest type (▶ opens the levels, or the chest names of Store and other
  *      chests without a level); sortable, with a name filter. Click a player
  *      to see their own breakdown.
+ *   📉 Lowest — the members with the fewest chests of the chosen chest types
+ *      (quick picks: crypt chests, store chests), optionally only those who
+ *      joined on or before a date; worst first.
  *   👤 One player — one player's chests by chest type (click a type for its
  *      levels / chest names), with points, totals and a per-period breakdown.
  *
@@ -110,6 +113,16 @@
     + '.pcx-grid td.joined.new { color: #64b5f6; font-weight: 600; }'
     + '.pcx-grid td.troop { font-weight: 700; text-align: center; }'
     + '.pcx-grid th.troop { text-align: center; }'
+    + '.pcx-low-opts { background: var(--pcx-soft); border: 1px solid var(--pcx-border); border-radius: 10px; padding: 10px 12px; margin: 6px 0 10px; font-size: 0.86em; }'
+    + '.pcx-low-opts .pcx-low-line { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin: 4px 0; }'
+    + '.pcx-low-opts b { color: var(--pcx-accent-soft); font-weight: 600; margin-right: 4px; }'
+    + '.pcx-low-opts label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; white-space: nowrap; }'
+    + '.pcx-low-opts input[type=date], .pcx-low-opts select { padding: 4px 6px; background: rgba(0,0,0,0.18); border: 1px solid var(--pcx-border);'
+    + ' border-radius: 6px; color: var(--pcx-text); color-scheme: dark; font-size: 0.95em; }'
+    + '.pcx-low-opts button { background: transparent; color: var(--pcx-accent-soft); border: 1px solid var(--pcx-border); border-radius: 6px;'
+    + ' padding: 3px 9px; cursor: pointer; font-size: 0.92em; }'
+    + '.pcx-low-opts button.on { background: var(--pcx-accent); border-color: var(--pcx-accent); color: #fff; }'
+    + '.pcx-grid td.sel, .pcx-grid th.sel { font-weight: 700; color: var(--pcx-strong); }'
     + '.pcx .spinner-sm { display: inline-block; width: 22px; height: 22px; border: 3px solid var(--pcx-border);'
     + ' border-top-color: var(--pcx-accent); border-radius: 50%; animation: pcx-spin 0.8s linear infinite; }'
     + '@keyframes pcx-spin { to { transform: rotate(360deg); } }'
@@ -181,6 +194,7 @@
       root.innerHTML = '<div class="pcx pcx-all">'
         + '<div class="pcx-modes">'
         + '<button type="button" data-mode="all" class="on">👥 All players</button>'
+        + '<button type="button" data-mode="low">📉 Lowest</button>'
         + '<button type="button" data-mode="one">👤 One player</button>'
         + '</div>'
         + '<p class="pcx-intro"></p>'
@@ -199,7 +213,8 @@
         + '<div class="pcx-note">Chests count by the day they were opened, under the player\'s earlier names too.</div>'
         + '<div class="pcx-result"></div>'
         + '</div>';
-      root._pcx = { mode: 'all', overview: null, sortKey: 'points', sortDir: -1, open: {}, filter: '' };
+      root._pcx = { mode: 'all', overview: null, sortKey: 'points', sortDir: -1, open: {}, filter: '',
+        low: { types: null, pick: 'crypt', useJoin: true, joinedBy: '', joinedByFor: '', show: 20 } };
       var form = root.querySelector('form');
       form.addEventListener('submit', function (e) { e.preventDefault(); load(root); });
       form.elements.from.addEventListener('change', function () { clampTo(root); });
@@ -228,6 +243,7 @@
         b.addEventListener('click', function () { setMode(root, b.getAttribute('data-mode')); });
       });
       root.querySelector('.pcx-result').addEventListener('click', function (e) { onResultClick(root, e); });
+      root.querySelector('.pcx-result').addEventListener('change', function (e) { onLowChange(root, e); });
       root.querySelector('.pcx-result').addEventListener('input', function (e) {
         if (!e.target.classList.contains('pcx-filter')) return;
         root._pcx.filter = e.target.value;
@@ -246,15 +262,18 @@
     var st = root._pcx;
     st.mode = mode;
     var box = root.querySelector('.pcx');
-    box.classList.toggle('pcx-all', mode === 'all');
+    box.classList.toggle('pcx-all', mode === 'all' || mode === 'low');
     Array.prototype.forEach.call(root.querySelectorAll('[data-mode]'), function (b) {
       b.classList.toggle('on', b.getAttribute('data-mode') === mode);
     });
     root.querySelector('.pcx-intro').textContent = mode === 'all'
       ? 'Every member\'s chests in a chosen period, by chest type. At most 6 months. Click a column to sort, ▶ to open a chest type, a name for that player.'
-      : 'Every chest a player opened in a chosen period, grouped by chest type. At most 6 months.';
+      : mode === 'low'
+        ? 'The members with the fewest chests of the chest types you choose, worst first. At most 6 months. Click a name for that player.'
+        : 'Every chest a player opened in a chosen period, grouped by chest type. At most 6 months.';
     var out = root.querySelector('.pcx-result');
     if (mode === 'all' && st.overview) { box.classList.add('pcx-wide'); drawOverview(root); }
+    else if (mode === 'low' && st.overview) { box.classList.add('pcx-wide'); drawLow(root); }
     else { box.classList.remove('pcx-wide'); out.innerHTML = ''; }
   }
 
@@ -288,7 +307,7 @@
     if (from > to) { out.innerHTML = '<div class="pcx-error">The start date is after the end date.</div>'; return; }
     if (to > addMonths(from, MAX_MONTHS)) { out.innerHTML = '<div class="pcx-error">The period can be at most 6 months.</div>'; return; }
 
-    var body = st.mode === 'all'
+    var body = st.mode !== 'one'
       ? { action: 'getAllPlayersChestsForRange', startDate: from, endDate: to }
       : { action: 'getPlayerChestsForRange', player: player, startDate: from, endDate: to };
     var mode = st.mode;
@@ -303,6 +322,7 @@
         if (!data) throw new Error((payload && (payload.error || payload.message)) || 'Could not load the chests.');
         if (st.mode !== mode) return;   // switched view while loading
         if (mode === 'all') { st.overview = data; root.querySelector('.pcx').classList.add('pcx-wide'); drawOverview(root); }
+        else if (mode === 'low') { st.overview = data; root.querySelector('.pcx').classList.add('pcx-wide'); drawLow(root); }
         else { st.one = data; renderOne(out, data); }
       })
       .catch(function (err) { out.innerHTML = '<div class="pcx-error">' + esc(err.message || err) + '</div>'; })
@@ -314,6 +334,8 @@
     var t = e.target;
     var exp = t.closest ? t.closest('[data-export]') : null;
     if (exp) { exportCsv(root, exp.getAttribute('data-export')); return; }
+    var pick = t.closest ? t.closest('[data-lowpick]') : null;
+    if (pick) { st.low.pick = pick.getAttribute('data-lowpick'); st.low.types = null; drawLow(root); return; }
     var tog = t.closest ? t.closest('[data-toggle]') : null;
     if (tog) {   // ▶ on a chest type column
       e.stopPropagation();
@@ -457,6 +479,108 @@
     table.innerHTML = '<thead>' + head + '</thead><tbody>' + (body || '<tr><td colspan="99" class="txt zero">No players match.</td></tr>') + '</tbody>';
   }
 
+  // ─── 📉 Lowest ───
+  var isCrypt = function (t) { return /crypt/i.test(t); };
+  var isStore = function (t) { return /store|shop/i.test(t); };
+  var PICKS = {
+    crypt: { label: 'Crypt chests', test: isCrypt },
+    store: { label: 'Store chests', test: isStore },
+    both: { label: 'Crypt + store', test: function (t) { return isCrypt(t) || isStore(t); } },
+    all: { label: 'All chests', test: function () { return true; } },
+  };
+
+  /** The chosen chest types (a quick pick, or the boxes ticked by hand). */
+  function lowTypes(root, allTypes) {
+    var lo = root._pcx.low;
+    if (lo.types) return allTypes.filter(function (t) { return lo.types[t]; });
+    var test = (PICKS[lo.pick] || PICKS.crypt).test;
+    return allTypes.filter(test);
+  }
+
+  /** The members in the list (join filter), worst first, with their counts. */
+  function lowRows(root) {
+    var st = root._pcx, o = st.overview, lo = st.low;
+    var allTypes = overviewColumns(o).map(function (c) { return c.type; });
+    var chosen = lowTypes(root, allTypes);
+    var crypts = allTypes.filter(isCrypt), stores = allTypes.filter(isStore);
+    var sum = function (p, types) {
+      var g = p.chestsByTypeGrouped || {};
+      return types.reduce(function (n, t) { return n + (g[t] ? g[t].total : 0); }, 0);
+    };
+    var rows = (o.players || []).filter(function (p) {
+      return !lo.useJoin || !lo.joinedBy || !p.joinDate || p.joinDate <= lo.joinedBy;
+    }).map(function (p) {
+      return { p: p, chosen: sum(p, chosen), crypt: sum(p, crypts), store: sum(p, stores) };
+    });
+    rows.sort(function (a, b) {
+      return a.chosen - b.chosen || a.p.totalPoints - b.p.totalPoints || a.p.name.localeCompare(b.p.name);
+    });
+    return { allTypes: allTypes, chosen: chosen, rows: rows, shown: lo.show > 0 ? rows.slice(0, lo.show) : rows };
+  }
+
+  function drawLow(root) {
+    var st = root._pcx, o = st.overview, lo = st.low;
+    // "joined on or before" follows the start of the chosen dates until it is changed by hand
+    if (!lo.joinedBy || lo.joinedByFor === lo.joinedBy) { lo.joinedBy = o.startDate; lo.joinedByFor = o.startDate; }
+    var r = lowRows(root);
+    var pickBtns = Object.keys(PICKS).map(function (k) {
+      return '<button type="button" data-lowpick="' + k + '" class="' + (!lo.types && lo.pick === k ? 'on' : '') + '">' + PICKS[k].label + '</button>';
+    }).join('');
+    var boxes = r.allTypes.map(function (t) {
+      return '<label><input type="checkbox" data-low="type" value="' + esc(t) + '"' + (r.chosen.indexOf(t) >= 0 ? ' checked' : '') + '> ' + esc(t) + '</label>';
+    }).join('');
+    var shows = [10, 20, 50, 0].map(function (n) {
+      return '<option value="' + n + '"' + (lo.show === n ? ' selected' : '') + '>' + (n ? 'Lowest ' + n : 'Everyone') + '</option>';
+    }).join('');
+    var left = (o.players || []).length - r.rows.length;
+    var out = root.querySelector('.pcx-result');
+    out.innerHTML = '<div class="pcx-head">' + fmtDate(o.startDate) + ' → ' + fmtDate(o.endDate) + '</div>'
+      + '<div class="pcx-low-opts">'
+      + '<div class="pcx-low-line"><b>Count</b>' + pickBtns + '</div>'
+      + '<div class="pcx-low-line">' + boxes + '</div>'
+      + '<div class="pcx-low-line"><b>Members</b><label><input type="checkbox" data-low="usejoin"' + (lo.useJoin ? ' checked' : '') + '> only those who joined on or before</label>'
+      + '<input type="date" data-low="joinedby" value="' + esc(lo.joinedBy) + '"' + (lo.useJoin ? '' : ' disabled') + '>'
+      + '<select data-low="show">' + shows + '</select></div>'
+      + '</div>'
+      + '<div class="pcx-tools"><span>' + (r.chosen.length ? 'Counting: ' + r.chosen.map(esc).join(', ') : 'No chest types chosen')
+      + ' · ' + r.rows.length + ' members' + (left > 0 ? ' (' + left + ' joined later, left out)' : '') + '</span>'
+      + '<button type="button" class="pcx-csv" data-export="low" title="Download this list as a CSV file">⬇ Export CSV</button></div>'
+      + '<div class="pcx-scroll"><table class="pcx-grid"><thead><tr>'
+      + '<th class="txt">#</th><th class="txt stick">Player</th><th class="txt">Joined</th><th class="troop">Troops</th>'
+      + '<th class="sel" title="Chests of the chosen types">Chosen</th><th>Crypt chests</th><th>Store chests</th><th>All chests</th><th>Points</th>'
+      + '</tr></thead><tbody>'
+      + (r.shown.map(function (x, i) {
+          var p = x.p;
+          var newer = p.joinDate && p.joinDate > o.startDate;
+          return '<tr class="' + (p.totalChests ? '' : 'none') + '"><td class="txt">' + (i + 1) + '</td>'
+            + '<td class="txt who stick"><a data-player="' + esc(p.name) + '" title="Show ' + esc(p.name) + '\'s chests">' + esc(p.name) + '</a></td>'
+            + '<td class="txt joined' + (newer ? ' new" title="Joined after the start of the chosen period' : '') + '">' + (p.joinDate ? fmtDate(p.joinDate) : '–') + '</td>'
+            + '<td class="troop" title="' + esc(troopTitle(p.troops)) + '">' + (p.troops && p.troops.category ? esc(p.troops.category) : '–') + '</td>'
+            + '<td class="sel">' + num(x.chosen) + '</td>'
+            + '<td' + (x.crypt ? '' : ' class="zero"') + '>' + (x.crypt ? num(x.crypt) : '-') + '</td>'
+            + '<td' + (x.store ? '' : ' class="zero"') + '>' + (x.store ? num(x.store) : '-') + '</td>'
+            + '<td' + (p.totalChests ? '' : ' class="zero"') + '>' + (p.totalChests ? num(p.totalChests) : '-') + '</td>'
+            + '<td' + (p.totalPoints ? '' : ' class="zero"') + '>' + (p.totalPoints ? num(p.totalPoints) : '-') + '</td></tr>';
+        }).join('') || '<tr><td colspan="9" class="txt zero">No members match.</td></tr>')
+      + '</tbody></table></div>';
+  }
+
+  function onLowChange(root, e) {
+    var t = e.target, kind = t.getAttribute && t.getAttribute('data-low');
+    if (!kind) return;
+    var st = root._pcx, lo = st.low;
+    if (kind === 'type') {
+      var allTypes = overviewColumns(st.overview).map(function (c) { return c.type; });
+      var chosen = {};
+      lowTypes(root, allTypes).forEach(function (x) { chosen[x] = true; });
+      chosen[t.value] = t.checked;
+      lo.types = chosen;
+    } else if (kind === 'usejoin') lo.useJoin = t.checked;
+    else if (kind === 'joinedby') lo.joinedBy = t.value;
+    else if (kind === 'show') lo.show = Number(t.value);
+    drawLow(root);
+  }
+
   // ─── ⬇ Export CSV ───
   // Semicolons between the fields (Excel in Dutch, Turkish, German… reads them as
   // columns; Google Sheets finds them itself) and a UTF-8 mark, so names keep
@@ -511,6 +635,15 @@
         lines.push(line);
       });
       download('player-chests_all_' + o.startDate + '_' + o.endDate + '.csv', csvText(lines));
+    } else if (which === 'low' && st.overview) {
+      var ov = st.overview, lr = lowRows(root);
+      var lines2 = [['Counting', lr.chosen.join(', ')], ['From', ov.startDate], ['To', ov.endDate]];
+      if (st.low.useJoin && st.low.joinedBy) lines2.push(['Joined on or before', st.low.joinedBy]);
+      lines2.push([], ['#', 'Player', 'Joined', 'Troops', 'Chosen', 'Crypt chests', 'Store chests', 'All chests', 'Points']);
+      lr.shown.forEach(function (x, i) {
+        lines2.push([i + 1, x.p.name, x.p.joinDate || '', (x.p.troops && x.p.troops.category) || '', x.chosen, x.crypt, x.store, x.p.totalChests || 0, x.p.totalPoints || 0]);
+      });
+      download('player-chests_lowest_' + ov.startDate + '_' + ov.endDate + '.csv', csvText(lines2));
     } else if (which === 'one' && st.one) {
       var r = st.one, groups = r.chestsByTypeGrouped || {};
       var rows = [['Player', r.player], ['From', r.startDate], ['To', r.endDate]];
