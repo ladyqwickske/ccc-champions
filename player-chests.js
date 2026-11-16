@@ -2,7 +2,7 @@
  * 📦 Player Chests — Profiling page (superiors only).
  *
  * Two views over a chosen date range of at most 6 months:
- *   👥 All players — one row per member: chests, points and one column per
+ *   👥 All players — one row per member: join date, latest troop level, chests, points and one column per
  *      chest type (▶ opens the levels, or the chest names of Store and other
  *      chests without a level); sortable, with a name filter. Click a player
  *      to see their own breakdown.
@@ -106,6 +106,10 @@
     + '.pcx-grid th.stick { z-index: 3; }'
     + '.pcx-grid tr:hover td { background: var(--pcx-soft); }'
     + '.pcx-grid tr.none td.who a { color: var(--pcx-muted); }'
+    + '.pcx-grid td.joined { color: var(--pcx-muted); }'
+    + '.pcx-grid td.joined.new { color: #64b5f6; font-weight: 600; }'
+    + '.pcx-grid td.troop { font-weight: 700; text-align: center; }'
+    + '.pcx-grid th.troop { text-align: center; }'
     + '.pcx .spinner-sm { display: inline-block; width: 22px; height: 22px; border: 3px solid var(--pcx-border);'
     + ' border-top-color: var(--pcx-accent); border-radius: 50%; animation: pcx-spin 0.8s linear infinite; }'
     + '@keyframes pcx-spin { to { transform: rotate(360deg); } }'
@@ -143,6 +147,14 @@
     return ia - ib || a.localeCompare(b);
   }
   function levelLabel(l) { return /^\d+$/.test(l) ? 'Lvl ' + l : l; }
+  // troop categories from high to low (as on the Dashboard)
+  var TROOP_ORDER = ['T9', 'G9', 'T8', 'G8', 'T7', 'G7', 'G6', 'G5', 'G4'];
+  function troopRank(p) { var c = p.troops && p.troops.category; var i = TROOP_ORDER.indexOf(c); return i >= 0 ? TROOP_ORDER.length - i : 0; }
+  function troopTitle(t) {
+    if (!t) return 'No troop levels recorded';
+    return ['G', 'M', 'S'].map(function (k) { return k + ' ' + (t[k] === null || t[k] === undefined ? '–' : t[k]); }).join(' · ')
+      + (t.date ? ' (latest entry ' + fmtDate(t.date) + ')' : '');
+  }
 
   function addCss() {
     if (document.getElementById('pcx-style')) return;
@@ -375,6 +387,8 @@
     // value getters per sort key
     var get = {
       name: function (p) { return p.name.toLowerCase(); },
+      joined: function (p) { return p.joinDate || ''; },
+      troops: troopRank,
       chests: function (p) { return p.totalChests; },
       points: function (p) { return p.totalPoints; },
     };
@@ -408,7 +422,9 @@
     var th = function (key, label, cls, title) {
       return '<th data-sort="' + esc(key) + '" class="' + (cls || '') + '"' + (title ? ' title="' + esc(title) + '"' : '') + '>' + label + arrow(key) + '</th>';
     };
-    var head = '<tr><th class="txt" style="cursor:default">#</th>' + th('name', 'Player', 'txt stick') + th('chests', 'Chests') + th('points', 'Points');
+    var head = '<tr><th class="txt" style="cursor:default">#</th>' + th('name', 'Player', 'txt stick')
+      + th('joined', 'Joined', 'txt', 'Join date (blue: joined after the start of the chosen period)') + th('troops', 'Troops', 'troop', 'Latest troop level')
+      + th('chests', 'Chests') + th('points', 'Points');
     cols.forEach(function (c) {
       var openable = c.levels.length > 0 || c.names.length > 0;
       var tog = openable ? '<span class="pcx-tog" data-toggle="' + esc(c.type) + '" title="Show the levels / chests">' + (st.open[c.type] ? '▼' : '▶') + '</span> ' : '';
@@ -425,6 +441,8 @@
       var g = p.chestsByTypeGrouped || {};
       var tr = '<tr class="' + (p.totalChests ? '' : 'none') + '"><td class="txt">' + (i + 1) + '</td>'
         + '<td class="txt who stick"><a data-player="' + esc(p.name) + '" title="Show ' + esc(p.name) + '\'s chests">' + esc(p.name) + '</a></td>'
+        + '<td class="txt joined' + (p.joinDate && p.joinDate > o.startDate ? ' new" title="Joined after the start of the chosen period' : '') + '">' + (p.joinDate ? fmtDate(p.joinDate) : '–') + '</td>'
+        + '<td class="troop" title="' + esc(troopTitle(p.troops)) + '">' + (p.troops && p.troops.category ? esc(p.troops.category) : '–') + '</td>'
         + cell(p.totalChests) + cell(p.totalPoints);
       cols.forEach(function (c) {
         var t = g[c.type];
@@ -472,7 +490,7 @@
     var st = root._pcx;
     if (which === 'all' && st.overview) {
       var o = st.overview, g = gridRows(root);
-      var head = ['#', 'Player', 'Chests', 'Points'];
+      var head = ['#', 'Player', 'Joined', 'Troops', 'G', 'M', 'S', 'Chests', 'Points'];
       g.cols.forEach(function (c) {
         head.push(c.type);
         c.levels.forEach(function (l) { head.push(c.type + ' - ' + levelLabel(l)); });
@@ -481,7 +499,9 @@
       var lines = [head];
       g.rows.forEach(function (p, i) {
         var types = p.chestsByTypeGrouped || {};
-        var line = [i + 1, p.name, p.totalChests || 0, p.totalPoints || 0];
+        var tr = p.troops || {};
+        var lv = function (k) { return tr[k] === null || tr[k] === undefined ? '' : tr[k]; };
+        var line = [i + 1, p.name, p.joinDate || '', tr.category || '', lv('G'), lv('M'), lv('S'), p.totalChests || 0, p.totalPoints || 0];
         g.cols.forEach(function (c) {
           var t = types[c.type];
           line.push(t ? t.total : 0);
