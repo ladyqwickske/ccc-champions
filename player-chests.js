@@ -7,7 +7,7 @@
  *      chests without a level); sortable, with a name filter. Click a player
  *      to see their own breakdown.
  *   📉 Lowest — the members with the fewest chests of the chosen chest types
- *      (quick picks: crypt chests, store chests), optionally only those who
+ *      (quick picks: crypt chests, the "Store" chests), optionally only those who
  *      joined on or before a date; worst first.
  *   👤 One player — one player's chests by chest type (click a type for its
  *      levels / chest names), with points, totals and a per-period breakdown.
@@ -481,7 +481,8 @@
 
   // ─── 📉 Lowest ───
   var isCrypt = function (t) { return /crypt/i.test(t); };
-  var isStore = function (t) { return /store|shop/i.test(t); };
+  // only the chest type called "Store" (not Forest Store, Ragnarok Shop, Seasonal Store…)
+  var isStore = function (t) { return String(t).trim().toLowerCase() === 'store'; };
   var PICKS = {
     crypt: { label: 'Crypt chests', test: isCrypt },
     store: { label: 'Store chests', test: isStore },
