@@ -11,6 +11,7 @@
   <script src="ccc-dates.js"></script>
   <script src="portal-shim.js"></script>
   <script src="portal-auth.js"></script>
+  <script src="player-chests.js"></script>
   <script src="help-content.js"></script>
   <script src="help.js"></script>
   <script src="evolution.js?v=2026-10-17c"></script>
@@ -319,7 +320,11 @@
       <button class="sub-tab active" data-tab="rankings" onclick="switchSubTab('rankings')">🏆 Rankings</button>
       <button class="sub-tab" data-tab="individual" onclick="switchSubTab('individual')">👤 Individual</button>
       <button class="sub-tab" data-tab="missed" onclick="switchSubTab('missed')">📉 Missed Norms</button>
+      <button class="sub-tab" data-tab="chests" onclick="switchSubTab('chests')">📦 Player Chests</button>
     </div>
+
+    <!-- Player Chests Tab: one player's chests over up to 6 months (player-chests.js) -->
+    <div id="tabChests" style="display:none;"></div>
 
     <!-- Rankings Tab -->
     <div id="tabRankings">
@@ -492,6 +497,8 @@
       document.getElementById('tabRankings').style.display = tab === 'rankings' ? '' : 'none';
       document.getElementById('tabIndividual').style.display = tab === 'individual' ? '' : 'none';
       document.getElementById('tabMissed').style.display = tab === 'missed' ? '' : 'none';
+      document.getElementById('tabChests').style.display = tab === 'chests' ? '' : 'none';
+      if (tab === 'chests') PlayerChests.mount(document.getElementById('tabChests'));
       if (tab === 'missed' && !missedData) loadMissedNorms();
     }
 
