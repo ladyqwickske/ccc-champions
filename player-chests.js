@@ -134,6 +134,23 @@
       var form = root.querySelector('form');
       form.addEventListener('submit', function (e) { e.preventDefault(); load(root); });
       form.elements.from.addEventListener('change', function () { clampTo(root); });
+      // The suggestion list only shows names that match the text in the field, so the
+      // field empties itself when clicked (the last name stays as a grey hint) and the
+      // whole list shows again; leaving it empty brings the last name back.
+      var playerInput = form.elements.player;
+      var hint = playerInput.placeholder;
+      playerInput.addEventListener('focus', function () {
+        if (!playerInput.value) return;
+        playerInput.setAttribute('data-prev', playerInput.value);
+        playerInput.placeholder = playerInput.value;
+        playerInput.value = '';
+      });
+      playerInput.addEventListener('blur', function () {
+        var prev = playerInput.getAttribute('data-prev');
+        if (!playerInput.value.trim() && prev) playerInput.value = prev;
+        playerInput.removeAttribute('data-prev');
+        playerInput.placeholder = hint;
+      });
       root.querySelector('.pcx-show').addEventListener('click', function () { load(root); });
       Array.prototype.forEach.call(root.querySelectorAll('[data-months]'), function (b) {
         b.addEventListener('click', function () { preset(root, Number(b.getAttribute('data-months'))); });
