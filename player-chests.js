@@ -9,6 +9,8 @@
  *   👤 One player — one player's chests by chest type (click a type for its
  *      levels / chest names), with points, totals and a per-period breakdown.
  *
+ * Both views have ⬇ Export CSV (made in the browser from the data on screen).
+ *
  * Data: the database Worker's getAllPlayersChestsForRange and
  * getPlayerChestsForRange (superiors only there too). The same file is used on
  * every cCc site; colours come from the page's own CSS variables where it has them.
@@ -78,6 +80,10 @@
     + '.pcx-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 4px 0 8px; }'
     + '.pcx-tools .pcx-filter { max-width: 280px; }'
     + '.pcx-tools span { font-size: 0.78em; color: var(--pcx-muted); }'
+    + '.pcx-csv { margin-left: auto; background: var(--pcx-soft); color: var(--pcx-text); border: 1px solid var(--pcx-border); border-radius: 8px;'
+    + ' padding: 7px 12px; cursor: pointer; font-size: 0.82em; white-space: nowrap; }'
+    + '.pcx-csv:hover { border-color: var(--pcx-accent); color: var(--pcx-accent-soft); }'
+    + '.pcx-head .pcx-csv { float: right; margin-top: -4px; }'
     // the table scrolls inside its own box, both ways; headings and player names stay in view
     + '.pcx-scroll { overflow: auto; max-height: 70vh; border: 1px solid var(--pcx-border); border-radius: 10px; }'
     + '.pcx-grid { border-collapse: collapse; font-size: 0.86em; min-width: 100%; }'
@@ -285,7 +291,7 @@
         if (!data) throw new Error((payload && (payload.error || payload.message)) || 'Could not load the chests.');
         if (st.mode !== mode) return;   // switched view while loading
         if (mode === 'all') { st.overview = data; root.querySelector('.pcx').classList.add('pcx-wide'); drawOverview(root); }
-        else renderOne(out, data);
+        else { st.one = data; renderOne(out, data); }
       })
       .catch(function (err) { out.innerHTML = '<div class="pcx-error">' + esc(err.message || err) + '</div>'; })
       .then(function () { btn.disabled = false; });
@@ -294,6 +300,8 @@
   function onResultClick(root, e) {
     var st = root._pcx;
     var t = e.target;
+    var exp = t.closest ? t.closest('[data-export]') : null;
+    if (exp) { exportCsv(root, exp.getAttribute('data-export')); return; }
     var tog = t.closest ? t.closest('[data-toggle]') : null;
     if (tog) {   // ▶ on a chest type column
       e.stopPropagation();
@@ -355,16 +363,14 @@
       + '<div><b>' + num(o.totalPoints) + '</b><span>Points</span></div>'
       + '<div><b>' + active + ' / ' + num(o.members) + '</b><span>Members with chests</span></div></div>'
       + '<div class="pcx-tools"><input type="text" class="pcx-filter" placeholder="🔍 Filter by player name…" value="' + esc(root._pcx.filter) + '">'
-      + '<span class="pcx-count"></span></div>'
+      + '<span class="pcx-count"></span><button type="button" class="pcx-csv" data-export="all" title="Download this table (current order and filter) as a CSV file">⬇ Export CSV</button></div>'
       + '<div class="pcx-scroll"><table class="pcx-grid"></table></div>';
     drawGrid(root);
   }
 
-  function drawGrid(root) {
+  /** The overview's columns and its rows in the current order and filter. */
+  function gridRows(root) {
     var st = root._pcx, o = st.overview;
-    if (!o) return;
-    var table = root.querySelector('.pcx-grid');
-    if (!table) return;
     var cols = overviewColumns(o);
     // value getters per sort key
     var get = {
@@ -386,6 +392,15 @@
       var c = va < vb ? -1 : va > vb ? 1 : 0;
       return c * st.sortDir || b.totalPoints - a.totalPoints || a.name.localeCompare(b.name);
     });
+    return { cols: cols, rows: rows, q: q };
+  }
+
+  function drawGrid(root) {
+    var st = root._pcx, o = st.overview;
+    if (!o) return;
+    var table = root.querySelector('.pcx-grid');
+    if (!table) return;
+    var g0 = gridRows(root), cols = g0.cols, rows = g0.rows, q = g0.q;
     var count = root.querySelector('.pcx-count');
     if (count) count.textContent = q ? rows.length + ' of ' + (o.players || []).length + ' players' : (o.players || []).length + ' players';
 
@@ -424,10 +439,86 @@
     table.innerHTML = '<thead>' + head + '</thead><tbody>' + (body || '<tr><td colspan="99" class="txt zero">No players match.</td></tr>') + '</tbody>';
   }
 
+  // ─── ⬇ Export CSV ───
+  // Semicolons between the fields (Excel in Dutch, Turkish, German… reads them as
+  // columns; Google Sheets finds them itself) and a UTF-8 mark, so names keep
+  // their letters (ş, ğ, é…). Plain numbers, no thousands separators.
+  var SEP = ';';
+  function csvField(v) {
+    if (typeof v === 'number') return String(v);
+    var t = String(v === null || v === undefined ? '' : v);
+    if (/^[=+\-@\t\r]/.test(t)) t = "'" + t;   // never read as a spreadsheet formula
+    return /[";\n\r,]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  }
+  function csvText(lines) {
+    return '﻿' + lines.map(function (l) { return l.map(csvField).join(SEP); }).join('\r\n') + '\r\n';
+  }
+  // file names in plain letters (ş → s, ğ → g, ı → i): not every browser keeps others
+  function fileSafe(t) {
+    var plain = String(t).replace(/ı/g, 'i').replace(/ß/g, 'ss').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return plain.replace(/[^\w.-]+/g, '_').replace(/^_+|_+$/g, '') || 'player';
+  }
+  function download(name, text) {
+    var blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  }
+
+  function exportCsv(root, which) {
+    var st = root._pcx;
+    if (which === 'all' && st.overview) {
+      var o = st.overview, g = gridRows(root);
+      var head = ['#', 'Player', 'Chests', 'Points'];
+      g.cols.forEach(function (c) {
+        head.push(c.type);
+        c.levels.forEach(function (l) { head.push(c.type + ' - ' + levelLabel(l)); });
+        c.names.forEach(function (n) { head.push(c.type + ' - ' + n); });
+      });
+      var lines = [head];
+      g.rows.forEach(function (p, i) {
+        var types = p.chestsByTypeGrouped || {};
+        var line = [i + 1, p.name, p.totalChests || 0, p.totalPoints || 0];
+        g.cols.forEach(function (c) {
+          var t = types[c.type];
+          line.push(t ? t.total : 0);
+          c.levels.forEach(function (l) { line.push(t && t.levels ? t.levels[l] || 0 : 0); });
+          c.names.forEach(function (n) { line.push(t && t.names ? t.names[n] || 0 : 0); });
+        });
+        lines.push(line);
+      });
+      download('player-chests_all_' + o.startDate + '_' + o.endDate + '.csv', csvText(lines));
+    } else if (which === 'one' && st.one) {
+      var r = st.one, groups = r.chestsByTypeGrouped || {};
+      var rows = [['Player', r.player], ['From', r.startDate], ['To', r.endDate]];
+      if (r.names && r.names.length > 1) rows.push(['Earlier names', r.names.slice(1).join(', ')]);
+      rows.push([], ['Chest type', 'Level / chest', 'Chests', 'Points']);
+      Object.keys(groups).sort(typeSort).forEach(function (type) {
+        var t = groups[type];
+        rows.push([type, '', t.total || 0, t.points || 0]);
+        Object.keys(t.levels || {}).sort(levelSort).forEach(function (l) { rows.push([type, levelLabel(l), t.levels[l], '']); });
+        Object.keys(t.names || {}).sort(function (a, b) { return (t.names[b] - t.names[a]) || a.localeCompare(b); })
+          .forEach(function (n) { rows.push([type, n, t.names[n], '']); });
+      });
+      rows.push(['Total', '', r.totalChests || 0, r.totalPoints || 0]);
+      if ((r.periods || []).length) {
+        rows.push([], ['Period', 'From', 'To', 'Chests', 'Points']);
+        r.periods.forEach(function (p) {
+          rows.push([p.name && p.name !== 'manual' && p.name !== 'fallback' ? p.name : '', p.start || '', p.end || '', p.chests || 0, p.points || 0]);
+        });
+      }
+      download('player-chests_' + fileSafe(r.player) + '_' + r.startDate + '_' + r.endDate + '.csv', csvText(rows));
+    }
+  }
+
   // ─── 👤 One player ───
   function renderOne(out, r) {
     var groups = r.chestsByTypeGrouped || {};
-    var head = '<div class="pcx-head"><b>' + esc(r.player) + '</b>'
+    var head = '<div class="pcx-head">' + (r.totalChests ? '<button type="button" class="pcx-csv" data-export="one" title="Download this player\'s chests as a CSV file">⬇ Export CSV</button>' : '')
+      + '<b>' + esc(r.player) + '</b>'
       + (r.names && r.names.length > 1 ? ' (also ' + r.names.slice(1).map(esc).join(', ') + ')' : '')
       + ' · ' + fmtDate(r.startDate) + ' → ' + fmtDate(r.endDate) + '</div>';
     if (!r.totalChests) { out.innerHTML = head + '<div class="pcx-empty">No chests in this period.</div>'; return; }
