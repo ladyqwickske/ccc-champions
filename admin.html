@@ -1022,7 +1022,7 @@
         <div id="orcResources"></div>
         <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Stay Alive accounts</h4>
         <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
-          <thead><tr><th style="text-align:left;padding:6px 8px;">Account</th><th style="padding:6px 8px;">On</th><th style="text-align:left;padding:6px 8px;">Last login</th><th style="text-align:left;padding:6px 8px;">Next login</th></tr></thead>
+          <thead><tr><th style="text-align:left;padding:6px 8px;">Account</th><th style="padding:6px 8px;">On</th><th style="text-align:left;padding:6px 8px;" title="Who gets this account's e-mails (login OK / failed, Peace Shield). Empty: the main address.">E-mails to</th><th style="text-align:left;padding:6px 8px;">Last login</th><th style="text-align:left;padding:6px 8px;">Next login</th></tr></thead>
           <tbody id="orcVacation"></tbody>
         </table></div>
         <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Recent buttons</h4>
@@ -2576,15 +2576,29 @@
             '<td style="' + cell + 'white-space:nowrap;">' + (c.enabled ? fmt(c.nextRun) : '<span class="note">off</span>') + '</td>' +
           '</tr>';
         }).join('') : '<tr><td colspan="8" style="' + cell + 'color:#999;">The clans show up once the orchestrator has synced with the website.</td></tr>';
+        // Who gets a Stay Alive account's e-mails: its own address(es), empty = the main address
+        // (📧 E-mails tab). An orchestrator that doesn't send emailTo yet can't use it.
+        const mailCell = (v, over) => {
+          const known = v.emailTo !== undefined, has = 'email_to' in over;
+          const shown = has ? over.email_to : (known ? (v.file || {}).email_to || '' : '');
+          const main = String(st.emailTo || '').split(/[,;]/).map(s => s.trim()).filter(Boolean).join(', ');
+          return '<td style="' + cell + 'white-space:nowrap;"><input type="text" data-orc-vac-mail data-name="' + attr(v.name) + '" value="' + attr(shown) + '"' +
+              ' placeholder="' + attr(main ? 'main: ' + main : 'main address') + '"' +
+              (known ? ' title="Who gets this account\'s e-mails (several: separate with commas). Empty: the main address."'
+                     : ' disabled title="Update the chesttracker on the PC to set this here"') +
+              ' style="width:220px;padding:4px 6px;font-size:12px;">' +
+            (has ? ((v.emailTo || '') === over.email_to ? '' : ' <span title="Waiting for the PC to apply it" style="font-size:11px;">⏳</span>') + resetBtn('vacation', v.name, 'email_to') : '') + '</td>';
+        };
         $('orcVacation').innerHTML = (st.vacation || []).length ? st.vacation.map(v => {
           const over = (sets.vacation || {})[v.name] || {};
           const has = 'enabled' in over, value = has ? !!over.enabled : !!(v.file || {}).enabled;
           return '<tr><td style="' + cell + 'font-weight:600;">' + esc(v.name) + '</td>' +
             '<td style="' + cell + 'text-align:center;white-space:nowrap;"><input type="checkbox" data-orc-vac data-name="' + attr(v.name) + '"' + (value ? ' checked' : '') + '>' +
               (has ? (v.enabled === value ? '' : ' <span title="Waiting for the PC to apply it" style="font-size:11px;">⏳</span>') + resetBtn('vacation', v.name, 'enabled') : '') + '</td>' +
+            mailCell(v, over) +
             '<td style="' + cell + 'white-space:nowrap;">' + fmt(v.lastLogin) + '</td>' +
             '<td style="' + cell + 'white-space:nowrap;">' + (v.enabled ? fmt(v.nextLogin) : '<span class="note">off</span>') + '</td></tr>';
-        }).join('') : '<tr><td colspan="4" style="' + cell + 'color:#999;">No Stay Alive accounts in orchestrator.json (vacation_accounts)' + (data.status ? '' : ' (or no sync yet)') + '.</td></tr>';
+        }).join('') : '<tr><td colspan="5" style="' + cell + 'color:#999;">No Stay Alive accounts in orchestrator.json (vacation_accounts)' + (data.status ? '' : ' (or no sync yet)') + '.</td></tr>';
         $('orcRecent').innerHTML = (data.recent || []).length ? data.recent.map(x =>
           '<div style="padding:3px 0;border-top:1px solid #333;">' + fmt(x.createdAt) + ' · <b>' + esc(x.type) + (x.clan && x.clan !== '*' ? ' ' + esc(x.clan) : x.type === 'runnow' || /^voltron-/.test(x.type) ? ' (all)' : '') + (x.event ? ' "' + esc(x.event) + '"' : '') + '</b> · ' +
             (x.doneAt ? esc(x.result || 'done') + ' (' + fmt(x.doneAt) + ')' : '<span style="color:#ffb300;">waiting for the PC</span>') + '</div>').join('') : '<span class="note">None yet. (Start isn\'t listed: it goes through the watchdog.)</span>';
@@ -2691,6 +2705,14 @@
           const name = cb.getAttribute('data-name');
           const v = (st.vacation || []).find(x => x.name === name) || {};
           setValue('vacation', name, 'enabled', cb.checked, !!(v.file || {}).enabled);
+        }));
+        document.querySelectorAll('#orcVacation [data-orc-vac-mail]').forEach(inp => inp.addEventListener('change', () => {
+          const name = inp.getAttribute('data-name');
+          const v = (st.vacation || []).find(x => x.name === name) || {};
+          const value = inp.value.trim(), file = String((v.file || {}).email_to || '');
+          // empty or the same as orchestrator.json: nothing set here
+          send({ set: { scope: 'vacation', name: name, field: 'email_to', value: !value || value === file ? null : value } },
+               value ? 'Saved. ' + name + '\'s e-mails go there from the PC\'s next sync.' : 'Back to the main address (or orchestrator.json\'s).');
         }));
         document.querySelectorAll('#orchestratorTab [data-orc-reset]').forEach(b => b.addEventListener('click', () => {
           const [scope, name, field] = b.getAttribute('data-orc-reset').split('|');
