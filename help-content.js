@@ -378,7 +378,7 @@ window.HELP_CONTENT = {
       parts: [
         { title: '📥 Chest data', list: [
           '**🔀 Move Chests**: move chests from one name to the right member, for example chests saved under a name the chesttracker read wrong.',
-          '**🔤 OCR Corrections**: words the chesttracker reads wrong, and the correct word. The chesttracker uses them at its next run. This does not change chests that are already saved: move those with **🔀 Move Chests**.',
+          '**🔤 OCR Corrections**: words the chesttracker reads wrong, and the correct word. The chesttracker uses them at its next run. Member names are added by themselves when you add a member (✏️ Change Name renames them); **👥 Add all members** adds the members who were there before. This does not change chests that are already saved: move those with **🔀 Move Chests**.',
           '**🛠️ Manage Chest Data**: every chest of the active or previous period. Remove chests that should not count, or correct a wrong chest type, name or level. You can undo this under **Recent removals** and **Recent corrections**.'
         ] },
         { title: '🏷️ Rules', list: [
