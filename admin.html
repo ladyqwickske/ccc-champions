@@ -756,7 +756,7 @@
       </div>
       <div id="rosterCheckTab" class="tab-content">
         <h3 style="margin:0 0 6px 0;">Roster Check</h3>
-        <div class="note" style="margin-bottom:12px;">The members against the clan list in the game data and against the names in the active period's chests, to tidy up after many players came in at once. Work from the top: add the new players (or say who they are), then move the chests of misread names. Only you can see this tab.</div>
+        <div class="note" style="margin-bottom:12px;">The members against the clan list from the game data (the growth import) and against the names in the active period's chests, to tidy up after many players came in at once. Work from the top: add the new players (or say who they are), then move the chests of misread names. Only you can see this tab.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
           <label for="rcxJoinDate" style="margin:0;">Join date for new members</label>
           <input type="date" id="rcxJoinDate" style="width:auto;" onchange="RosterCheck.setAllDates()">
@@ -765,16 +765,16 @@
         </div>
         <div id="rcxInfo" class="note" style="margin-bottom:8px;"></div>
         <div id="rcxStatus" class="status" style="display:none;"></div>
-        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">1. In the game data, not on the dashboard <span id="rcxNewCount"></span></h4>
+        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">1. On the game data list, not on the dashboard <span id="rcxNewCount"></span></h4>
         <div id="rcxNew" style="font-size:13px;text-align:left;"></div>
         <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">2. Chest names that are no member <span id="rcxChestCount"></span></h4>
         <div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
           <thead><tr><th style="text-align:left;padding:6px 8px;">Name in the chests</th><th style="padding:6px 8px;">Chests</th><th style="text-align:left;padding:6px 8px;">Member</th></tr></thead>
           <tbody id="rcxChests"></tbody></table></div>
         <div id="rcxChestHidden" style="font-size:12px;text-align:left;margin-top:4px;"></div>
-        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">3. Former members back in the game data</h4>
+        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">3. Former members on the game data list</h4>
         <div id="rcxReturned" style="font-size:13px;text-align:left;"></div>
-        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">4. On the dashboard, not in the game data</h4>
+        <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">4. On the dashboard, not on the game data list</h4>
         <div id="rcxGone" style="font-size:13px;text-align:left;"></div>
         <datalist id="rcxMemberList"></datalist>
       </div>
@@ -2284,7 +2284,7 @@
         if (!data) return;
         const ro = data.roster || {};
         $('rcxInfo').innerHTML = (ro.at
-          ? 'Game data list: ' + ro.count + ' players, read ' + esc(day(ro.at)) + (ro.fresh ? '' : ' — <b>old</b>: "not in the game data" is left out until a newer one comes in')
+          ? 'Game data list (growth import): ' + ro.count + ' players, read ' + esc(day(ro.at)) + ', compared with the members on that day, after the matching (spelling, renames, game data name corrections)' + (ro.fresh ? '' : ' — <b>old</b>: section 4 is left out until a newer one comes in')
           : 'The full clan list from the game data isn\'t in yet (it comes with the next update of the chesttracker PC): the new names below are the ones the daily game data imports could not match.')
           + (data.period ? ' · Chests: active period ' + esc(data.period.start) + ' – ' + esc(data.period.end || '') : '');
         $('rcxMemberList').innerHTML = data.members.map(m => '<option value="' + attr(m) + '"></option>').join('');
@@ -2294,8 +2294,7 @@
         $('rcxNewCount').textContent = '(' + data.voltronNew.length + ')';
         $('rcxNew').innerHTML = data.voltronNew.length ? data.voltronNew.map((v, i) => {
           // where the name comes from: Voltron's full list now, or only an import (a tournament: may have left since)
-          const source = v.onVoltronNow ? '✅ in the game data now'
-            : ro.fresh ? '⚠️ not on the latest game data list' + (v.detail ? ' (seen in ' + v.detail + ')' : '') + ': left again?'
+          const source = v.onVoltronNow ? (v.correctionTo ? '⚠️ a game data name correction points to "' + v.correctionTo + '", which is no member' : '')
             : v.detail ? 'seen in the tournament ' + v.detail : 'seen by the growth import ' + day(v.lastSeen);
           const info = [source, levels(v), v.firstSeen ? (v.firstSeenIsBaseline ? 'in the game data since before ' : 'first in the game data ') + day(v.firstSeen) : ''].filter(Boolean).join(' · ');
           const sugg = (v.suggestions || []).map(s => s.kind === 'member'
@@ -2307,7 +2306,7 @@
             sugg +
             '<span style="display:flex;gap:4px;align-items:center;"><input type="text" list="rcxMemberList" placeholder="or: is member…" data-same-input="' + i + '" style="' + inp + 'width:150px;margin:0;"> ' +
               '<button class="btn btn-secondary" data-dismiss="' + i + '" style="' + small + '" title="Not a member: leave it off this list">✖ not a member</button></span></div>';
-        }).join('') : '<div style="padding:6px 4px;">✅ Every game data name the imports saw is on the dashboard.</div>';
+        }).join('') : '<div style="padding:6px 4px;">✅ Every name on the game data list is on the dashboard.</div>';
         $('rcxNew').querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
           const v = data.voltronNew[+b.getAttribute('data-add')], date = $('rcxNew').querySelector('[data-jd="' + b.getAttribute('data-add') + '"]').value;
           if (!date) { status('Pick a join date.', false); return; }
@@ -2334,7 +2333,12 @@
         $('rcxChests').innerHTML = data.chestNames.length ? data.chestNames.map((n, i) => {
           const top = (n.suggestions || [])[0];
           const others = (n.suggestions || []).slice(1).map(s => esc(s.name) + (s.kind === 'voltron' ? ' (new in the game data)' : '')).join(', ');
-          return '<tr><td style="' + cell + 'font-weight:600;">' + esc(n.name) + (n.former ? '<div class="note" style="margin:2px 0 0;font-weight:normal;">former member' + (n.left ? ', left ' + esc(n.left) : '') + (n.afterLeaving ? ': <b>' + n.afterLeaving + ' chest(s) after that</b> (a misread name?)' : '') + '</div>' : '') + '</td>' +
+          return '<tr><td style="' + cell + 'font-weight:600;">' + esc(n.name) + (n.former ? '<div class="note" style="margin:2px 0 0;font-weight:normal;">former member' + (n.left ? ', left ' + esc(n.left) : '') + (n.afterLeaving ? ': <b>' + n.afterLeaving + ' chest(s) after that</b> (a misread name?)' : '') + '</div>' : '') +
+            (n.gameData ? '<div class="note" style="margin:2px 0 0;font-weight:normal;">' + ({
+              member: 'game data: this is <b>' + esc(top ? top.name : '') + '</b> (matched there)',
+              new: 'game data: on the list, not on the dashboard (section 1)',
+              listed: 'game data: on the list',
+              absent: 'game data: not on the list (a misread name?)' }[n.gameData] || '') + '</div>' : '') + '</td>' +
             '<td style="' + cell + 'text-align:center;">' + n.chests + '</td>' +
             '<td style="' + cell + 'white-space:nowrap;"><input type="text" list="rcxMemberList" data-move-input="' + i + '" value="' + attr(top ? top.name : '') + '" placeholder="Member…" style="' + inp + 'width:160px;"> ' +
               '<button class="btn" data-move="' + i + '" style="' + small + '">➡️ Move chests</button> ' +
@@ -2377,14 +2381,21 @@
         }));
 
         // 3. Former members back in the game data, and members not in the game data
-        $('rcxReturned').innerHTML = (data.returned || []).length ? data.returned.map(v =>
+        const ls = data.leftSince || [];
+        $('rcxReturned').innerHTML = ((data.returned || []).length ? data.returned.map(v =>
           '<div style="padding:4px 0;border-top:1px solid rgba(128,128,128,0.35);"><b>' + esc(v.name) + '</b>' + (v.former !== v.name ? ' = former member <b>' + esc(v.former) + '</b>' : '') +
-          (levels(v) ? ' <span class="note" style="margin:0;">' + esc(levels(v)) + '</span>' : '') + ' — back? Members page → Returning member (keeps their old data).</div>').join('') : '<span class="note">None.</span>';
+          (v.left ? ' <span class="note" style="margin:0;">left ' + esc(v.left) + '</span>' : '') +
+          (levels(v) ? ' <span class="note" style="margin:0;">' + esc(levels(v)) + '</span>' : '') + ' — back? Members page → Returning member (keeps their old data).</div>').join('') : '<span class="note">None.</span>') +
+          (ls.length ? '<div class="note" style="margin:6px 0 0;">Not listed: left on or after the day the list was read, so still on it (nothing to do): ' +
+            ls.map(x => esc(x.former) + ' (left ' + esc(x.left) + ')').join(', ') + '</div>' : '');
         // 4. Members not in the game data's latest list: remove them here (end date + reason), one by one or all
+        const js = data.joinedSince || [];
+        const joinedNote = js.length ? '<div class="note" style="margin:6px 0 0;">Not listed: joined after the list was read, so not on it yet (nothing to do): ' +
+          js.map(x => esc(x.name) + ' (joined ' + esc(x.joinDate) + ')').join(', ') + '</div>' : '';
         if (!ro.fresh) $('rcxGone').innerHTML = '<span class="note">Shown once the full clan list from the game data comes in (the growth import sends it; Orchestrator → 🛰️ Run game data import now → Growth import).</span>';
-        else if (!data.notOnVoltron.length) $('rcxGone').innerHTML = '<span class="note">✅ Every member is on the game data list of ' + esc(day(ro.at)) + '.</span>';
+        else if (!data.notOnVoltron.length) $('rcxGone').innerHTML = '<span class="note">✅ Every member is on the game data list of ' + esc(day(ro.at)) + '.</span>' + joinedNote;
         else {
-          $('rcxGone').innerHTML = '<div class="note" style="margin:0 0 6px;">Not on the game data list of ' + esc(day(ro.at)) + '. Left? Remove them: they go to Former Members with the end date and reason below (their history stays, and <b>Returning member</b> brings it back). Staying on purpose (for example suspended)? Add them to the exemptions instead.</div>' +
+          $('rcxGone').innerHTML = '<div class="note" style="margin:0 0 6px;">Not on the game data list of ' + esc(day(ro.at)) + ', after the matching. The same player under another name there? Click 🔗 (or type the game data name) and the name is matched from now on. Left? Remove them: they go to Former Members with the end date and reason below (their history stays, and <b>Returning member</b> brings it back). Staying on purpose (for example suspended)? Add them to the exemptions instead.</div>' +
             '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">' +
               '<label for="rcxEndDate" style="margin:0;">End date</label><input type="date" id="rcxEndDate" value="' + attr(lastEnd || today()) + '" style="' + inp + 'width:140px;margin:0;">' +
               '<label for="rcxReason" style="margin:0;">Reason</label><input type="text" id="rcxReason" value="' + attr(lastReason) + '" style="' + inp + 'width:220px;margin:0;">' +
@@ -2392,7 +2403,22 @@
             data.notOnVoltron.map((m, i) =>
               '<div style="padding:4px 0;border-top:1px solid rgba(128,128,128,0.35);display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><b style="flex:1 1 140px;">' + esc(m.name) + '</b>' +
               (m.joinDate ? '<span class="note" style="margin:0;">joined ' + esc(String(m.joinDate).slice(0, 10)) + '</span>' : '') +
-              '<button class="btn btn-secondary" data-remove="' + i + '" style="' + small + '">🚪 Remove</button></div>').join('');
+              (m.suggestions || []).map(s => '<button class="btn btn-secondary" data-link="' + i + '" data-vname="' + attr(s.name) + '" style="' + small + '" title="Same player: this is their name in the game data (a game data name correction)">🔗 is ' + esc(s.name) + ' in the game data</button>').join(' ') +
+              '<input type="text" list="rcxVoltronList" placeholder="or: game data name…" data-link-input="' + i + '" style="' + inp + 'width:150px;margin:0;">' +
+              '<button class="btn btn-secondary" data-remove="' + i + '" style="' + small + '">🚪 Remove</button></div>').join('') + joinedNote +
+            '<datalist id="rcxVoltronList">' + data.voltronNew.filter(v => v.onVoltronNow).map(v => '<option value="' + attr(v.name) + '"></option>').join('') + '</datalist>';
+          const link = (m, vname) => {
+            const v = data.voltronNew.find(x => x.name.toLowerCase() === String(vname).trim().toLowerCase());
+            const name = v ? v.name : String(vname).trim();
+            if (!name) return;
+            if (!v && !confirm('"' + name + '" is not one of the unmatched names on the game data list. Use it anyway?')) return;
+            run(async () => {
+              const r = await post({ action: 'updateVoltronNameCorrections', userEmail: email(), changes: [{ op: 'set', voltronName: name, memberName: m.name }] });
+              if (!okOf(r)) throw new Error(msgOf(r));
+            }, '"' + name + '" from the game data is now read as "' + m.name + '"; the next game data import records the missing scores and levels.');
+          };
+          $('rcxGone').querySelectorAll('[data-link]').forEach(b => b.addEventListener('click', () => link(data.notOnVoltron[+b.getAttribute('data-link')], b.getAttribute('data-vname'))));
+          $('rcxGone').querySelectorAll('[data-link-input]').forEach(input => input.addEventListener('change', () => { if (input.value.trim()) link(data.notOnVoltron[+input.getAttribute('data-link-input')], input.value); }));
           const remember = () => { lastEnd = $('rcxEndDate').value; lastReason = $('rcxReason').value; };
           const removeNames = (names) => {
             remember();
