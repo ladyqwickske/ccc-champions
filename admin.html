@@ -749,6 +749,7 @@
           <input type="text" id="ocrNewWord" placeholder="New correct word" style="width:200px;" onkeydown="if(event.key==='Enter')OcrCorrections.addWord()">
           <button class="btn" style="margin:0;" onclick="OcrCorrections.addWord()">➕ Add word</button>
           <button class="btn btn-secondary" style="margin:0;" onclick="OcrCorrections.load()">🔄 Reload</button>
+          <button class="btn btn-secondary" style="margin:0;" onclick="OcrCorrections.addMembers()" title="Every current member's name as a correct word (new members and name changes are added by themselves)">👥 Add all members</button>
         </div>
         <div id="ocrInfo" class="note" style="margin-bottom:8px;"></div>
         <div id="ocrStatus" class="status" style="display:none;"></div>
@@ -1907,7 +1908,13 @@
         el.value = '';
         change([{ op: 'addWord', word: w }], '"' + w + '" added. Add its misreadings on its line.');
       }
-      return { load, render, addWord };
+      // 👥 Add all members: every current member's name as a correct word, once (new members and
+      // ✏️ Change Name keep the list up to date by themselves after that)
+      function addMembers() {
+        if (!confirm('Add every current member\'s name to the list as a correct word?\n\nA misreading that is exactly a member\'s name is taken away (otherwise the chesttracker turns that member\'s chests into the other name).')) return;
+        change([{ op: 'addMembers' }]);
+      }
+      return { load, render, addWord, addMembers };
     })();
 
     // 📧 E-mails (owners only): who gets the report e-mails (getEmailSettings / updateEmailSettings),
