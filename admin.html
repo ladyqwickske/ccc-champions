@@ -882,12 +882,13 @@
         <div id="cpvForm" style="display:none;margin-bottom:12px;background:rgba(255,255,255,0.04);border:1px solid #333;border-radius:8px;padding:12px 14px;">
           <div id="cpvFormTitle" style="font-size:12px;color:#ffb300;font-weight:600;margin-bottom:8px;">Add a chest</div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end;">
-            <div><label for="cpvType">Chest type</label><select id="cpvTypeSel" onchange="ChestPointValues.typePicked()"></select><input type="text" id="cpvType" placeholder="New chest type, e.g. Epic Crypt" style="display:none;margin-top:4px;"></div>
+            <div><label for="cpvType">Chest type</label><select id="cpvTypeSel" onchange="ChestPointValues.typePicked()"></select><input type="text" id="cpvType" oninput="ChestPointValues.updateUseAny()" placeholder="New chest type, e.g. Epic Crypt" style="display:none;margin-top:4px;"></div>
             <div><label for="cpvName" style="display:flex;justify-content:space-between;gap:6px;">Chest name <span style="font-weight:normal;white-space:nowrap;"><input type="checkbox" id="cpvAny" style="width:auto;margin:0 3px 0 0;vertical-align:middle;" onchange="ChestPointValues.anyChanged()">Any chest</span></label><input type="text" id="cpvName" placeholder="e.g. Epic Chest"></div>
-            <div><label for="cpvCrypt">Level / range / event</label><select id="cpvCryptSel" onchange="ChestPointValues.levelPicked()"></select><input type="text" id="cpvCrypt" placeholder="New level, e.g. 35 or 20-25" style="display:none;margin-top:4px;"></div>
+            <div><label for="cpvCrypt">Level / range / event</label><select id="cpvCryptSel" onchange="ChestPointValues.levelPicked()"></select><input type="text" id="cpvCrypt" oninput="ChestPointValues.updateUseAny()" placeholder="New level, e.g. 35 or 20-25" style="display:none;margin-top:4px;"></div>
             <div><label for="cpvPoints">Points</label><input type="number" id="cpvPoints" min="0" step="1"></div>
-            <div><label for="cpvValidFrom" title="The first day of the period from which this row counts; empty = every period">Counts from</label><input type="date" id="cpvValidFrom"></div>
+            <div><label for="cpvValidFrom" title="The first day of the period from which this row counts; empty = every period">Counts from</label><input type="date" id="cpvValidFrom" onchange="ChestPointValues.updateUseAny()"></div>
           </div>
+          <div id="cpvUseAnyBox" style="display:none;margin-top:10px;font-size:0.85em;text-align:left;"></div>
           <div style="display:flex;gap:8px;margin-top:10px;">
             <button class="btn" style="margin:0;" onclick="ChestPointValues.submitForm()">💾 Save</button>
             <button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.closeForm()">Cancel</button>
@@ -2972,7 +2973,7 @@
             '<td style="padding:6px 8px;">' + esc(r.type) + '</td>' +
             '<td style="padding:6px 8px;">' + (r.name === ANY ? '<i title="Every chest of this type and level without a row of its own">any chest</i>' : esc(r.name)) + '</td>' +
             '<td style="padding:6px 8px;">' + esc(r.crypt) + '</td>' +
-            '<td style="padding:4px 8px;text-align:right;"><input type="number" min="0" step="1" data-cpv-pts="' + r.id + '" value="' + attr(val) + '" title="Was ' + attr(r.points) + '" style="width:90px;padding:4px 6px;font-size:0.85em;text-align:right;' + (dirty ? 'border-color:#ffb300;' : '') + '"></td>' +
+            '<td style="padding:4px 8px;text-align:right;">' + (r.ended && !dirty ? '<span title="No points of its own from this date: the any-chest value of its type and level counts. Type points to give it its own value again." style="font-style:italic;white-space:nowrap;margin-right:6px;">uses any chest</span>' : '') + '<input type="number" min="0" step="1" data-cpv-pts="' + r.id + '" value="' + attr(r.ended && !dirty ? '' : val) + '" placeholder="' + (r.ended ? 'own' : '') + '" title="' + (r.ended ? 'Type points to give this chest its own value again' : 'Was ' + attr(r.points)) + '" style="width:' + (r.ended && !dirty ? '60' : '90') + 'px;padding:4px 6px;font-size:0.85em;text-align:right;' + (dirty ? 'border-color:#ffb300;' : '') + '"></td>' +
             '<td style="padding:6px 8px;white-space:nowrap;">' + (r.validFrom ? esc(r.validFrom) : '<span style="opacity:0.6;">always</span>') + badge(r) + pending(r, dirty) + '</td>' +
             '<td style="padding:4px 8px;white-space:nowrap;text-align:right;">' +
               '<button class="btn btn-secondary" data-cpv-edit="' + r.id + '" style="margin:0;padding:4px 8px;font-size:12px;" title="Change type, name, level or date">✏️</button> ' +
@@ -2983,7 +2984,7 @@
           input.addEventListener('change', () => {
             const r = byId(input.dataset.cpvPts);
             const v = input.value.trim();
-            if (v === '' || Number(v) === r.points) delete edits[r.id];
+            if (v === '' || (!r.ended && Number(v) === r.points)) delete edits[r.id];
             else edits[r.id] = Number(v);
             render();
           });
@@ -3021,14 +3022,57 @@
       function renderLog() {
         const box = $('cpvLog');
         const log = state.log || [];
-        const from = (r) => r && r.validFrom ? ' (from ' + esc(r.validFrom) + ')' : '';
+        const from = (r) => (r && r.validFrom ? ' (from ' + esc(r.validFrom) + ')' : '') + (r && r.ended ? ' → uses the any-chest value' : '');
         box.innerHTML = log.length ? log.map(l => {
-          const what = l.op === 'add' ? '➕ ' + esc(rowText(l.after)) + from(l.after) + ': ' + fmt(l.after.points)
+          const what = l.op === 'add' ? '➕ ' + esc(rowText(l.after)) + from(l.after) + (l.after.ended ? '' : ': ' + fmt(l.after.points))
             : l.op === 'remove' ? '🗑 ' + esc(rowText(l.before)) + from(l.before) + ' (' + fmt(l.before.points) + ')'
             : '✏️ ' + esc(rowText(l.before)) + from(l.before) + ': ' + fmt(l.before.points) + ' → '
               + (rowText(l.before) !== rowText(l.after) || (l.before.validFrom || '') !== (l.after.validFrom || '') ? esc(rowText(l.after)) + from(l.after) + ': ' : '') + fmt(l.after.points);
           return '<div style="padding:2px 0;">' + esc(when(l.at)) + ' · ' + esc(l.by || '?') + ' · ' + what + '</div>';
         }).join('') : 'No changes made on the site yet.';
+      }
+      // Levels as the database reads them (src/chests.js extractLevelCandidates): a bare
+      // "15-19" is level 15 only; "Level 15-19" every level from 15 to 19. A range typed
+      // here is saved as "Level 15-19".
+      const rangeText = (t) => { const m = String(t || '').trim().match(/^(\d+)\s*[-–]\s*(\d+)$/); return m ? 'Level ' + m[1] + '-' + m[2] : String(t || '').trim(); };
+      function levelsOf(text) {
+        const raw = String(text == null ? '' : text).trim();
+        if (!raw) return [0];
+        const direct = parseInt(raw, 10);
+        if (!isNaN(direct)) return [direct];
+        const r = raw.match(/(?:lvl|level)?\s*(\d+)\s*[-–]\s*(\d+)/i);
+        if (r) { const a = +r[1], b = +r[2], out = []; for (let l = Math.min(a, b); l <= Math.max(a, b); l++) out.push(l); return out; }
+        const one = raw.match(/(?:lvl|level)\s*(\d+)/i);
+        return one ? [+one[1]] : [0];
+      }
+      const typeKey = (t) => bareType(t).trim().toLowerCase();
+      // The chests with a row of their own for this type and level (all their levels
+      // inside it) whose own value is in force on `date`: the ones "use it for all" switches.
+      function coveredChests(type, crypt, date) {
+        const levels = new Set(levelsOf(rangeText(crypt)));
+        if (!type || levels.has(0)) return [];
+        const best = new Map();
+        (state.rows || []).forEach(r => {
+          if (r.name === ANY || typeKey(r.type) !== typeKey(type) || !levelsOf(r.crypt).every(l => l !== 0 && levels.has(l))) return;
+          const from = r.validFrom || '';
+          if (from > (date || '0000-00-00')) return;
+          const k = keyOf(r), cur = best.get(k);
+          if (!cur || from >= (cur.validFrom || '')) best.set(k, r);
+        });
+        return [...best.values()].filter(r => !r.ended);
+      }
+      function updateUseAny() {
+        const box = $('cpvUseAnyBox');
+        const list = !editing && $('cpvAny').checked ? coveredChests($('cpvType').value.trim(), $('cpvCrypt').value.trim(), $('cpvValidFrom').value || '') : [];
+        if (!list.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+        const was = $('cpvUseAll') ? $('cpvUseAll').checked : true;
+        const d = $('cpvValidFrom').value;
+        box.style.display = '';
+        box.innerHTML = '<label style="display:flex;gap:6px;align-items:flex-start;cursor:pointer;font-weight:normal;text-transform:none;letter-spacing:0;">'
+          + '<input type="checkbox" id="cpvUseAll" style="width:auto;margin:2px 0 0;"' + (was ? ' checked' : '') + '>'
+          + '<span><b>Also use it for the ' + list.length + ' chest' + (list.length === 1 ? '' : 's') + ' of this type and level with a row of ' + (list.length === 1 ? 'its' : 'their') + ' own</b> '
+          + (d ? 'from ' + esc(d) : 'in every period') + ': ' + list.map(r => esc(r.name) + ' (' + fmt(r.points) + ')').join(', ')
+          + '. Their own points stop counting then; the rows stay as the record of the periods before. Untick to keep their own points.</span></label>';
       }
       function anyChanged() {
         const any = $('cpvAny').checked;
@@ -3036,6 +3080,7 @@
         name.disabled = any;
         if (any) name.value = '';
         name.placeholder = any ? 'any chest of this type and level' : 'e.g. Epic Chest';
+        updateUseAny();
       }
       // Chest type and level dropdowns: the values in the list (and the unmatched chests),
       // plus "➕ New…", which shows a text box for a value that isn't there yet.
@@ -3070,11 +3115,13 @@
         input.style.display = sel.value === NEW ? '' : 'none';
         if (sel.value === NEW) { input.value = ''; input.focus(); } else input.value = sel.value;
         fillLevels($('cpvCrypt').value);
+        updateUseAny();
       }
       function levelPicked() {
         const sel = $('cpvCryptSel'), input = $('cpvCrypt');
         input.style.display = sel.value === NEW ? '' : 'none';
         if (sel.value === NEW) { input.value = ''; input.focus(); } else input.value = sel.value;
+        updateUseAny();
       }
       function openForm(row, prefill) {
         editing = row || null;
@@ -3087,6 +3134,7 @@
         fillLevels(v.crypt || '');
         $('cpvPoints').value = v.points === '' || v.points == null ? '' : v.points;
         $('cpvValidFrom').value = v.validFrom || '';
+        updateUseAny();
         const form = $('cpvForm');
         form.style.display = '';
         form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -3108,7 +3156,9 @@
         if (!row.type || !row.name || row.points === '') { status('Chest type, chest name (or "any chest") and points are needed.', false); return; }
         if (any && !row.crypt) { status('"Any chest" needs the level (e.g. 15, or 10-14 for a range).', false); return; }
         row.points = Number(row.points);
-        const ok = await change([editing ? { op: 'set', id: editing.id, was: editing, ...row } : { op: 'add', ...row }]);
+        const useAll = !editing && any && $('cpvUseAll') && $('cpvUseAll').checked && $('cpvUseAnyBox').style.display !== 'none';
+        const ok = await change([useAll ? { op: 'useAny', type: row.type, crypt: row.crypt, points: row.points, validFrom: row.validFrom }
+          : editing ? { op: 'set', id: editing.id, was: editing, ...row } : { op: 'add', ...row }]);
         if (ok) closeForm();
       }
       function sortBy(key) {
@@ -3130,7 +3180,7 @@
         if (new Set(keys).size !== keys.length) { status('Two rows of the same chest were changed: save them one at a time.', false); return; }
         if (changes.length) change(changes);
       }
-      return { load, render, save, sortBy, fromChanged, anyChanged, typePicked, levelPicked, openForm: () => openForm(null), closeForm, submitForm };
+      return { load, render, save, sortBy, fromChanged, anyChanged, typePicked, levelPicked, updateUseAny, openForm: () => openForm(null), closeForm, submitForm };
     })();
   </script>
   <script>
