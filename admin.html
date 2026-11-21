@@ -864,12 +864,18 @@
       </div>
       <div id="chestValuesTab" class="tab-content">
         <h3 style="margin:0 0 6px 0;">Chest Point Values</h3>
-        <div class="note" style="margin-bottom:12px;">How many points each chest is worth (what used to be the "Chests 2.0" tab). A change re-scores the chests of the <b>active period</b> right away; closed periods keep the points they had.</div>
+        <div class="note" style="margin-bottom:12px;">How many points each chest is worth (what used to be the "Chests 2.0" tab). <b>One value for a whole chest type and level</b>: add a row with <b>Any chest</b> ticked (e.g. Common Crypt, level 15) and every chest of that type and level gets those points; a row for one chest name still wins over it. <b>Points per period</b>: every row counts from a date (a period's first day). Choose under <b>Changes count from</b> when typed points start to count: the active period, or the next one to enter them ahead. The older value stays in the list as the record of the earlier periods (<b>Show</b> → a period, or All rows). A change for the active period re-scores its chests right away; closed periods keep the points they had.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
           <input type="text" id="cpvSearch" placeholder="🔍 Search type, chest or level…" style="flex:1;min-width:200px;" oninput="ChestPointValues.render()">
           <button class="btn" id="cpvSaveBtn" style="margin:0;" onclick="ChestPointValues.save()" disabled>💾 Save changes</button>
           <button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.openForm()">➕ Add chest</button>
           <button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.load()">🔄 Reload</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <label for="cpvView" style="margin:0;font-size:0.85em;white-space:nowrap;">Show</label><select id="cpvView" style="width:auto;margin:0;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;" onchange="ChestPointValues.render()"><option value="now">Values in force now</option></select>
+          <label for="cpvFrom" style="margin:0;font-size:0.85em;white-space:nowrap;" title="From when the points you type in the list count">Changes count from</label><select id="cpvFrom" style="width:auto;margin:0;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;" onchange="ChestPointValues.fromChanged()"><option value="">the beginning (every period)</option></select>
+          <input type="date" id="cpvFromDate" style="width:auto;margin:0;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;display:none;" onchange="ChestPointValues.fromChanged()">
+          <span id="cpvFromNote" style="font-size:0.8em;opacity:0.75;"></span>
         </div>
         <div id="cpvInfo" class="note" style="margin-bottom:8px;"></div>
         <div id="cpvStatus" class="status" style="display:none;"></div>
@@ -877,9 +883,10 @@
           <div id="cpvFormTitle" style="font-size:12px;color:#ffb300;font-weight:600;margin-bottom:8px;">Add a chest</div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end;">
             <div><label for="cpvType">Chest type</label><input type="text" id="cpvType" placeholder="e.g. Epic Crypt"></div>
-            <div><label for="cpvName">Chest name</label><input type="text" id="cpvName" placeholder="e.g. Epic Chest"></div>
+            <div><label for="cpvName" style="display:flex;justify-content:space-between;gap:6px;">Chest name <span style="font-weight:normal;white-space:nowrap;"><input type="checkbox" id="cpvAny" style="width:auto;margin:0 3px 0 0;vertical-align:middle;" onchange="ChestPointValues.anyChanged()">Any chest</span></label><input type="text" id="cpvName" placeholder="e.g. Epic Chest"></div>
             <div><label for="cpvCrypt">Level / range / event</label><input type="text" id="cpvCrypt" placeholder="e.g. 35 or 20-25"></div>
             <div><label for="cpvPoints">Points</label><input type="number" id="cpvPoints" min="0" step="1"></div>
+            <div><label for="cpvValidFrom" title="The first day of the period from which this row counts; empty = every period">Counts from</label><input type="date" id="cpvValidFrom"></div>
           </div>
           <div style="display:flex;gap:8px;margin-top:10px;">
             <button class="btn" style="margin:0;" onclick="ChestPointValues.submitForm()">💾 Save</button>
@@ -888,8 +895,8 @@
         </div>
         <div id="cpvUnmatched"></div>
         <div style="overflow-x:auto;max-height:55vh;overflow-y:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead><tr><th data-cpv-sort="type" onclick="ChestPointValues.sortBy('type')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">Chest type <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="name" onclick="ChestPointValues.sortBy('name')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">Chest name <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="crypt" onclick="ChestPointValues.sortBy('crypt')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">Level <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="points" onclick="ChestPointValues.sortBy('points')" title="Sort" style="text-align:right;padding:6px 8px;cursor:pointer;user-select:none;width:110px;">Points <span class="cpv-arrow" style="color:#ffb300;"></span></th><th style="width:80px;"></th></tr></thead>
-          <tbody id="cpvBody"><tr><td colspan="5" style="padding:8px;color:#999;">Loading…</td></tr></tbody>
+          <thead><tr><th data-cpv-sort="type" onclick="ChestPointValues.sortBy('type')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">Chest type <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="name" onclick="ChestPointValues.sortBy('name')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">Chest name <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="crypt" onclick="ChestPointValues.sortBy('crypt')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">Level <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="points" onclick="ChestPointValues.sortBy('points')" title="Sort" style="text-align:right;padding:6px 8px;cursor:pointer;user-select:none;width:110px;">Points <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="validFrom" onclick="ChestPointValues.sortBy('validFrom')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">From <span class="cpv-arrow" style="color:#ffb300;"></span></th><th style="width:80px;"></th></tr></thead>
+          <tbody id="cpvBody"><tr><td colspan="6" style="padding:8px;color:#999;">Loading…</td></tr></tbody>
         </table></div>
         <details style="margin-top:12px;text-align:left;"><summary style="cursor:pointer;color:#b0b0b0;font-size:13px;">Recent changes</summary><div id="cpvLog" style="font-size:12px;color:#b0b0b0;padding:6px 4px;"></div></details>
       </div>
@@ -2790,32 +2797,95 @@
     // 🏷️ Chest Point Values: the points per chest (old "Chests 2.0" tab), changed on the
     // database site (getChestPointsTable / updateChestPoints). Saving re-scores the active period.
     window.ChestPointValues = (function () {
-      let state = { rows: [], unmatched: [], log: [], period: null };
+      // Rows: { id, type, name, crypt, points, validFrom, state } — validFrom = the date the
+      // row counts from (a period's start date; '' = from the beginning), state for the
+      // active period: 'active', 'scheduled' (a later period) or 'replaced' (a newer row counts).
+      // Chest name "*" = any chest of that type and level.
+      let state = { rows: [], unmatched: [], log: [], period: null, periods: [], periodDate: '' };
       let edits = {};        // row id → new points (not saved yet)
       let editing = null;    // row being edited in the form (null = adding)
       let sort = { key: null, dir: 1 };  // header click: ascending → descending → list order
+      const ANY = '*';
       const esc = (t) => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
       const attr = (t) => esc(t).replace(/"/g, '&quot;');
       const fmt = (n) => Number(n || 0).toLocaleString();
+      const $ = (id) => document.getElementById(id);
       const post = async (body) => {
         const res = await fetch(window.GAS_WEB_APP_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
         return res.json();
       };
       const status = (msg, ok) => {
-        const el = document.getElementById('cpvStatus');
+        const el = $('cpvStatus');
         el.style.display = msg ? '' : 'none';
         el.className = 'status ' + (ok ? 'ok' : 'err');
         el.textContent = msg || '';
       };
       const when = (at) => (window.cccDateTime ? cccDateTime(at) : at);
-      const rowText = (r) => r ? r.type + ' / ' + r.name + (r.crypt ? ' / ' + r.crypt : '') : '';
+      const nameText = (n) => n === ANY ? 'any chest' : n;
+      const fromText = (d) => d ? 'from ' + d : 'from the beginning';
+      const rowText = (r) => r ? r.type + ' / ' + nameText(r.name) + (r.crypt ? ' / ' + r.crypt : '') : '';
+      const keyOf = (r) => [r.type, r.name, r.crypt].map(v => String(v == null ? '' : v).trim().toLowerCase()).join('|');
+      const addDay = (d) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10); };
+      // The start date of the period after the active one, when its end is known.
+      const nextStart = () => (state.period && state.period.end && state.period.end < '2099' ? addDay(state.period.end) : '');
+
+      // The rows in force on a date (same rule as the database: per chest the row with
+      // the latest "from" date on or before it).
+      function inForceOn(date) {
+        const best = new Map();
+        (state.rows || []).forEach(r => {
+          const from = r.validFrom || '';
+          if (date && from > date) return;
+          const k = keyOf(r), cur = best.get(k);
+          if (!cur || from >= (cur.validFrom || '')) best.set(k, r);
+        });
+        return new Set([...best.values()].map(r => r.id));
+      }
+
+      // "Changes count from": the active period (default), the next one, another date,
+      // an earlier period or the beginning.
+      function fillSelects() {
+        const view = $('cpvView'), from = $('cpvFrom');
+        const keepView = view.value, keepFrom = from.value;
+        const periods = state.periods || [];
+        const pLabel = (p) => p.start + ' – ' + (p.end && p.end < '2099' ? p.end : '…');
+        view.innerHTML = '<option value="now">Values in force now' + (state.period ? ' (active period)' : '') + '</option>'
+          + (nextStart() ? '<option value="' + attr(nextStart()) + '">Next period (from ' + esc(nextStart()) + ')</option>' : '')
+          + periods.filter(p => p.status !== 'active').map(p => '<option value="' + attr(p.start) + '">Period ' + esc(pLabel(p)) + '</option>').join('')
+          + '<option value="all">All rows (every period, earlier and later values)</option>';
+        const active = periods.find(p => p.status === 'active');
+        from.innerHTML = (active ? '<option value="' + attr(active.start) + '">the active period (' + esc(pLabel(active)) + ')</option>' : '')
+          + (nextStart() ? '<option value="' + attr(nextStart()) + '">the next period (' + esc(nextStart()) + ')</option>' : '')
+          + '<option value="date">another date…</option>'
+          + periods.filter(p => p.status !== 'active').map(p => '<option value="' + attr(p.start) + '">the period ' + esc(pLabel(p)) + '</option>').join('')
+          + '<option value="">the beginning (every period)</option>';
+        if ([...view.options].some(o => o.value === keepView)) view.value = keepView;
+        if (keepFrom && [...from.options].some(o => o.value === keepFrom)) from.value = keepFrom;
+        fromChanged();
+      }
+      function fromDate() {
+        const v = $('cpvFrom').value;
+        return v === 'date' ? ($('cpvFromDate').value || '') : v;
+      }
+      function fromChanged() {
+        const other = $('cpvFrom').value === 'date';
+        $('cpvFromDate').style.display = other ? '' : 'none';
+        const d = fromDate();
+        const closed = d && state.periodDate && d < state.periodDate;
+        $('cpvFromNote').textContent = other && !d ? 'Pick the date (normally the first day of a period).'
+          : (closed ? 'Closed periods keep the points they had: this is only the record.' : '');
+      }
+
       const show = (r) => {
         state = r;
         edits = {};
         const last = (r.log || [])[0];
-        document.getElementById('cpvInfo').textContent = (r.rows || []).length + ' chests' +
+        const later = (r.rows || []).filter(x => x.state === 'scheduled').length;
+        $('cpvInfo').textContent = (r.rows || []).filter(x => x.state === 'active').length + ' chests in force' +
           (r.period ? ' · active period ' + r.period.start + ' – ' + (r.period.end || '…') : ' · no active period') +
+          (later ? ' · ' + later + ' value(s) for a later period' : '') +
           (last ? ' · last change ' + when(last.at) + ' by ' + (last.by || '?') : '');
+        fillSelects();
         render();
         renderUnmatched();
         renderLog();
@@ -2827,13 +2897,13 @@
           if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Could not load the chest points');
           show(r);
         } catch (e) {
-          document.getElementById('cpvBody').innerHTML = '';
+          $('cpvBody').innerHTML = '';
           status(e.message, false);
         }
       }
       async function change(changes) {
         status('');
-        const btn = document.getElementById('cpvSaveBtn');
+        const btn = $('cpvSaveBtn');
         btn.disabled = true;
         try {
           let email = '';
@@ -2851,39 +2921,50 @@
       }
       function updateSaveBtn() {
         const n = Object.keys(edits).length;
-        const btn = document.getElementById('cpvSaveBtn');
+        const btn = $('cpvSaveBtn');
         btn.disabled = !n;
         btn.textContent = n ? '💾 Save changes (' + n + ')' : '💾 Save changes';
       }
+      const badge = (r) => r.state === 'scheduled' ? ' <span title="Counts from a later period" style="font-size:0.85em;white-space:nowrap;">⏳ later</span>'
+        : r.state === 'replaced' ? ' <span title="A newer value counts now; kept as the record of earlier periods" style="font-size:0.85em;opacity:0.7;white-space:nowrap;">🗄 earlier</span>' : '';
       function render() {
-        const q = (document.getElementById('cpvSearch').value || '').toLowerCase().trim();
-        const rows = (state.rows || []).filter(r => !q || (r.type + ' ' + r.name + ' ' + r.crypt).toLowerCase().includes(q));
+        const q = ($('cpvSearch').value || '').toLowerCase().trim();
+        const view = $('cpvView').value || 'now';
+        const shown = view === 'all' ? null : inForceOn(view === 'now' ? state.periodDate : view);
+        const rows = (state.rows || []).filter(r => (!shown || shown.has(r.id))
+          && (!q || (r.type + ' ' + nameText(r.name) + ' ' + r.crypt + ' ' + (r.validFrom || '')).toLowerCase().includes(q)));
         if (sort.key) {
           // saved points, so a row doesn't jump away while its points are being typed
           const cmp = sort.key === 'points' ? (a, b) => a.points - b.points
-            : (a, b) => String(a[sort.key]).localeCompare(String(b[sort.key]), undefined, { numeric: true, sensitivity: 'base' });
+            : (a, b) => String(a[sort.key] || '').localeCompare(String(b[sort.key] || ''), undefined, { numeric: true, sensitivity: 'base' });
           rows.sort((a, b) => sort.dir * cmp(a, b) || a.id - b.id);
+        } else if (view === 'all') {
+          // every value of a chest together, oldest first
+          const first = new Map();
+          state.rows.forEach((r, i) => { const k = keyOf(r); if (!first.has(k)) first.set(k, i); });
+          rows.sort((a, b) => first.get(keyOf(a)) - first.get(keyOf(b)) || String(a.validFrom || '').localeCompare(String(b.validFrom || '')));
         }
         document.querySelectorAll('#chestValuesTab [data-cpv-sort]').forEach(th => {
           th.querySelector('.cpv-arrow').textContent = th.dataset.cpvSort === sort.key ? (sort.dir > 0 ? '▲' : '▼') : '';
         });
-        const body = document.getElementById('cpvBody');
+        const body = $('cpvBody');
         if (!rows.length) {
-          body.innerHTML = '<tr><td colspan="5" style="padding:8px;color:#999;">' + ((state.rows || []).length ? 'Nothing matches.' : 'The list is empty.') + '</td></tr>';
+          body.innerHTML = '<tr><td colspan="6" style="padding:8px;opacity:0.7;">' + ((state.rows || []).length ? 'Nothing matches.' : 'The list is empty.') + '</td></tr>';
           updateSaveBtn();
           return;
         }
         body.innerHTML = rows.map(r => {
           const val = Object.prototype.hasOwnProperty.call(edits, r.id) ? edits[r.id] : r.points;
           const dirty = Object.prototype.hasOwnProperty.call(edits, r.id);
-          return '<tr style="border-top:1px solid #444;' + (dirty ? 'background:rgba(255,179,0,0.08);' : '') + '">' +
+          return '<tr style="border-top:1px solid #444;' + (dirty ? 'background:rgba(255,179,0,0.08);' : '') + (r.state === 'replaced' ? 'opacity:0.75;' : '') + '">' +
             '<td style="padding:6px 8px;">' + esc(r.type) + '</td>' +
-            '<td style="padding:6px 8px;">' + esc(r.name) + '</td>' +
+            '<td style="padding:6px 8px;">' + (r.name === ANY ? '<i title="Every chest of this type and level without a row of its own">any chest</i>' : esc(r.name)) + '</td>' +
             '<td style="padding:6px 8px;">' + esc(r.crypt) + '</td>' +
-            '<td style="padding:4px 8px;text-align:right;"><input type="number" min="0" step="1" data-cpv-pts="' + r.id + '" value="' + attr(val) + '" title="Was ' + attr(r.points) + '" style="width:90px;padding:4px 6px;font-size:13px;text-align:right;' + (dirty ? 'border-color:#ffb300;' : '') + '"></td>' +
+            '<td style="padding:4px 8px;text-align:right;"><input type="number" min="0" step="1" data-cpv-pts="' + r.id + '" value="' + attr(val) + '" title="Was ' + attr(r.points) + '" style="width:90px;padding:4px 6px;font-size:0.85em;text-align:right;' + (dirty ? 'border-color:#ffb300;' : '') + '"></td>' +
+            '<td style="padding:6px 8px;white-space:nowrap;">' + (r.validFrom ? esc(r.validFrom) : '<span style="opacity:0.6;">always</span>') + badge(r) + '</td>' +
             '<td style="padding:4px 8px;white-space:nowrap;text-align:right;">' +
-              '<button class="btn btn-secondary" data-cpv-edit="' + r.id + '" style="margin:0;padding:4px 8px;font-size:12px;" title="Change type, name or level">✏️</button> ' +
-              '<button class="btn btn-secondary" data-cpv-del="' + r.id + '" style="margin:0;padding:4px 8px;font-size:12px;" title="Remove this chest">🗑</button></td></tr>';
+              '<button class="btn btn-secondary" data-cpv-edit="' + r.id + '" style="margin:0;padding:4px 8px;font-size:12px;" title="Change type, name, level or date">✏️</button> ' +
+              '<button class="btn btn-secondary" data-cpv-del="' + r.id + '" style="margin:0;padding:4px 8px;font-size:12px;" title="Remove this row">🗑</button></td></tr>';
         }).join('');
         const byId = (id) => state.rows.find(r => r.id === Number(id));
         body.querySelectorAll('[data-cpv-pts]').forEach(input => {
@@ -2899,63 +2980,82 @@
         body.querySelectorAll('[data-cpv-edit]').forEach(b => b.addEventListener('click', () => openForm(byId(b.dataset.cpvEdit))));
         body.querySelectorAll('[data-cpv-del]').forEach(b => b.addEventListener('click', () => {
           const r = byId(b.dataset.cpvDel);
-          if (confirm('Remove "' + rowText(r) + '" (' + fmt(r.points) + ' points)? Its chests in the active period get 0 points.'))
+          const older = state.rows.some(x => x !== r && keyOf(x) === keyOf(r) && (x.validFrom || '') < (r.validFrom || ''));
+          if (confirm('Remove "' + rowText(r) + '" (' + fmt(r.points) + ' points, ' + fromText(r.validFrom) + ')? '
+            + (older ? 'The earlier value of this chest counts again.' : 'Its chests in the active period get 0 points (unless another row matches them).')))
             change([{ op: 'remove', id: r.id, was: r }]);
         }));
         updateSaveBtn();
       }
       function renderUnmatched() {
-        const box = document.getElementById('cpvUnmatched');
+        const box = $('cpvUnmatched');
         const list = state.unmatched || [];
         if (!list.length) { box.innerHTML = ''; return; }
         box.innerHTML = '<div style="margin-bottom:12px;border:1px solid #ff9800;border-radius:8px;padding:10px 12px;text-align:left;">' +
-          '<div style="color:#ff9800;font-size:13px;font-weight:600;margin-bottom:6px;">⚠️ ' + list.length + ' chest kind(s) in the active period have no points yet</div>' +
-          list.map((u, i) => '<div style="display:flex;gap:8px;align-items:center;padding:3px 0;font-size:13px;">' +
-            '<span style="flex:1;">' + esc(u.type) + ' / ' + esc(u.name) + ' / level ' + esc(u.level) + ' <span style="color:#999;">(' + u.count + '×)</span></span>' +
-            '<button class="btn btn-secondary" data-cpv-add="' + i + '" style="margin:0;padding:3px 10px;font-size:12px;">➕ Add</button></div>').join('') +
+          '<div style="color:#ff9800;font-size:0.85em;font-weight:600;margin-bottom:6px;">⚠️ ' + list.length + ' chest kind(s) in the active period have no points yet</div>' +
+          list.map((u, i) => '<div style="display:flex;gap:8px;align-items:center;padding:3px 0;font-size:0.85em;flex-wrap:wrap;">' +
+            '<span style="flex:1;min-width:180px;">' + esc(u.type) + ' / ' + esc(u.name) + ' / level ' + esc(u.level) + ' <span style="opacity:0.7;">(' + u.count + '×)</span></span>' +
+            '<button class="btn btn-secondary" data-cpv-add="' + i + '" style="margin:0;padding:3px 10px;font-size:12px;" title="Points for this chest name only">➕ This chest</button>' +
+            '<button class="btn btn-secondary" data-cpv-any="' + i + '" style="margin:0;padding:3px 10px;font-size:12px;" title="One value for every chest of this type and level">➕ Any chest of this type &amp; level</button></div>').join('') +
           '</div>';
-        box.querySelectorAll('[data-cpv-add]').forEach(b => b.addEventListener('click', () => {
-          const u = list[+b.dataset.cpvAdd];
+        const prefill = (u, any) => {
           // "Level 35 Epic Crypt" → type "Epic Crypt", level 35 (how the list is usually written)
           const m = String(u.type || '').match(/^Level\s+\d+\s+(.+)$/i);
-          openForm(null, { type: m ? m[1] : u.type, name: u.name, crypt: String(u.level || ''), points: '' });
-        }));
+          openForm(null, { type: m ? m[1] : u.type, name: any ? ANY : u.name, crypt: String(u.level || ''), points: '', validFrom: state.periodDate || '' });
+        };
+        box.querySelectorAll('[data-cpv-add]').forEach(b => b.addEventListener('click', () => prefill(list[+b.dataset.cpvAdd], false)));
+        box.querySelectorAll('[data-cpv-any]').forEach(b => b.addEventListener('click', () => prefill(list[+b.dataset.cpvAny], true)));
       }
       function renderLog() {
-        const box = document.getElementById('cpvLog');
+        const box = $('cpvLog');
         const log = state.log || [];
+        const from = (r) => r && r.validFrom ? ' (from ' + esc(r.validFrom) + ')' : '';
         box.innerHTML = log.length ? log.map(l => {
-          const what = l.op === 'add' ? '➕ ' + esc(rowText(l.after)) + ': ' + fmt(l.after.points)
-            : l.op === 'remove' ? '🗑 ' + esc(rowText(l.before)) + ' (' + fmt(l.before.points) + ')'
-            : '✏️ ' + esc(rowText(l.before)) + ': ' + fmt(l.before.points) + ' → ' + (rowText(l.before) !== rowText(l.after) ? esc(rowText(l.after)) + ': ' : '') + fmt(l.after.points);
+          const what = l.op === 'add' ? '➕ ' + esc(rowText(l.after)) + from(l.after) + ': ' + fmt(l.after.points)
+            : l.op === 'remove' ? '🗑 ' + esc(rowText(l.before)) + from(l.before) + ' (' + fmt(l.before.points) + ')'
+            : '✏️ ' + esc(rowText(l.before)) + from(l.before) + ': ' + fmt(l.before.points) + ' → '
+              + (rowText(l.before) !== rowText(l.after) || (l.before.validFrom || '') !== (l.after.validFrom || '') ? esc(rowText(l.after)) + from(l.after) + ': ' : '') + fmt(l.after.points);
           return '<div style="padding:2px 0;">' + esc(when(l.at)) + ' · ' + esc(l.by || '?') + ' · ' + what + '</div>';
         }).join('') : 'No changes made on the site yet.';
       }
+      function anyChanged() {
+        const any = $('cpvAny').checked;
+        const name = $('cpvName');
+        name.disabled = any;
+        if (any) name.value = '';
+        name.placeholder = any ? 'any chest of this type and level' : 'e.g. Epic Chest';
+      }
       function openForm(row, prefill) {
         editing = row || null;
-        const v = row || prefill || { type: '', name: '', crypt: '', points: '' };
-        document.getElementById('cpvFormTitle').textContent = row ? 'Change "' + rowText(row) + '"' : 'Add a chest';
-        document.getElementById('cpvType').value = v.type || '';
-        document.getElementById('cpvName').value = v.name || '';
-        document.getElementById('cpvCrypt').value = v.crypt || '';
-        document.getElementById('cpvPoints').value = v.points === '' || v.points == null ? '' : v.points;
-        const form = document.getElementById('cpvForm');
+        const v = row || prefill || { type: '', name: '', crypt: '', points: '', validFrom: fromDate() };
+        $('cpvFormTitle').textContent = row ? 'Change "' + rowText(row) + '" (' + fromText(row.validFrom) + ')' : 'Add a chest';
+        $('cpvType').value = v.type || '';
+        $('cpvAny').checked = v.name === ANY;
+        $('cpvName').value = v.name === ANY ? '' : (v.name || '');
+        anyChanged();
+        $('cpvCrypt').value = v.crypt || '';
+        $('cpvPoints').value = v.points === '' || v.points == null ? '' : v.points;
+        $('cpvValidFrom').value = v.validFrom || '';
+        const form = $('cpvForm');
         form.style.display = '';
         form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        document.getElementById(row || !prefill ? 'cpvType' : 'cpvPoints').focus();
+        $(row || !prefill ? 'cpvType' : 'cpvPoints').focus();
       }
       function closeForm() {
         editing = null;
-        document.getElementById('cpvForm').style.display = 'none';
+        $('cpvForm').style.display = 'none';
       }
       async function submitForm() {
+        const any = $('cpvAny').checked;
         const row = {
-          type: document.getElementById('cpvType').value.trim(),
-          name: document.getElementById('cpvName').value.trim(),
-          crypt: document.getElementById('cpvCrypt').value.trim(),
-          points: document.getElementById('cpvPoints').value.trim(),
+          type: $('cpvType').value.trim(),
+          name: any ? ANY : $('cpvName').value.trim(),
+          crypt: $('cpvCrypt').value.trim(),
+          points: $('cpvPoints').value.trim(),
+          validFrom: $('cpvValidFrom').value || '',
         };
-        if (!row.type || !row.name || row.points === '') { status('Chest type, chest name and points are needed.', false); return; }
+        if (!row.type || !row.name || row.points === '') { status('Chest type, chest name (or "any chest") and points are needed.', false); return; }
+        if (any && !row.crypt) { status('"Any chest" needs the level (e.g. 15, or 10-14 for a range).', false); return; }
         row.points = Number(row.points);
         const ok = await change([editing ? { op: 'set', id: editing.id, was: editing, ...row } : { op: 'add', ...row }]);
         if (ok) closeForm();
@@ -2966,14 +3066,20 @@
         else sort = { key: null, dir: 1 };
         render();
       }
+      // Typed points count from the date chosen under "Changes count from": a chest's row
+      // for that date is changed, or a new row is added (the older one stays as the record).
       function save() {
+        const from = fromDate();
+        if ($('cpvFrom').value === 'date' && !from) { status('Pick the date the new points count from.', false); return; }
         const changes = Object.keys(edits).map(id => {
           const r = state.rows.find(x => x.id === Number(id));
-          return { op: 'set', id: r.id, points: edits[id], was: r };
+          return { op: 'points', id: r.id, points: edits[id], validFrom: from, was: r };
         });
+        const keys = changes.map(c => keyOf(state.rows.find(x => x.id === c.id)));
+        if (new Set(keys).size !== keys.length) { status('Two rows of the same chest were changed: save them one at a time.', false); return; }
         if (changes.length) change(changes);
       }
-      return { load, render, save, sortBy, openForm: () => openForm(null), closeForm, submitForm };
+      return { load, render, save, sortBy, fromChanged, anyChanged, openForm: () => openForm(null), closeForm, submitForm };
     })();
   </script>
   <script>
