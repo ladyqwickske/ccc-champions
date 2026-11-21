@@ -2874,6 +2874,7 @@
         const closed = d && state.periodDate && d < state.periodDate;
         $('cpvFromNote').textContent = other && !d ? 'Pick the date (normally the first day of a period).'
           : (closed ? 'Closed periods keep the points they had: this is only the record.' : '');
+        if (Object.keys(edits).length) render();
       }
 
       const show = (r) => {
@@ -2927,6 +2928,17 @@
       }
       const badge = (r) => r.state === 'scheduled' ? ' <span title="Counts from a later period" style="font-size:0.85em;white-space:nowrap;">⏳ later</span>'
         : r.state === 'replaced' ? ' <span title="A newer value counts now; kept as the record of earlier periods" style="font-size:0.85em;opacity:0.7;white-space:nowrap;">🗄 earlier</span>' : '';
+      // An edited row: where its new points go when saved (the "Changes count from" date).
+      function pending(r, dirty) {
+        if (!dirty) return '';
+        const from = fromDate();
+        if ($('cpvFrom').value === 'date' && !from) return '<div style="font-size:0.8em;font-weight:600;">→ pick the date above</div>';
+        const target = (state.rows || []).find(x => keyOf(x) === keyOf(r) && (x.validFrom || '') === from);
+        return '<div style="font-size:0.8em;font-weight:600;" title="Set by Changes count from; applied when you save">→ '
+          + (target && target !== r ? 'changes the row from ' + esc(from)
+            : target ? 'changes this row'
+            : 'new row from ' + (from ? esc(from) : 'the beginning') + (r.validFrom || from ? ' (this one is kept)' : '')) + '</div>';
+      }
       function render() {
         const q = ($('cpvSearch').value || '').toLowerCase().trim();
         const view = $('cpvView').value || 'now';
@@ -2961,7 +2973,7 @@
             '<td style="padding:6px 8px;">' + (r.name === ANY ? '<i title="Every chest of this type and level without a row of its own">any chest</i>' : esc(r.name)) + '</td>' +
             '<td style="padding:6px 8px;">' + esc(r.crypt) + '</td>' +
             '<td style="padding:4px 8px;text-align:right;"><input type="number" min="0" step="1" data-cpv-pts="' + r.id + '" value="' + attr(val) + '" title="Was ' + attr(r.points) + '" style="width:90px;padding:4px 6px;font-size:0.85em;text-align:right;' + (dirty ? 'border-color:#ffb300;' : '') + '"></td>' +
-            '<td style="padding:6px 8px;white-space:nowrap;">' + (r.validFrom ? esc(r.validFrom) : '<span style="opacity:0.6;">always</span>') + badge(r) + '</td>' +
+            '<td style="padding:6px 8px;white-space:nowrap;">' + (r.validFrom ? esc(r.validFrom) : '<span style="opacity:0.6;">always</span>') + badge(r) + pending(r, dirty) + '</td>' +
             '<td style="padding:4px 8px;white-space:nowrap;text-align:right;">' +
               '<button class="btn btn-secondary" data-cpv-edit="' + r.id + '" style="margin:0;padding:4px 8px;font-size:12px;" title="Change type, name, level or date">✏️</button> ' +
               '<button class="btn btn-secondary" data-cpv-del="' + r.id + '" style="margin:0;padding:4px 8px;font-size:12px;" title="Remove this row">🗑</button></td></tr>';
