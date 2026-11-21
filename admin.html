@@ -869,7 +869,7 @@
           <input type="text" id="cpvSearch" placeholder="🔍 Search type, chest or level…" style="flex:1;min-width:200px;" oninput="ChestPointValues.render()">
           <button class="btn" id="cpvSaveBtn" style="margin:0;" onclick="ChestPointValues.save()" disabled>💾 Save changes</button>
           <button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.openForm()">➕ Add chest</button>
-          <button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.load()">🔄 Reload</button>
+          <button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.load()">🔄 Reload</button><button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.openExport()" title="The points of a period as plain text, to copy or download for the members">📤 Points overview</button>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
           <label for="cpvView" style="margin:0;font-size:0.85em;white-space:nowrap;">Show</label><select id="cpvView" style="width:auto;margin:0;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;" onchange="ChestPointValues.render()"><option value="now">Values in force now</option></select>
@@ -892,6 +892,21 @@
           <div style="display:flex;gap:8px;margin-top:10px;">
             <button class="btn" style="margin:0;" onclick="ChestPointValues.submitForm()">💾 Save</button>
             <button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.closeForm()">Cancel</button>
+          </div>
+        </div>
+        <div id="cpvExport" style="display:none;margin-bottom:12px;background:rgba(255,255,255,0.04);border:1px solid #333;border-radius:8px;padding:12px 14px;text-align:left;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+            <b style="font-size:0.9em;">📤 Points overview</b>
+            <label for="cpvExpPeriod" style="margin:0;font-size:0.85em;">for</label><select id="cpvExpPeriod" style="width:auto;margin:0;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;" onchange="ChestPointValues.renderExport()"></select>
+            <input type="date" id="cpvExpDate" style="width:auto;margin:0;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;display:none;" onchange="ChestPointValues.renderExport()">
+            <label style="margin:0;font-size:0.85em;display:inline-flex;gap:4px;align-items:center;font-weight:normal;text-transform:none;letter-spacing:0;"><input type="checkbox" id="cpvExpChanges" style="width:auto;margin:0;" checked onchange="ChestPointValues.renderExport()">mark what changed</label>
+          </div>
+          <textarea id="cpvExpText" readonly spellcheck="false" style="width:100%;box-sizing:border-box;min-height:300px;font-family:ui-monospace,Consolas,monospace;font-size:0.85em;line-height:1.4;padding:8px 10px;border-radius:6px;background:#1b1c1d;color:#e0e0e0;border:1px solid #444;"></textarea>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center;">
+            <button class="btn" style="margin:0;" onclick="ChestPointValues.copyExport()">📋 Copy</button>
+            <button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.downloadExport()">⬇ Download .txt</button>
+            <button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.closeExport()">Close</button>
+            <span id="cpvExpNote" style="font-size:0.8em;opacity:0.75;"></span>
           </div>
         </div>
         <div id="cpvUnmatched"></div>
@@ -2889,6 +2904,7 @@
           (last ? ' · last change ' + when(last.at) + ' by ' + (last.by || '?') : '');
         fillSelects();
         render();
+        if ($('cpvExport').style.display !== 'none') openExport();
         renderUnmatched();
         renderLog();
       };
@@ -3161,6 +3177,124 @@
           : editing ? { op: 'set', id: editing.id, was: editing, ...row } : { op: 'add', ...row }]);
         if (ok) closeForm();
       }
+      // 📤 Points overview: the values in force for a period as plain text, grouped by
+      // chest type and sorted by level, to copy or download for the members.
+      const EXPORT_ORDER = ['Epic Crypt', 'Rare Crypt', 'Common Crypt', 'Epic Squad'];
+      const levelNum = (t) => { const m = String(t || '').match(/\d+/); return m ? +m[0] : Infinity; };
+      function exportDate() {
+        const v = $('cpvExpPeriod').value;
+        return v === 'date' ? ($('cpvExpDate').value || '') : v === 'now' ? state.periodDate : v;
+      }
+      function openExport() {
+        const sel = $('cpvExpPeriod'), keep = sel.value;
+        const periods = state.periods || [];
+        const pLabel = (p) => p.start + ' – ' + (p.end && p.end < '2099' ? p.end : '…');
+        sel.innerHTML = (nextStart() ? '<option value="' + attr(nextStart()) + '">the next period (from ' + esc(nextStart()) + ')</option>' : '')
+          + '<option value="now">the active period' + (state.period ? ' (' + esc(state.period.start) + ')' : '') + '</option>'
+          + '<option value="date">another date…</option>'
+          + periods.filter(p => p.status !== 'active').map(p => '<option value="' + attr(p.start) + '">the period ' + esc(pLabel(p)) + '</option>').join('');
+        if (keep && [...sel.options].some(o => o.value === keep)) sel.value = keep;
+        $('cpvExport').style.display = '';
+        renderExport();
+        $('cpvExport').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      function closeExport() { $('cpvExport').style.display = 'none'; }
+      // The points of every chest kind on a date: { group → [{ level, name, points }] }
+      function pointsOn(date) {
+        const ids = inForceOn(date);
+        const out = new Map();
+        (state.rows || []).filter(r => ids.has(r.id) && !r.ended).forEach(r => {
+          const type = bareType(r.type).trim() || r.type;
+          const key = type.toLowerCase() + '|' + String(r.crypt || '').trim().toLowerCase() + '|' + (r.name === ANY ? '*' : r.name.trim().toLowerCase());
+          out.set(key, { type, level: String(r.crypt || '').trim(), name: r.name, points: Number(r.points) || 0 });
+        });
+        return out;
+      }
+      function exportText() {
+        const date = exportDate();
+        if (!date) return 'Pick the date.';
+        const now = pointsOn(date);
+        const marking = $('cpvExpChanges').checked && date !== state.periodDate;
+        const before = marking ? pointsOn(state.periodDate) : null;
+        // by chest type, then by level; on a level, one line when every chest has the same points
+        const types = new Map();
+        now.forEach((v, k) => {
+          if (!v.points) return;
+          const t = types.get(v.type) || types.set(v.type, new Map()).get(v.type);
+          const lv = t.get(v.level.toLowerCase()) || t.set(v.level.toLowerCase(), { level: v.level, chests: [] }).get(v.level.toLowerCase());
+          lv.chests.push({ ...v, key: k });
+        });
+        const sameLevel = (a, b) => a.type.toLowerCase() === b.type.toLowerCase() && a.level.toLowerCase() === b.level.toLowerCase();
+        const was = (c) => {
+          if (!before) return '';
+          const b = before.get(c.key);
+          if (b) return b.points !== c.points ? '  (was ' + fmt(b.points) + ')' : '';
+          // a new any-chest value: what the chests of that level got before
+          const old = c.name === ANY ? [...before.values()].filter(v => sameLevel(v, c) && v.points).map(v => v.points) : [];
+          if (!old.length) return '  (new)';
+          const lo = Math.min.apply(null, old), hi = Math.max.apply(null, old);
+          return lo === hi && lo === c.points ? '' : '  (was ' + fmt(lo) + (lo === hi ? '' : '–' + fmt(hi)) + ')';
+        };
+        const levelText = (type, level) => !level || level.toLowerCase() === type.toLowerCase() ? '' : level;
+        const order = [...types.keys()].sort((a, b) => {
+          const ia = EXPORT_ORDER.indexOf(a), ib = EXPORT_ORDER.indexOf(b);
+          const oa = ia >= 0 ? ia : EXPORT_ORDER.length, ob = ib >= 0 ? ib : EXPORT_ORDER.length;
+          return oa - ob || a.localeCompare(b);
+        });
+        const p = (state.periods || []).find(x => x.start === date);
+        const end = p && p.end && p.end < '2099' ? p.end : '';
+        const head = 'Chest points ' + (date === state.periodDate ? 'for the active period' : date === nextStart() ? 'for the next period' : p ? 'for the period' : 'from ' + date)
+          + (date === state.periodDate || date === nextStart() || p ? ' (' + (end ? date + ' to ' + end : 'from ' + date) + ')' : '');
+        const lines = [head, ''];
+        order.forEach(type => {
+          lines.push(type);
+          const levels = [...types.get(type).values()].sort((a, b) => levelNum(a.level) - levelNum(b.level) || a.level.localeCompare(b.level));
+          levels.forEach(lv => {
+            const lt = levelText(type, lv.level);
+            const any = lv.chests.find(c => c.name === ANY);
+            const own = lv.chests.filter(c => c.name !== ANY).sort((a, b) => a.name.localeCompare(b.name));
+            const allSame = !any && own.length > 1 && own.every(c => c.points === own[0].points);
+            if (allSame && !own.some(c => was(c))) { lines.push('  ' + (lt || 'All chests') + ': ' + fmt(own[0].points)); return; }
+            if (any) lines.push('  ' + (lt || 'All chests') + ': ' + fmt(any.points) + (own.length ? ' (other chests)' : '') + was(any));
+            // one chest on a level with a name for the level: the level says enough
+            own.forEach(c => lines.push('  ' + (lt && own.length === 1 && !any ? lt : (lt ? lt + ' – ' : '') + c.name) + ': ' + fmt(c.points) + was(c)));
+          });
+          lines.push('');
+        });
+        if (before) {
+          // chests with points before and none now (not even an any-chest value of their level)
+          const nowList = [...now.values()].filter(v => v.points);
+          const goneOwn = [...before.entries()].filter(([k, v]) => v.points && !(now.get(k) || {}).points
+            && !nowList.some(n => n.name === ANY && sameLevel(n, v)));
+          if (goneOwn.length) {
+            lines.push('No points any more:');
+            goneOwn.forEach(([, v]) => lines.push('  ' + v.type + ' – ' + (levelText(v.type, v.level) ? v.level + ' – ' : '') + (v.name === ANY ? 'all chests' : v.name) + ' (was ' + fmt(v.points) + ')'));
+            lines.push('');
+          }
+        }
+        if (lines.length <= 2) lines.push('No chest points for this period.');
+        return lines.join('\n').replace(/\n+$/, '\n');
+      }
+      function renderExport() {
+        $('cpvExpDate').style.display = $('cpvExpPeriod').value === 'date' ? '' : 'none';
+        $('cpvExpText').value = exportText();
+        const d = exportDate();
+        $('cpvExpNote').textContent = d && d !== state.periodDate && $('cpvExpChanges').checked ? '(was …) and (new) compare with the active period.' : '';
+      }
+      async function copyExport() {
+        const ta = $('cpvExpText');
+        try { await navigator.clipboard.writeText(ta.value); }
+        catch (e) { ta.select(); document.execCommand('copy'); }
+        $('cpvExpNote').textContent = '✅ Copied.';
+      }
+      function downloadExport() {
+        const blob = new Blob([$('cpvExpText').value], { type: 'text/plain;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'chest-points-' + (exportDate() || 'period') + '.txt';
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      }
       function sortBy(key) {
         if (sort.key !== key) sort = { key: key, dir: 1 };
         else if (sort.dir > 0) sort.dir = -1;
@@ -3180,7 +3314,7 @@
         if (new Set(keys).size !== keys.length) { status('Two rows of the same chest were changed: save them one at a time.', false); return; }
         if (changes.length) change(changes);
       }
-      return { load, render, save, sortBy, fromChanged, anyChanged, typePicked, levelPicked, updateUseAny, openForm: () => openForm(null), closeForm, submitForm };
+      return { load, render, save, sortBy, fromChanged, anyChanged, typePicked, levelPicked, updateUseAny, openExport, closeExport, renderExport, copyExport, downloadExport, openForm: () => openForm(null), closeForm, submitForm };
     })();
   </script>
   <script>
