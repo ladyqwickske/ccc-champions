@@ -882,9 +882,9 @@
         <div id="cpvForm" style="display:none;margin-bottom:12px;background:rgba(255,255,255,0.04);border:1px solid #333;border-radius:8px;padding:12px 14px;">
           <div id="cpvFormTitle" style="font-size:12px;color:#ffb300;font-weight:600;margin-bottom:8px;">Add a chest</div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;align-items:end;">
-            <div><label for="cpvType">Chest type</label><input type="text" id="cpvType" placeholder="e.g. Epic Crypt"></div>
+            <div><label for="cpvType">Chest type</label><select id="cpvTypeSel" onchange="ChestPointValues.typePicked()"></select><input type="text" id="cpvType" placeholder="New chest type, e.g. Epic Crypt" style="display:none;margin-top:4px;"></div>
             <div><label for="cpvName" style="display:flex;justify-content:space-between;gap:6px;">Chest name <span style="font-weight:normal;white-space:nowrap;"><input type="checkbox" id="cpvAny" style="width:auto;margin:0 3px 0 0;vertical-align:middle;" onchange="ChestPointValues.anyChanged()">Any chest</span></label><input type="text" id="cpvName" placeholder="e.g. Epic Chest"></div>
-            <div><label for="cpvCrypt">Level / range / event</label><input type="text" id="cpvCrypt" placeholder="e.g. 35 or 20-25"></div>
+            <div><label for="cpvCrypt">Level / range / event</label><select id="cpvCryptSel" onchange="ChestPointValues.levelPicked()"></select><input type="text" id="cpvCrypt" placeholder="New level, e.g. 35 or 20-25" style="display:none;margin-top:4px;"></div>
             <div><label for="cpvPoints">Points</label><input type="number" id="cpvPoints" min="0" step="1"></div>
             <div><label for="cpvValidFrom" title="The first day of the period from which this row counts; empty = every period">Counts from</label><input type="date" id="cpvValidFrom"></div>
           </div>
@@ -3037,21 +3037,60 @@
         if (any) name.value = '';
         name.placeholder = any ? 'any chest of this type and level' : 'e.g. Epic Chest';
       }
+      // Chest type and level dropdowns: the values in the list (and the unmatched chests),
+      // plus "➕ New…", which shows a text box for a value that isn't there yet.
+      const NEW = '__new__';
+      const uniq = (values) => {
+        const seen = new Map();
+        values.map(v => String(v == null ? '' : v).trim()).filter(Boolean).forEach(v => { if (!seen.has(v.toLowerCase())) seen.set(v.toLowerCase(), v); });
+        return [...seen.values()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+      };
+      const bareType = (t) => { const m = String(t || '').match(/^Level\s+\d+\s+(.+)$/i); return m ? m[1] : String(t || ''); };
+      function fillSelect(sel, input, values, value, placeholder) {
+        const v = String(value == null ? '' : value).trim();
+        const known = values.find(x => x.toLowerCase() === v.toLowerCase());
+        sel.innerHTML = '<option value="">' + placeholder + '</option>'
+          + values.map(x => '<option value="' + attr(x) + '">' + esc(x) + '</option>').join('')
+          + '<option value="' + NEW + '">➕ New…</option>';
+        sel.value = !v ? '' : known ? known : NEW;
+        input.value = known || v;
+        input.style.display = sel.value === NEW ? '' : 'none';
+      }
+      function fillTypes(value) {
+        fillSelect($('cpvTypeSel'), $('cpvType'), uniq([...(state.rows || []).map(r => r.type), ...(state.unmatched || []).map(u => bareType(u.type))]), value, '— choose the chest type —');
+      }
+      function fillLevels(value) {
+        const t = $('cpvType').value.trim().toLowerCase();
+        const rows = (state.rows || []).filter(r => !t || r.type.toLowerCase() === t);
+        const extra = (state.unmatched || []).filter(u => !t || bareType(u.type).toLowerCase() === t).map(u => String(u.level || ''));
+        fillSelect($('cpvCryptSel'), $('cpvCrypt'), uniq([...rows.map(r => r.crypt), ...extra]), value, '— choose the level —');
+      }
+      function typePicked() {
+        const sel = $('cpvTypeSel'), input = $('cpvType');
+        input.style.display = sel.value === NEW ? '' : 'none';
+        if (sel.value === NEW) { input.value = ''; input.focus(); } else input.value = sel.value;
+        fillLevels($('cpvCrypt').value);
+      }
+      function levelPicked() {
+        const sel = $('cpvCryptSel'), input = $('cpvCrypt');
+        input.style.display = sel.value === NEW ? '' : 'none';
+        if (sel.value === NEW) { input.value = ''; input.focus(); } else input.value = sel.value;
+      }
       function openForm(row, prefill) {
         editing = row || null;
         const v = row || prefill || { type: '', name: '', crypt: '', points: '', validFrom: fromDate() };
         $('cpvFormTitle').textContent = row ? 'Change "' + rowText(row) + '" (' + fromText(row.validFrom) + ')' : 'Add a chest';
-        $('cpvType').value = v.type || '';
+        fillTypes(v.type || '');
         $('cpvAny').checked = v.name === ANY;
         $('cpvName').value = v.name === ANY ? '' : (v.name || '');
         anyChanged();
-        $('cpvCrypt').value = v.crypt || '';
+        fillLevels(v.crypt || '');
         $('cpvPoints').value = v.points === '' || v.points == null ? '' : v.points;
         $('cpvValidFrom').value = v.validFrom || '';
         const form = $('cpvForm');
         form.style.display = '';
         form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        $(row || !prefill ? 'cpvType' : 'cpvPoints').focus();
+        $(row || !prefill ? 'cpvTypeSel' : 'cpvPoints').focus();
       }
       function closeForm() {
         editing = null;
@@ -3091,7 +3130,7 @@
         if (new Set(keys).size !== keys.length) { status('Two rows of the same chest were changed: save them one at a time.', false); return; }
         if (changes.length) change(changes);
       }
-      return { load, render, save, sortBy, fromChanged, anyChanged, openForm: () => openForm(null), closeForm, submitForm };
+      return { load, render, save, sortBy, fromChanged, anyChanged, typePicked, levelPicked, openForm: () => openForm(null), closeForm, submitForm };
     })();
   </script>
   <script>
