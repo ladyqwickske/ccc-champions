@@ -403,6 +403,11 @@
       }
       .hamburger { display: none; }
     }
+    /* Q's TB Tools: small link icon in the top bar */
+    nav.tab-nav a.tbt-link { padding: 0; border: none; margin: 0; }
+    .tbt-link { display: inline-flex; align-items: center; flex: none; opacity: 0.85; transition: opacity 0.15s, transform 0.15s; }
+    .tbt-link:hover { opacity: 1; transform: scale(1.08); }
+    .tbt-link img { width: 28px; height: 28px; border-radius: 6px; display: block; }
   </style>
 </head>
 <body>
@@ -574,6 +579,7 @@
         </a>
       </div>
       <div class="login-bar">
+        <a class="tbt-link" href="https://tb-tools.ccc-hq.com/?from=anatolia" target="_blank" rel="noopener" title="Q's Total Battle Tools: more Total Battle tools by Q, who also built this site"><img src="tb-tools.png" alt="Q's TB Tools"></a>
         <span class="user-email" id="userEmail" style="display:none"></span>
         <button id="loginBtn" onclick="handleLogin()">🔑 Login</button>
         <button id="logoutBtn" class="logout-btn" style="display:none" onclick="handleLogout()">Logout</button>
