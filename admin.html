@@ -909,6 +909,7 @@
             <span id="cpvExpNote" style="font-size:0.8em;opacity:0.75;"></span>
           </div>
         </div>
+        <div id="cpvLater"></div>
         <div id="cpvUnmatched"></div>
         <div style="overflow-x:auto;max-height:55vh;overflow-y:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;">
           <thead><tr><th data-cpv-sort="type" onclick="ChestPointValues.sortBy('type')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">Chest type <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="name" onclick="ChestPointValues.sortBy('name')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">Chest name <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="crypt" onclick="ChestPointValues.sortBy('crypt')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">Level <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="points" onclick="ChestPointValues.sortBy('points')" title="Sort" style="text-align:right;padding:6px 8px;cursor:pointer;user-select:none;width:110px;">Points <span class="cpv-arrow" style="color:#ffb300;"></span></th><th data-cpv-sort="validFrom" onclick="ChestPointValues.sortBy('validFrom')" title="Sort" style="text-align:left;padding:6px 8px;cursor:pointer;user-select:none;">From <span class="cpv-arrow" style="color:#ffb300;"></span></th><th style="width:80px;"></th></tr></thead>
@@ -2888,8 +2889,15 @@
         $('cpvFromDate').style.display = other ? '' : 'none';
         const d = fromDate();
         const closed = d && state.periodDate && d < state.periodDate;
+        // a period starts at 17:00 UTC the day before its date: just after that, "the next
+        // period" is easily taken for the one that has just started
+        const now = new Date(), today = now.toISOString().slice(0, 10);
+        const yesterday = new Date(now.getTime() - 86400000).toISOString().slice(0, 10);
+        const fresh = state.period && state.periodDate && state.periodDate >= yesterday && state.periodDate <= addDay(today);
         $('cpvFromNote').textContent = other && !d ? 'Pick the date (normally the first day of a period).'
-          : (closed ? 'Closed periods keep the points they had: this is only the record.' : '');
+          : closed ? 'Closed periods keep the points they had: this is only the record.'
+          : fresh && d && d === nextStart() ? '⚠️ The period of ' + state.periodDate + ' has already started (periods change at 17:00 UTC): "the next period" is the one from ' + d + '. For the period that just started, choose the active period.'
+          : '';
         if (Object.keys(edits).length) render();
       }
 
@@ -2905,6 +2913,7 @@
         fillSelects();
         render();
         if ($('cpvExport').style.display !== 'none') openExport();
+        renderLater();
         renderUnmatched();
         renderLog();
       };
@@ -3015,6 +3024,28 @@
             change([{ op: 'remove', id: r.id, was: r }]);
         }));
         updateSaveBtn();
+      }
+      // Values waiting for a later period, per date, with a button to let them count from
+      // the active period instead (e.g. saved for "the next period" just after the
+      // 17:00 UTC period change, when the period meant had already started).
+      function renderLater() {
+        const box = $('cpvLater');
+        const dates = {};
+        (state.rows || []).filter(r => r.state === 'scheduled' && r.validFrom).forEach(r => { dates[r.validFrom] = (dates[r.validFrom] || 0) + 1; });
+        const list = Object.keys(dates).sort();
+        if (!list.length || !state.period) { box.innerHTML = ''; return; }
+        const start = state.periodDate;
+        box.innerHTML = '<div style="margin-bottom:12px;border:1px solid #ffb300;background:rgba(255,179,0,0.08);border-radius:8px;padding:10px 12px;text-align:left;font-size:0.85em;">'
+          + list.map(d => '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:2px 0;">'
+            + '<span style="flex:1;min-width:220px;">⏳ <b>' + dates[d] + ' value' + (dates[d] === 1 ? '' : 's') + '</b> count' + (dates[d] === 1 ? 's' : '') + ' from <b>' + esc(d) + '</b>'
+            + (d === nextStart() ? ' (the period after the active one)' : '') + '. Meant for the active period?</span>'
+            + '<button class="btn btn-secondary" data-cpv-move="' + attr(d) + '" style="margin:0;padding:4px 10px;font-size:12px;">Make them count from the active period (' + esc(start) + ')</button></div>').join('')
+          + '</div>';
+        box.querySelectorAll('[data-cpv-move]').forEach(b => b.addEventListener('click', () => {
+          const d = b.dataset.cpvMove;
+          if (confirm('Let the ' + dates[d] + ' value(s) from ' + d + ' count from the active period (' + start + ') instead? The chests of the active period are scored again with them.'))
+            change([{ op: 'moveDate', from: d, to: start }]);
+        }));
       }
       function renderUnmatched() {
         const box = $('cpvUnmatched');
