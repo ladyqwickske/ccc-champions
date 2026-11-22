@@ -2843,8 +2843,16 @@
       const rowText = (r) => r ? r.type + ' / ' + nameText(r.name) + (r.crypt ? ' / ' + r.crypt : '') : '';
       const keyOf = (r) => [r.type, r.name, r.crypt].map(v => String(v == null ? '' : v).trim().toLowerCase()).join('|');
       const addDay = (d) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + 1); return x.toISOString().slice(0, 10); };
-      // The start date of the period after the active one, when its end is known.
-      const nextStart = () => (state.period && state.period.end && state.period.end < '2099' ? addDay(state.period.end) : '');
+      // The start date of the period after the active one, when its end is known. Some
+      // clans' periods share their boundary date (17–22, then 22–27: the end date is the
+      // next start), others end the day before (16–21, then 22–27): the previous period
+      // tells which. Without one, the day after the end.
+      const nextStart = () => {
+        const p = state.period;
+        if (!p || !p.end || p.end >= '2099') return '';
+        const prev = (state.periods || []).filter(x => x.start < p.start).sort((a, b) => b.start.localeCompare(a.start))[0];
+        return prev && prev.end === p.start ? p.end : addDay(p.end);
+      };
 
       // The rows in force on a date (same rule as the database: per chest the row with
       // the latest "from" date on or before it).
