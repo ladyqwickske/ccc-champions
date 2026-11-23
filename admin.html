@@ -869,7 +869,7 @@
           <input type="text" id="cpvSearch" placeholder="🔍 Search type, chest or level…" style="flex:1;min-width:200px;" oninput="ChestPointValues.render()">
           <button class="btn" id="cpvSaveBtn" style="margin:0;" onclick="ChestPointValues.save()" disabled>💾 Save changes</button>
           <button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.openForm()">➕ Add chest</button>
-          <button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.load()">🔄 Reload</button><button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.openExport()" title="The points of a period as plain text, to copy or download for the members">📤 Points overview</button>
+          <button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.load()">🔄 Reload</button><button class="btn btn-secondary" style="margin:0;" onclick="ChestPointValues.openExport()" title="The points of a period as plain text, to copy or download for the members">📤 Points overview</button><button class="btn btn-secondary" id="cpvRescoreBtn" style="margin:0;" onclick="ChestPointValues.rescore()" title="Score every chest of the active period again with the list as it is now (the list itself does not change)">♻️ Re-score active period</button>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
           <label for="cpvView" style="margin:0;font-size:0.85em;white-space:nowrap;">Show</label><select id="cpvView" style="width:auto;margin:0;padding:6px 8px;border:1px solid #444;border-radius:6px;background:#232526;color:#e0e0e0;" onchange="ChestPointValues.render()"><option value="now">Values in force now</option></select>
@@ -2954,6 +2954,24 @@
           return false;
         }
       }
+      // ♻️ Score the active period's chests again with the list as it is now.
+      async function rescore() {
+        if (!state.period) { status('There is no active period.', false); return; }
+        if (!confirm('Score every chest of the active period (' + state.period.start + ') again with the chest points as they are now? The list itself does not change.')) return;
+        status('');
+        const btn = $('cpvRescoreBtn');
+        btn.disabled = true;
+        try {
+          const r = await post({ action: 'rescoreChestPoints' });
+          if (!r || !r.success) throw new Error((r && (r.message || r.error)) || 'Re-scoring failed');
+          show(r);
+          status(r.message, true);
+        } catch (e) {
+          status(e.message, false);
+        } finally {
+          btn.disabled = false;
+        }
+      }
       function updateSaveBtn() {
         const n = Object.keys(edits).length;
         const btn = $('cpvSaveBtn');
@@ -3353,7 +3371,7 @@
         if (new Set(keys).size !== keys.length) { status('Two rows of the same chest were changed: save them one at a time.', false); return; }
         if (changes.length) change(changes);
       }
-      return { load, render, save, sortBy, fromChanged, anyChanged, typePicked, levelPicked, updateUseAny, openExport, closeExport, renderExport, copyExport, downloadExport, openForm: () => openForm(null), closeForm, submitForm };
+      return { load, render, save, rescore, sortBy, fromChanged, anyChanged, typePicked, levelPicked, updateUseAny, openExport, closeExport, renderExport, copyExport, downloadExport, openForm: () => openForm(null), closeForm, submitForm };
     })();
   </script>
   <script>
