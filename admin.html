@@ -734,6 +734,7 @@
         <div class="note" style="margin-bottom:12px;">Normally the chesttracker starts the new period at the reset. If that failed (you got a "starting the new period FAILED" e-mail), start it here, or finish a period change that is still pending: targets, warnings and the period e-mail. The database also tries again by itself every hour, and starts a period 6 hours after it ended. Only the owners can see this tab.</div>
         <div id="pdActive" style="text-align:left;margin-bottom:8px;">Loading…</div>
         <button class="btn" id="pdStart" style="margin:0 8px 0 0;" onclick="PeriodAdmin.start()" disabled>▶️ Start the new period</button>
+        <button class="btn" id="pdTargets" style="margin:0 8px 0 0;" onclick="PeriodAdmin.recalcTargets()" title="Work out again the targets the last period change carried into the active period (shortfalls and surpluses), on the active period's target as it is now: after its target was changed">🎯 Recalculate carried targets</button>
         <button class="btn btn-secondary" style="margin:0;" onclick="PeriodAdmin.load()">🔄 Reload</button>
         <div id="pdStatus" class="status" style="display:none;"></div>
         <h4 style="margin:14px 0 6px 0;color:#ffb300;text-align:left;">Period changes</h4>
@@ -2033,6 +2034,7 @@
             : ' — runs until the reset (17:00 UTC) on ' + esc(a.end || '?') + '.')
           : 'No active period in the database.';
         $('pdStart').disabled = busy || !data.ended;
+        $('pdTargets').disabled = busy || !data.active;
         const list = data.closings || [];
         $('pdChanges').innerHTML = list.length ? list.map((c, i) =>
           '<div style="padding:6px 0;border-top:1px solid rgba(128,128,128,0.35);display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
@@ -2077,6 +2079,14 @@
         }
         busy = false; render();
       }
+      // The targets the last period change carried into the active period (shortfalls, surpluses) worked
+      // out again on its target as it is now. Events → edit does this itself when the active period's
+      // target changes; this is for a target changed before that.
+      function recalcTargets() {
+        if (!data || !data.active) return;
+        if (confirm('Recalculate the targets carried into the active period ' + data.active.start + ' – ' + (data.active.end || '?') + ' (shortfalls of underperformers, lowered targets from surpluses) on its target as it is now? Custom targets of other members stay; no warnings or e-mails are sent.'))
+          act({ action: 'recalculatePeriodTargets' });
+      }
       function start() {
         if (!data || !data.ended) return;
         if (confirm('Start the new period now? This closes ' + data.active.start + ' – ' + data.active.end + ', starts the next one, works out the targets and warnings and sends the period e-mail — the same as the chesttracker does at the reset. It can take a few minutes.'))
@@ -2088,7 +2098,7 @@
         if (!btn) return;
         post({ action: 'getPeriodStatus' }).then(r => { if (r && r.success) btn.style.display = ''; }).catch(() => {});
       }
-      return { load, start, checkAccess };
+      return { load, start, recalcTargets, checkAccess };
     })();
 
     // 🛰️ Game Data Names (owner only): Player names in the game data → member names for the game data imports
